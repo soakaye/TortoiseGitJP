@@ -1,3 +1,5 @@
+Japanese Enhance
+
 TortoiseGit - The coolest Interface to Git Version Control
 ==========================================================
 
