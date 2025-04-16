@@ -1,5 +1,6 @@
 ﻿// TortoiseMerge - a Diff/Patch program
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2013, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -36,8 +37,8 @@ public:
 
 	void			SetIniFile(CSimpleIni * pIni) { m_pIni = pIni; }
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 	afx_msg void OnBnClickedAdd();
 	afx_msg void OnBnClickedEdit();
 	afx_msg void OnBnClickedRemove();
@@ -49,5 +50,5 @@ protected:
 	void		SetupListControl();
 private:
 	CListCtrl		m_RegexList;
-	CSimpleIni *	m_pIni;
+	CSimpleIni*		m_pIni = nullptr;
 };

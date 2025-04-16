@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2022 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -33,14 +34,14 @@
 
 CRecordProfileEvent::CRecordProfileEvent (CProfilingRecord* aRecord)
 	: record (aRecord)
-	, start (__rdtsc())
+	, start(ReadTimeStampCounter())
 {
 }
 
 CRecordProfileEvent::~CRecordProfileEvent()
 {
 	if (record)
-		record->Add (__rdtsc() - start);
+		record->Add(ReadTimeStampCounter() - start);
 }
 
 #endif
@@ -98,13 +99,13 @@ CProfilingInfo::CProfilingInfo()
 {
 }
 
-CProfilingInfo::~CProfilingInfo(void)
+CProfilingInfo::~CProfilingInfo()
 {
 	if (!records.empty())
 	{
 		// write profile to file
 
-		TCHAR buffer [MAX_PATH] = {0};
+		wchar_t buffer [MAX_PATH] = { 0 };
 		if (GetModuleFileNameEx(GetCurrentProcess(), nullptr, buffer, _countof(buffer)) > 0)
 			try
 			{

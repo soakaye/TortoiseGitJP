@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009, 2011, 2014, 2017, 2019 - TortoiseGit
+// Copyright (C) 2009, 2011, 2014, 2017, 2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2011, 2014, 2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,13 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "SmartHandle.h"
 
 struct TGITCacheResponse;
 class CTGitPath;
-
-#include "GitStatus.h"
 
 /**
  * \ingroup TortoiseShell
@@ -32,8 +31,8 @@ class CTGitPath;
 class CRemoteCacheLink
 {
 public:
-	CRemoteCacheLink(void);
-	~CRemoteCacheLink(void);
+	CRemoteCacheLink();
+	~CRemoteCacheLink();
 
 public:
 	bool GetStatusFromRemoteCache(const CTGitPath& Path, TGITCacheResponse* pReturnedStatus, bool bRecursive);
@@ -54,12 +53,12 @@ private:
 
 private:
 	CAutoFile m_hPipe;
-	OVERLAPPED m_Overlapped;
+	OVERLAPPED m_Overlapped{};
 	CAutoGeneralHandle m_hEvent;
 
 	CAutoFile m_hCommandPipe;
 
 
 	CComAutoCriticalSection m_critSec;
-	LONGLONG m_lastTimeout;
+	LONGLONG m_lastTimeout = 0;
 };

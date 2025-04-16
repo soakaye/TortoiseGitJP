@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2003-2010, 2020 - TortoiseSVN
-// Copyright (C) 2015-2016, 2020 - TortoiseGit
+// Copyright (C) 2003-2010, 2020-2023 - TortoiseSVN
+// Copyright (C) 2015-2016, 2020, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -19,6 +19,7 @@
 //
 #pragma once
 #include <string>
+#include <vector>
 
 #ifdef UNICODE
 #define wcswildcmp wcswildcmp
@@ -52,11 +53,12 @@
 int strwildcmp(const char * wild, const char * string);
 int wcswildcmp(const wchar_t * wild, const wchar_t * string);
 
-template <typename Container>
-void stringtok(Container& container, const std::wstring& in, bool trim, const wchar_t* const delimiters = L"|", bool append = false)
+// append = true as the default: a default value should never lose data!
+template <typename Container, typename CHARTYPE, typename TRAIT>
+void stringtok(Container& container, const std::basic_string<CHARTYPE, TRAIT>& in, bool trim, const CHARTYPE* const delimiters, bool append = true)
 {
-	const std::string::size_type len = in.length();
-	std::string::size_type i = 0;
+	const auto len = in.length();
+	decltype(in.length()) i = 0;
 	if (!append)
 		container.clear();
 
@@ -66,56 +68,37 @@ void stringtok(Container& container, const std::wstring& in, bool trim, const wc
 		{
 			// eat leading whitespace
 			i = in.find_first_not_of(delimiters, i);
-			if (i == std::string::npos)
+			if (i == std::basic_string<CHARTYPE, TRAIT>::npos)
 				return; // nothing left but white space
 		}
 
 		// find the end of the token
-		std::string::size_type j = in.find_first_of(delimiters, i);
+		const auto j = in.find_first_of(delimiters, i);
 
 		// push token
-		if (j == std::string::npos)
+		if (j == std::basic_string<CHARTYPE, TRAIT>::npos)
 		{
-			container.push_back(in.substr(i));
+			if constexpr (std::is_same_v<typename Container::value_type, std::basic_string<CHARTYPE, TRAIT>>)
+				container.push_back(in.substr(i));
+			else if constexpr (std::is_same_v<CHARTYPE, wchar_t>)
+				container.push_back(static_cast<typename Container::value_type>(_wtoi64(in.substr(i).c_str())));
+			else if constexpr (std::is_same_v<CHARTYPE, char>)
+				container.push_back(static_cast<typename Container::value_type>(_atoi64(in.substr(i).c_str())));
+			else
+				static_assert(false);
 			return;
 		}
 		else
-			container.push_back(in.substr(i, j - i));
-
-		// set up for next loop
-		i = j + 1;
-	}
-}
-
-template <typename Container>
-void stringtok(Container& container, const std::string& in, bool trim, const char* const delimiters = "|", bool append = false)
-{
-	const std::string::size_type len = in.length();
-	std::string::size_type i = 0;
-	if (!append)
-		container.clear();
-
-	while (i < len)
-	{
-		if (trim)
 		{
-			// eat leading whitespace
-			i = in.find_first_not_of(delimiters, i);
-			if (i == std::string::npos)
-				return; // nothing left but white space
+			if constexpr (std::is_same_v<typename Container::value_type, std::basic_string<CHARTYPE, TRAIT>>)
+				container.push_back(in.substr(i, j - i));
+			else if constexpr (std::is_same_v<CHARTYPE, wchar_t>)
+				container.push_back(static_cast<typename Container::value_type>(_wtoi64(in.substr(i, j - i).c_str())));
+			else if constexpr (std::is_same_v<CHARTYPE, char>)
+				container.push_back(static_cast<typename Container::value_type>(_atoi64(in.substr(i, j - i).c_str())));
+			else
+				static_assert(false);
 		}
-
-		// find the end of the token
-		std::string::size_type j = in.find_first_of(delimiters, i);
-
-		// push token
-		if (j == std::string::npos)
-		{
-			container.push_back(in.substr(i));
-			return;
-		}
-		else
-			container.push_back(in.substr(i, j - i));
 
 		// set up for next loop
 		i = j + 1;
@@ -130,7 +113,7 @@ class CStringUtils
 {
 public:
 	CStringUtils() = delete;
-#ifdef _MFC_VER
+#if defined(CSTRING_AVAILABLE) || defined(_MFC_VER)
 
 	/**
 	 * Removes all '&' chars from a string.
@@ -140,8 +123,17 @@ public:
 	/**
 	 * Returns the accellerator used in the string or \0
 	 */
-	static TCHAR GetAccellerator(const CString& text);
+	static wchar_t GetAccellerator(const CString& text);
 
+	/**
+	 * Escapes all '&' chars from a string with another '&'.
+	 */
+	static CString EscapeAccellerators(CString& text);
+
+	static CString EnsureCRLF(const CString& text);
+#endif
+
+#ifdef _MFC_VER
 	/**
 	 * Writes an ASCII CString to the clipboard in CF_TEXT format
 	 */
@@ -167,6 +159,13 @@ public:
 	static BOOL WildCardMatch(const CString& wildcard, const CString& string);
 	static CString LinesWrap(const CString& longstring, int limit = 80, bool bCompactPaths = false);
 	static CString WordWrap(const CString& longstring, int limit, bool bCompactPaths, bool bForceWrap, int tabSize);
+	static std::vector<CString> WordWrap(const CString& longstring, int limit, int tabSize);
+	/**
+	 * Unescapes Git quoted filenames
+	 * This is not a full implementation of the unescaper as we skip some conversions that will result in invalid filenames.
+	 */
+	static CString UnescapeGitQuotePath(const CString& s);
+	static CString UnescapeGitQuotePathA(const CStringA& s);
 	/**
 	 * Find and return the number n of starting characters equal between
 	 * \ref lhs and \ref rhs. (max n: lhs.Left(n) == rhs.Left(n))
@@ -184,7 +183,7 @@ public:
 
 	static bool StartsWith(const wchar_t* heystack, const CString& needle);
 	static bool StartsWithI(const wchar_t* heystack, const CString& needle);
-	static bool WriteStringToTextFile(LPCTSTR path, LPCTSTR text, bool bUTF8 = true);
+	static bool WriteStringToTextFile(LPCWSTR path, LPCWSTR text, bool bUTF8 = true);
 	static bool EndsWith(const CString& heystack, const wchar_t* needle);
 	static bool EndsWith(const CString& heystack, const wchar_t needle);
 	static bool EndsWithI(const CString& heystack, const wchar_t* needle);
@@ -202,7 +201,10 @@ public:
 	 * Replace all pipe (|) character in the string with a nullptr character. Used
 	 * for passing into Win32 functions that require such representation
 	 */
-	static void PipesToNulls(TCHAR* buffer, size_t length);
-	static void PipesToNulls(TCHAR* buffer);
+	static void PipesToNulls(wchar_t* buffer, size_t length);
+	static void PipesToNulls(wchar_t* buffer);
+
+	static bool TrimRight(std::string_view& view);
+	static bool TrimRight(std::wstring_view& view);
 };
 

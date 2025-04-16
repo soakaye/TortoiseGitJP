@@ -1,11 +1,12 @@
 # Translation of TortoiseGit
-# Copyright (C) 2008-2021 the TortoiseGit team
+# Copyright (C) 2008-2024 the TortoiseGit team
 # 
 # This file is distributed under the same license as TortoiseGit
 # 
 # Translators:
 # Anh Phan <vietnamesel10n@gmail.com>, 2013
 # Anh Phan <vietnamesel10n@gmail.com>, 2013-2014
+# ducdat0507 <ducdat0507@gmail.com>, 2021
 # Lübbe  <luebbe.tortoisesvn@googlemail.com>, 2012
 # Anh Phan <vietnamesel10n@gmail.com>, 2013
 # Anh Phan <vietnamesel10n@gmail.com>, 2013
@@ -15,9 +16,9 @@ msgstr ""
 "Project-Id-Version: TortoiseGit\n"
 "Report-Msgid-Bugs-To: https://tortoisegit.org/issues\n"
 "POT-Creation-Date: 1900-01-01 00:00+0000\n"
-"PO-Revision-Date: 2021-02-26 18:18+0000\n"
-"Last-Translator: Sven Strickroth <sstrickroth@googlemail.com>\n"
-"Language-Team: Vietnamese (http://www.transifex.com/lznuaa/tortoisegit/language/vi/)\n"
+"PO-Revision-Date: 2011-11-27 06:19+0000\n"
+"Last-Translator: ducdat0507 <ducdat0507@gmail.com>, 2021\n"
+"Language-Team: Vietnamese (http://app.transifex.com/lznuaa/tortoisegit/language/vi/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -74,7 +75,7 @@ msgstr "%1 có định dạng xấu."
 #. Resource IDs: (AFX_IDP_FILE_NOT_FOUND)
 #, c-format
 msgid "%1 was not found."
-msgstr "Không tìm thấy %1 ."
+msgstr "Không tìm thấy %1."
 
 #. Resource IDs: (IDS_DAY_AGO)
 #, c-format
@@ -144,7 +145,7 @@ msgstr "%1!d! Năm trước"
 #. Resource IDs: (IDS_PROC_SYNC_COMMITSAHEAD)
 #, c-format
 msgid "%1!d! commits ahead \"%2!s!\""
-msgstr ""
+msgstr "%1!d! giao thác phía trước \"%2!s!\""
 
 #. Resource IDs: (IDS_STATUSLIST_FILESREVERTED)
 #, c-format
@@ -195,7 +196,7 @@ msgstr ""
 #. Resource IDs: (IDS_GITVER_REQUIRED)
 #, c-format
 msgid "%1!s! requires Git >= %2!s!"
-msgstr ""
+msgstr "%1!s! yêu cầu Git >= %2!s!"
 
 #. Resource IDs: (IDS_SVN_PROGRESS_TOTALANDSPEED)
 #, c-format
@@ -249,7 +250,7 @@ msgstr "%I64d KiB được truyền tải"
 #. Resource IDs: (AFX_IDS_AUTOSAVE_RECOVERED)
 #, c-format
 msgid "%Ts [Recovered]"
-msgstr "%Ts [Phục hồi]"
+msgstr "%Ts [Đã phục hồi]"
 
 #. Resource IDs: (AFX_IDS_EMBED_FORMAT, AFX_IDS_LINKSOURCE_FORMAT)
 #, c-format
@@ -335,7 +336,7 @@ msgid "&About TortoiseGitMerge..."
 msgstr "&Thông tin về TortoiseGitMerge..."
 
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 1382, Dialog
-#. IDD_REBASE: Control id 1382)
+#. IDD_REBASE: Control id 1382, Dialog IDD_WORKTREE_LIST: Control id 1382)
 msgid "&Add"
 msgstr "&Thêm"
 
@@ -364,7 +365,7 @@ msgstr "&Nâng cao..."
 
 #. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1701)
 msgid "&All"
-msgstr "&Tất Cả"
+msgstr "&Tất cả"
 
 #. Resource IDs: (Dialog IDD_LOGMESSAGE: Control id 3936)
 msgid "&All Branches"
@@ -408,7 +409,8 @@ msgstr "&Đường viền:"
 
 #. Resource IDs: (Dialog IDD_EXPORT: Control id 1512, Dialog IDD_GITSWITCH:
 #. Control id 1512, Dialog IDD_MERGE: Control id 1512, Dialog
-#. IDD_NEW_BRANCH_TAG: Control id 1512, Dialog IDD_RESET: Control id 1512)
+#. IDD_NEW_BRANCH_TAG: Control id 1512, Dialog IDD_RESET: Control id 1512,
+#. Dialog IDD_WORKTREE_CREATE: Control id 1512)
 msgid "&Branch"
 msgstr "&Nhánh"
 
@@ -418,7 +420,7 @@ msgstr "&Nhánh:"
 
 #. Resource IDs: (IDS_LOG_BROWSEREPO)
 msgid "&Browse repository"
-msgstr "&Duyệt Kho Chứa"
+msgstr "&Duyệt kho chứa"
 
 #. Resource IDs: (Dialog IDD_CLONE: Control id 1382, Dialog IDD_OPENDLG:
 #. Control id 1001, Dialog IDD_OPENDLG: Control id 1009, IDS_PROC_CLONE_DIR)
@@ -432,6 +434,10 @@ msgstr "&CD-ROM"
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 2)
 msgid "&Cancel"
 msgstr "&Hủy"
+
+#. Resource IDs: (Dialog IDD_WORKTREE_CREATE: Control id 1858)
+msgid "&Checkout"
+msgstr ""
 
 #. Resource IDs: (IDS_MENUCLEANUP)
 msgid "&Clean up..."
@@ -454,7 +460,8 @@ msgstr "&Đóng lại"
 #. Resource IDs: (Dialog IDD_EXPORT: Control id 1514, Dialog IDD_GITSWITCH:
 #. Control id 1514, Dialog IDD_MERGE: Control id 1514, Dialog
 #. IDD_NEW_BRANCH_TAG: Control id 1514, Dialog IDD_RESET: Control id 1514,
-#. Dialog IDD_SYNC: Control id 1625)
+#. Dialog IDD_SYNC: Control id 1625, Dialog IDD_WORKTREE_CREATE: Control id
+#. 1514)
 msgid "&Commit"
 msgstr "&Đệ trình"
 
@@ -485,7 +492,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_MSGBOX_CONTINUE)
 msgid "&Continue"
-msgstr ""
+msgstr "Tiếp tụ&c"
 
 #. Resource IDs: (Dialog IDD_SETTINGSBUGTRAQ: Control id 1471, Dialog
 #. IDD_SETTINGSHOOKS: Control id 1367, IDS_EDIT_COPY, ID_EDIT_COPY - Menu)
@@ -507,7 +514,7 @@ msgstr "&Tùy biến"
 
 #. Resource IDs: (ID_VIEW_DARKMODE - Menu)
 msgid "&Dark Mode"
-msgstr ""
+msgstr "Chế độ &tối"
 
 #. Resource IDs: (ID_VIEW_DARKMODE - Menu)
 msgid "&Dark Mode\tD"
@@ -536,6 +543,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_DELETE_BRANCHTAG)
 msgid "&Delete branch/tag"
+msgstr "&Xóa nhánh/nhãn"
+
+#. Resource IDs: (Dialog IDD_WORKTREE_CREATE: Control id 1857)
+msgid "&Detach"
 msgstr ""
 
 #. Resource IDs: (65535 - PopupMenu)
@@ -569,10 +580,6 @@ msgstr "&Bỏ qua"
 #. Resource IDs: (IDS_DO_SAME_FOR_REST)
 msgid "&Do the same for the rest"
 msgstr "&Làm tương tự cho phần còn lại"
-
-#. Resource IDs: (Dialog IDD_CHECKFORUPDATES: Control id 1032)
-msgid "&Don't ask me again"
-msgstr ""
 
 #. Resource IDs: (IDS_HOOKS_APPROVE_TASK4)
 msgid ""
@@ -638,7 +645,7 @@ msgstr "&Email:"
 #. Resource IDs: (Dialog IDD_SETTINGSBUGTRAQADV: Control id 1023, Dialog
 #. IDD_SETTINGSHOOKCONFIG: Control id 1023)
 msgid "&Enable"
-msgstr ""
+msgstr "Kích hoạt"
 
 #. Resource IDs: (Dialog IDD_SETTINGSPROXY: Control id 1023)
 msgid "&Enable Proxy Server"
@@ -709,9 +716,10 @@ msgstr "&Phông chữ cho các thông điệp tường trình:"
 msgid "&Font:"
 msgstr "&Phông chữ:"
 
-#. Resource IDs: (Dialog IDD_NEW_BRANCH_TAG: Control id 1521, Dialog
-#. IDD_SUBMODULE_ADD: Control id 1480, Dialog IDD_SUBMODULE_UPDATE: Control id
-#. 1480, Dialog IDD_SYNC: Control id 1521)
+#. Resource IDs: (Dialog IDD_LFS_LOCKS: Control id 1480, Dialog
+#. IDD_NEW_BRANCH_TAG: Control id 1521, Dialog IDD_SUBMODULE_ADD: Control id
+#. 1480, Dialog IDD_SUBMODULE_UPDATE: Control id 1480, Dialog IDD_SYNC:
+#. Control id 1521, Dialog IDD_WORKTREE_CREATE: Control id 1521)
 msgid "&Force"
 msgstr "&Bắt buộc"
 
@@ -729,11 +737,11 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_FIRSTSTARTWIZARD_AUTHENTICATION: Control id 1844)
 msgid "&Generate PuTTY  key pair"
-msgstr ""
+msgstr "&Tạo cặp khóa PuTTY"
 
 #. Resource IDs: (65535 - PopupMenu)
 msgid "&Git"
-msgstr ""
+msgstr "&Git"
 
 #. Resource IDs: (Dialog IDD_SVNDCOMMITTYPE: Control id 2153)
 msgid "&Git Style Commit (--rmdir)"
@@ -742,18 +750,19 @@ msgstr "&Mẫu đệ trình Git (--rmdir)"
 #. Resource IDs: (Dialog IDD_FIRSTSTARTWIZARD_GIT: Control id 65535, Dialog
 #. IDD_SETTINGSMAIN: Control id 65535)
 msgid "&Git.exe Path:"
-msgstr ""
+msgstr "Đường dẫn &Git.exe:"
 
 #. Resource IDs: (ID_EDIT_GOTO - Menu)
 msgid "&Go to\tCtrl+G"
-msgstr ""
+msgstr "Đ&i tới\tCtrl+G"
 
 #. Resource IDs: (IDS_SHOWFILES_GRAYPATHS)
 msgid "&Gray Unrelated Changed Paths"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_EXPORT: Control id 1511, Dialog
-#. IDD_NEW_BRANCH_TAG: Control id 1511)
+#. IDD_NEW_BRANCH_TAG: Control id 1511, Dialog IDD_WORKTREE_CREATE: Control id
+#. 1511)
 msgid "&HEAD"
 msgstr "&HEAD"
 
@@ -785,7 +794,7 @@ msgstr "&Bộ biểu tượng:"
 
 #. Resource IDs: (IDS_IGNOREBUTTON, IDS_MSGBOX_IGNORE)
 msgid "&Ignore"
-msgstr ""
+msgstr "&Bỏ qua"
 
 #. Resource IDs: (IDS_MENUIGNOREMULTIPLE)
 #, c-format
@@ -798,7 +807,7 @@ msgstr ""
 
 #. Resource IDs: (ID_VIEW_IGNORE_WHITESPACE - Menu)
 msgid "&Ignore whitespace"
-msgstr ""
+msgstr "&Bỏ qua khoảng trắng"
 
 #. Resource IDs: (ID_VIEW_IMAGEINFO - Menu)
 msgid "&Image info\tI"
@@ -814,7 +823,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROC_INSTALL)
 msgid "&Install"
-msgstr ""
+msgstr "Cài đặt"
 
 #. Resource IDs: (Dialog IDD_SETMAINPAGE: Control id 1016)
 msgid "&Jump to first difference when loading"
@@ -847,7 +856,7 @@ msgstr "&Tìm kiếm giới hạn trong các dòng bị thay đổi"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS3: Control id 65535)
 msgid "&Limit:"
-msgstr "&Giới hạn"
+msgstr "&Giới hạn:"
 
 #. Resource IDs: (Dialog IDD_GOTO: Control id 1078)
 msgid "&Line number"
@@ -877,6 +886,10 @@ msgstr ""
 #. Resource IDs: (Dialog IDD_PUSH: Control id 1504)
 msgid "&Local:"
 msgstr "&Nội bộ:"
+
+#. Resource IDs: (Dialog IDD_WORKTREE_CREATE: Control id 1515)
+msgid "&Location"
+msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETMAINPAGE: Control id 65535)
 msgid "&Max line length for inline diffs"
@@ -952,7 +965,7 @@ msgstr "&Trang tiếp theo"
 
 #. Resource IDs: (IDS_MSGBOX_NO)
 msgid "&No"
-msgstr ""
+msgstr "&Không"
 
 #. Resource IDs: (Dialog IDD_SUBMODULE_UPDATE: Control id 1734)
 msgid "&No fetch"
@@ -989,7 +1002,7 @@ msgstr ""
 
 #. Resource IDs: (ID_FILE_OPEN - Menu)
 msgid "&Open...\tCtrl+O"
-msgstr ""
+msgstr "&Mở...\tCtrl+O"
 
 #. Resource IDs: (Dialog IDD_SETTINGSBUGTRAQADV: Control id 1382)
 msgid "&Options"
@@ -1005,7 +1018,7 @@ msgstr "&Ảnh nạp chồng\tO"
 
 #. Resource IDs: (Dialog IDD_GITSWITCH: Control id 1523)
 msgid "&Override branch if exists"
-msgstr ""
+msgstr "&Ghi đè nhánh nếu tồn tại"
 
 #. Resource IDs: (Dialog IDD_SETTINGSPROXY: Control id 1411, Dialog
 #. IDD_SIMPLEPROMPT: Control id 65535, Dialog IDD_USER_PASSWD: Control id
@@ -1048,9 +1061,13 @@ msgid ""
 "Ignore the hook script and run the command anyway."
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_WORKTREE_LIST: Control id 1383)
+msgid "&Prune"
+msgstr ""
+
 #. Resource IDs: (IDS_PROC_SYNC_PULL)
 msgid "&Pull"
-msgstr ""
+msgstr "Ké&o"
 
 #. Resource IDs: (IDS_MENUPULL)
 msgid "&Pull..."
@@ -1062,7 +1079,7 @@ msgstr "&Đẩy tất cả nhánh"
 
 #. Resource IDs: (IDS_COMMIT_RECOMMIT, IDS_PROC_COMMIT_RECOMMIT)
 msgid "&ReCommit"
-msgstr ""
+msgstr "Giao thác &lại"
 
 #. Resource IDs: (IDS_REBASEBUTTON)
 msgid "&Rebase"
@@ -1126,7 +1143,7 @@ msgstr "&Duyệt Kho Chứa"
 
 #. Resource IDs: (Dialog IDD_REVGRAPHFILTER: Control id 1355)
 msgid "&Reset filter"
-msgstr ""
+msgstr "Đặ&t lại bộ lọc"
 
 #. Resource IDs: (IDS_RESOLVEDBUTTON)
 msgid "&Resolved"
@@ -1142,7 +1159,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_MSGBOX_RETRY)
 msgid "&Retry"
-msgstr ""
+msgstr "&Thử lại"
 
 #. Resource IDs: (IDS_LOG_POPUP_REVERTREV)
 msgid "&Revert change by this commit"
@@ -1186,11 +1203,11 @@ msgstr "&Lưu\tCtrl+S"
 
 #. Resource IDs: (Dialog IDD_REFLOG: Control id 1687)
 msgid "&Search..."
-msgstr ""
+msgstr "&Tìm..."
 
 #. Resource IDs: (IDS_PROC_SETMSYSGITPATH)
 msgid "&Set Git path"
-msgstr ""
+msgstr "&Đặt đường dẫn Git"
 
 #. Resource IDs: (Dialog IDD_PUSH: Control id 1486)
 msgid "&Set upstream/track remote branch"
@@ -1210,7 +1227,7 @@ msgstr "&Gán chỉ mục khóa:"
 
 #. Resource IDs: (IDS_SKIPBUTTON)
 msgid "&Skip"
-msgstr ""
+msgstr "&Bỏ qua"
 
 #. Resource IDs: (Dialog IDD_RESET: Control id 1550)
 msgid "&Soft: Leave working tree and index untouched"
@@ -1224,6 +1241,10 @@ msgstr "&Nén chặt"
 #. Resource IDs: (IDS_PROC_REBASE_SELECTALL_SQUASH)
 msgid "&Squash ALL"
 msgstr "&Nén chặt tất cả"
+
+#. Resource IDs: (65535 - PopupMenu)
+msgid "&Staging"
+msgstr ""
 
 #. Resource IDs: (Dialog IDD_REQUESTPULL: Control id 1616)
 msgid "&Start"
@@ -1259,7 +1280,8 @@ msgstr "&Kích cỡ thanh Tab:"
 
 #. Resource IDs: (Dialog IDD_EXPORT: Control id 1513, Dialog IDD_GITSWITCH:
 #. Control id 1513, Dialog IDD_MERGE: Control id 1513, Dialog
-#. IDD_NEW_BRANCH_TAG: Control id 1513, Dialog IDD_RESET: Control id 1513)
+#. IDD_NEW_BRANCH_TAG: Control id 1513, Dialog IDD_RESET: Control id 1513,
+#. Dialog IDD_WORKTREE_CREATE: Control id 1513)
 msgid "&Tag"
 msgstr ""
 
@@ -1329,6 +1351,10 @@ msgstr "&Ổ đĩa không nhận ra"
 msgid "&Unlock"
 msgstr ""
 
+#. Resource IDs: (65535 - PopupMenu)
+msgid "&Unstaging"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 1386)
 msgid "&Up"
 msgstr "&Lên"
@@ -1378,19 +1404,19 @@ msgstr ""
 
 #. Resource IDs: (IDS_MSGBOX_YES)
 msgid "&Yes"
-msgstr ""
+msgstr "&Có"
 
 #. Resource IDs: (Dialog IDD_REBASE: Control id 1682)
 msgid "&add \"cherry picked from\""
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_PUSH: Control id 1480)
+msgid "&force"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 1657)
 msgid "&ignore space change"
 msgstr "&bỏ qua sự thay đổi trên khoảng trắng"
-
-#. Resource IDs: (Dialog IDD_PUSH: Control id 1498)
-msgid "&known changes"
-msgstr ""
 
 #. Resource IDs: (IDS_TORTOISEGITDEFAULT)
 msgid "(TortoiseGit default)"
@@ -1399,7 +1425,7 @@ msgstr ""
 #. Resource IDs: (IDS_STATUSLIST_FROM)
 #, c-format
 msgid "(from %s)"
-msgstr ""
+msgstr "(từ %s)"
 
 #. Resource IDs: (IDS_STATUSLIST_UNASSIGNED_CHANGESET)
 msgid "(no changelist)"
@@ -1462,7 +1488,8 @@ msgstr "--&all"
 #. IDD_SETTINREMOTE: Control id 1483, Dialog IDD_SUBMODULE_ADD: Control id
 #. 1384, Dialog IDD_SUBMODULE_ADD: Control id 1583, Dialog IDD_SUBMODULE_ADD:
 #. Control id 1584, Dialog IDD_SYNC: Control id 1382, Dialog IDD_SYNC: Control
-#. id 1383, Dialog IDD_TOOLASSOC: Control id 1104)
+#. id 1383, Dialog IDD_TOOLASSOC: Control id 1104, Dialog IDD_WORKTREE_CREATE:
+#. Control id 1382, Dialog IDD_WORKTREE_CREATE: Control id 1483)
 msgid "..."
 msgstr "..."
 
@@ -1488,7 +1515,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_FINDBAR: Control id 1020)
 msgid "< &Previous"
-msgstr ""
+msgstr "< &Trước"
 
 #. Resource IDs: (Dialog IDD_SETTINGIT_CONFIG: Control id 65535, Dialog
 #. IDD_SETTINGSBUGTRAQ_CONFIG: Control id 65535, Dialog IDD_SETTINGSDIALOGS3:
@@ -1498,31 +1525,31 @@ msgstr "<<"
 
 #. Resource IDs: (IDS_PROC_LOG_ALLBRANCHES)
 msgid "<All Branches>"
-msgstr ""
+msgstr "<All Branches>"
 
 #. Resource IDs: (IDS_PROC_AUTOGENERATEDBYGIT)
 msgid "<Auto Generated by Git>"
-msgstr ""
+msgstr "<Auto Generated by Git>"
 
 #. Resource IDs: (IDS_PROC_LOG_BASIC_REFS)
 msgid "<Basic Refs>"
-msgstr ""
+msgstr "<Basic Refs>"
 
 #. Resource IDs: (IDS_PROC_LOG_LOCAL_BRANCHES)
 msgid "<Local Branches>"
-msgstr ""
+msgstr "<Local Branches>"
 
 #. Resource IDs: (IDS_PROC_LOG_NOBRANCH)
 msgid "<No branch>"
-msgstr ""
+msgstr "<No branch>"
 
 #. Resource IDs: (IDS_STATUSLIST_CONTEXT_CREATECS)
 msgid "<new changelist>"
-msgstr "<danh sách thay đổi mới>"
+msgstr "<new changelist>"
 
 #. Resource IDs: (ID_VIEW_TOOLBAR - Menu)
 msgid "<placeholder>"
-msgstr ""
+msgstr "<placeholder>"
 
 #. Resource IDs: (ID_ABOUT - Menu)
 msgid "?"
@@ -1596,7 +1623,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENUABOUT)
 msgid "A&bout"
-msgstr "D&ịch bởi Phan Anh"
+msgstr "&Giới thiệu"
 
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 1)
 msgid "A&pply"
@@ -1645,7 +1672,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_CERTCHECK: Control id 1)
 msgid "Accept certificate"
-msgstr ""
+msgstr "Chấp nhận chứng chỉ"
 
 #. Resource IDs: (AFX_IDP_FILE_ACCESS_DENIED)
 #, c-format
@@ -1769,7 +1796,7 @@ msgstr "Điều chỉnh thiết lập\nCác thiết lập"
 
 #. Resource IDs: (Dialog IDD_SETTINGS_CONFIG: Control id 340, IDS_ADVANCED)
 msgid "Advanced"
-msgstr "Cao cấp"
+msgstr "Nâng cao"
 
 #. Resource IDs: (Dialog IDD_SETTINGSPROGSADV: Control id 170)
 msgid "Advanced Diff/Merge Settings"
@@ -1935,7 +1962,7 @@ msgstr ""
 
 #. Resource IDs: (ID_FILE_APPLYPATCH - Menu)
 msgid "Apply &Patch..."
-msgstr ""
+msgstr "Á&p dụng bản vá…"
 
 #. Resource IDs: (IDS_MENUIMPORTPATCH)
 msgid "Apply Patch Serial..."
@@ -1943,7 +1970,7 @@ msgstr "Áp dụng mã số vá..."
 
 #. Resource IDs: (IDS_MENU_APPLY, IDS_OPENDIFFFILETITLE)
 msgid "Apply Patch..."
-msgstr "Áp dụng vá..."
+msgstr "Áp dụng bản vá..."
 
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 311)
 msgid "Apply Patches"
@@ -2086,7 +2113,7 @@ msgstr "Tác giả"
 
 #. Resource IDs: (IDS_PROC_LOG_AUTHOREMAIL)
 msgid "Author Email"
-msgstr ""
+msgstr "Email tác giả"
 
 #. Resource IDs: (IDS_LOG_POPUP_CLIPBOARD_AUTHORSEMAIL)
 msgid "Author email addresses"
@@ -2118,7 +2145,7 @@ msgstr "Tự động chuyển đổi CrLf"
 
 #. Resource IDs: (Dialog IDD_SETTINGIT_CONFIG: Control id 65535)
 msgid "Auto&CrLf:"
-msgstr ""
+msgstr "Tự động &CrLf:"
 
 #. Resource IDs: (IDS_PROGRS_CLOSE_NOCONFLICTS)
 msgid "Auto-close if no conflicts"
@@ -2144,7 +2171,7 @@ msgstr "Tự động điền đủ cho những từ gợi ý (thường là lớ
 
 #. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
 msgid "AutoCrLf:"
-msgstr ""
+msgstr "Tự động CrLf:"
 
 #. Resource IDs: (Dialog IDD_PULLFETCH: Control id 1505)
 msgid "AutoLoad Putty &Key"
@@ -2186,14 +2213,15 @@ msgstr ""
 
 #. Resource IDs: (IDS_STATGRAPH_BARBUTTON_TT)
 msgid "Bar Graph"
-msgstr "Biểu đồ thanh"
+msgstr "Biểu đồ cột"
 
 #. Resource IDs: (Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 1385,
 #. IDS_PROC_DIFF_BASE)
 msgid "Base"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_NEW_BRANCH_TAG: Control id 1522)
+#. Resource IDs: (Dialog IDD_NEW_BRANCH_TAG: Control id 1522, Dialog
+#. IDD_WORKTREE_CREATE: Control id 1522)
 msgid "Base On"
 msgstr "Dựa trên"
 
@@ -2207,7 +2235,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROPERTIES_BASICINFO)
 msgid "Basic Info"
-msgstr ""
+msgstr "Thông tin cơ bản"
 
 #. Resource IDs: (Dialog IDD_SETTINGSTBLAME: Control id 65535)
 msgid "Between files:"
@@ -2298,7 +2326,7 @@ msgstr "&Duyệt..."
 
 #. Resource IDs: (Dialog IDD_CLONE: Control id 1510)
 msgid "Branc&h:"
-msgstr ""
+msgstr "Nhán&h:"
 
 #. Resource IDs: (Dialog IDD_CLONE: Control id 1527, Dialog IDD_LOGMESSAGE:
 #. Control id 1579, Dialog IDD_SUBMODULE_ADD: Control id 1586,
@@ -2312,7 +2340,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_BRANCHNAME)
 msgid "Branch Name"
-msgstr ""
+msgstr "Tên nhánh"
 
 #. Resource IDs: (IDS_REV_COUNTER)
 msgid "Branch RevNo"
@@ -2337,9 +2365,10 @@ msgstr "Tên Nhánh/Thẻ đánh dấu không được để trống hoặc ph�
 msgid "Branch:"
 msgstr "Nhánh:"
 
-#. Resource IDs: (Dialog IDD_CLONE: Control id 1383)
+#. Resource IDs: (Dialog IDD_CLONE: Control id 1383, Dialog
+#. IDD_WORKTREE_CREATE: Control id 1384)
 msgid "Bro&wse..."
-msgstr ""
+msgstr "&Duyệt..."
 
 #. Resource IDs: (IDS_MENUREFBROWSE)
 msgid "Browse References"
@@ -2399,7 +2428,7 @@ msgstr ""
 
 #. Resource IDs: (cmdCopy_Keytip_RESID)
 msgid "C"
-msgstr ""
+msgstr "C"
 
 #. Resource IDs: (Dialog IDD_FIRSTSTARTWIZARD_GIT: Control id 1216, Dialog
 #. IDD_SETTINGSMAIN: Control id 1215, Dialog IDD_SETTINGSMAIN: Control id
@@ -2409,11 +2438,11 @@ msgstr "&Kiểm tra ngay"
 
 #. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1, IDS_COMMIT_COMMIT)
 msgid "C&ommit"
-msgstr ""
+msgstr "Gia&o thác"
 
 #. Resource IDs: (IDS_LOG_POPUP_COMMIT)
 msgid "C&ommit..."
-msgstr ""
+msgstr "Gia&o thác..."
 
 #. Resource IDs: (IDS_LOG_POPUP_COPY)
 msgid "C&reate branch/tag from revision"
@@ -2433,7 +2462,7 @@ msgstr "CC:"
 
 #. Resource IDs: (Dialog IDD_STATGRAPH: Control id 1741)
 msgid "Calculate"
-msgstr ""
+msgstr "Tính toán"
 
 #. Resource IDs: (IDS_ERR_GITCALLFAILED)
 #, c-format
@@ -2455,7 +2484,7 @@ msgid ""
 "%1!s!\n"
 "to\n"
 "%2!s!"
-msgstr ""
+msgstr "Không thể sao chép\n%1!s!\nđến\n%2!s!"
 
 #. Resource IDs: (Dialog AFX_IDD_NEWTYPEDLG: Control id 2, Dialog
 #. AFX_IDD_PRINTDLG: Control id 2, Dialog IDD_ADD: Control id 2, Dialog
@@ -2487,8 +2516,8 @@ msgstr ""
 #. Dialog IDD_SUBMODULE_UPDATE: Control id 2, Dialog IDD_SVNDCOMMITTYPE:
 #. Control id 2, Dialog IDD_SVNIGNORE: Control id 2, Dialog IDD_SVNPROGRESS:
 #. Control id 2, Dialog IDD_TOOLASSOC: Control id 2, Dialog IDD_URL: Control
-#. id 2, Dialog IDD_USER_PASSWD: Control id 2, IDS_MSGBOX_CANCEL,
-#. IDS_PROC_OVERWRITEEXPORT_CANCEL)
+#. id 2, Dialog IDD_USER_PASSWD: Control id 2, Dialog IDD_WORKTREE_CREATE:
+#. Control id 2, IDS_MSGBOX_CANCEL, IDS_PROC_OVERWRITEEXPORT_CANCEL)
 msgid "Cancel"
 msgstr "Hủy"
 
@@ -2496,7 +2525,7 @@ msgstr "Hủy"
 msgid ""
 "Cancel\n"
 "Don't quit TortoiseGitMerge"
-msgstr ""
+msgstr "Hủy bỏ\nĐừng thoát TortoiseGitMerge"
 
 #. Resource IDs: (IDS_ASKFORSAVE_TASK8)
 msgid ""
@@ -2567,7 +2596,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_CHECKFORUPDATES: Control id 1697)
 msgid "Change log"
-msgstr ""
+msgstr "Nhật ký thay đổi"
 
 #. Resource IDs: (57606)
 msgid ""
@@ -2634,8 +2663,8 @@ msgid "Changelist %s moved"
 msgstr "Danh sách thay đổi %s được di dời"
 
 #. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1242)
-msgid "Changes made (double-click on file for diff):"
-msgstr "Những thay đổi được thực hiện (nháy kép trên tập tin để xem khác biệt):"
+msgid "Changes made (F5: refresh, double-click on file for diff):"
+msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS3: Control id 65535)
 msgid "Char position where to show a border line in commit text boxes:"
@@ -2647,7 +2676,7 @@ msgstr "Kiểm tra"
 
 #. Resource IDs: (Dialog IDD_CHECKFORUPDATES: Control id 174)
 msgid "Check For Updates - TortoiseGit"
-msgstr ""
+msgstr "Kiểm tra cập nhật - TortoiseGit"
 
 #. Resource IDs: (Dialog IDD_ABOUT: Control id 1031)
 msgid "Check For Updates..."
@@ -2731,7 +2760,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_CHOOSE_REPOSITORY)
 msgid "Choose Repository"
-msgstr ""
+msgstr "Chọn kho chứa"
 
 #. Resource IDs: (IDS_LOG_CHRONOLOGICALREVERSEDORDER)
 msgid "Chronological reversed (git default)"
@@ -2739,7 +2768,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_CLEAN: Control id 4572)
 msgid "Clean"
-msgstr ""
+msgstr "Dọn dẹp"
 
 #. Resource IDs: (Dialog IDD_CLEAN: Control id 1630)
 msgid "Clean Type"
@@ -2786,7 +2815,7 @@ msgstr "Dọn dẹp đã thành công khi xử lý các đường dẫn sau:\n%s
 #. Control id 1427, Dialog IDD_SETTINGSSAVEDDATA: Control id 1726, Dialog
 #. IDD_SETTINGSSAVEDDATA: Control id 1727)
 msgid "Clear"
-msgstr "Dọn dẹp"
+msgstr "Xóa"
 
 #. Resource IDs: (IDS_SETTINGS_SAVEDDATA_URLHIST_TT)
 #, c-format
@@ -2853,15 +2882,15 @@ msgstr "Bảng kẹp tạm"
 
 #. Resource IDs: (IDS_PROGRS_TITLE_CLONE, IDS_PROG_CLONE)
 msgid "Clone"
-msgstr ""
+msgstr "Nhân bản"
 
 #. Resource IDs: (Dialog IDD_CLONE: Control id 1572)
 msgid "Clone Existing Repository"
-msgstr "Nhân bản từ phần tài nguyên hiện tại"
+msgstr "Nhân bản kho chứa sẵn có"
 
 #. Resource IDs: (IDS_MENUDESCCLONE)
 msgid "Clone a repository"
-msgstr ""
+msgstr "Nhân bản một kho chứa"
 
 #. Resource IDs: (Dialog IDD_CLONE: Control id 1653)
 msgid "Clone into Bare Repo"
@@ -2882,7 +2911,7 @@ msgstr "Đóng"
 
 #. Resource IDs: (IDS_PROGRS_CLOSE_MANUAL)
 msgid "Close manually"
-msgstr "Đóng bằng tay"
+msgstr "Đóng thủ công"
 
 #. Resource IDs: (AFX_IDS_PREVIEW_CLOSE)
 msgid ""
@@ -2904,6 +2933,10 @@ msgstr "Đóng cửa sổ đang hoạt động và hiện yêu cầu lưu các t
 msgid "Collapse"
 msgstr "Thu gọn"
 
+#. Resource IDs: (IDS_LOG_POPUP_COLLAPSE)
+msgid "Collapse revisions"
+msgstr ""
+
 #. Resource IDs: (cmdViewCollapsed)
 msgid ""
 "Collapse unchanged sections\n"
@@ -2922,15 +2955,15 @@ msgstr "Các màu"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_1: Control id 315)
 msgid "Colors 1"
-msgstr ""
+msgstr "Màu 1"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_2: Control id 212)
 msgid "Colors 2"
-msgstr ""
+msgstr "Màu 2"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_3: Control id 316)
 msgid "Colors 3"
-msgstr ""
+msgstr "Màu 3"
 
 #. Resource IDs: (IDS_INDICATOR_COLUMN)
 #, c-format
@@ -2939,7 +2972,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_COMBINE_TO_ONE)
 msgid "Com&bine to one commit"
-msgstr ""
+msgstr "Gộp lại thành một giao thác"
 
 #. Resource IDs: (Dialog IDD_SENDMAIL: Control id 1481)
 msgid "Combine One Mail"
@@ -2966,29 +2999,29 @@ msgstr "Lệnh thất bại"
 #. 1083, Dialog IDD_SETTINGSDIALOGS3: Control id 65535, IDS_COMMITBUTTON,
 #. IDS_PROGRS_CMD_COMMIT, IDS_PROGRS_TITLE_COMMIT)
 msgid "Commit"
-msgstr "Cam kết"
+msgstr "Giao thác"
 
 #. Resource IDs: (IDS_REPOBROWSEASKSUBMODULEUPDATE)
 #, c-format
 msgid "Commit %1!s! not found in \"%2!s!\". Update submodule now?"
-msgstr ""
+msgstr "Giao thác %1!s! không tìm thấy trong \"%2!s!\". Cập nhật mô-đun phụ bây giờ?"
 
 #. Resource IDs: (IDS_LOG_NOT_VISIBLE)
 #, c-format
 msgid "Commit %s is NOT visible right now."
-msgstr ""
+msgstr "Giao thác %s đang không được hiển thị bây giờ."
 
 #. Resource IDs: (IDS_COMMIT_COMMITPUSH)
 msgid "Commit && &Push"
-msgstr ""
+msgstr "Giao thác && Đẩ&y"
 
 #. Resource IDs: (IDS_LOG_COMMIT_DATE)
 msgid "Commit Date"
-msgstr ""
+msgstr "Ngày giao thác"
 
 #. Resource IDs: (IDS_LOG_COMMIT_EMAIL)
 msgid "Commit Email"
-msgstr ""
+msgstr "Email giao thác"
 
 #. Resource IDs: (IDS_COMMIT_FINISH)
 msgid "Commit Finish"
@@ -2996,56 +3029,56 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROPERTIES_WND)
 msgid "Commit Info"
-msgstr ""
+msgstr "Thông tin giao thác"
 
 #. Resource IDs: (IDS_PROC_COMMITMESSAGE)
 msgid "Commit Message"
-msgstr ""
+msgstr "Thông điệp giao thác"
 
 #. Resource IDs: (IDS_LOG_COMMIT_NAME)
 msgid "Commit Name"
-msgstr ""
+msgstr "Tên giao thác"
 
 #. Resource IDs: (Dialog IDD_LOGORDERING: Control id 1750)
 msgid "Commit Ordering:"
-msgstr ""
+msgstr "Thứ tự giao thác:"
 
 #. Resource IDs: (IDS_PROC_COMMIT_SUPERPROJECT)
 msgid "Commit super project"
-msgstr ""
+msgstr "Giao thác siêu dự án"
 
 #. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1110)
 msgid "Commit to:"
-msgstr "Cam kết tới:"
+msgstr "Giao thác tới:"
 
 #. Resource IDs: (IDS_STATUSLIST_CONTEXT_COMMIT)
 msgid "Commit..."
-msgstr "Cam kết..."
+msgstr "Giao thác..."
 
 #. Resource IDs: (IDS_STATGRAPH_COMMITSBYAUTHOR)
 msgid "Commits by author"
-msgstr "Các cam kết bởi tác giả"
+msgstr "Các giao thác bởi tác giả"
 
 #. Resource IDs: (IDS_STATGRAPH_COMMITSBYDATE)
 msgid "Commits by date"
-msgstr "Các cam kết theo ngày"
+msgstr "Các giao thác theo ngày"
 
 #. Resource IDs: (IDS_STATGRAPH_COMMITSBYUNIT)
 #, c-format
 msgid "Commits each %s"
-msgstr "Các cam kết mỗi %s"
+msgstr "Các giao thác mỗi %s"
 
 #. Resource IDs: (Dialog IDD_STATGRAPH: Control id 1135)
 msgid "Commits each week:"
-msgstr "Các cam kết mỗi tuần:"
+msgstr "Các giao thác mỗi tuần:"
 
 #. Resource IDs: (IDS_MENUDESCCOMMIT)
 msgid "Commits your changes to the repository"
-msgstr "Cam kết những thay đổi của bạn vào kho chứa"
+msgstr "Giao thác những thay đổi của bạn vào kho chứa"
 
 #. Resource IDs: (IDS_PROC_LOG_COMMITTEREMAIL)
 msgid "Committer Email"
-msgstr ""
+msgstr "Email người giao thác"
 
 #. Resource IDs: (IDS_COMMITDLG_UNVERSIONEDFOLDERWARNING)
 msgid ""
@@ -3057,7 +3090,7 @@ msgstr "Cam kết một thư mục chưa được tạo phiên bản sẽ không
 
 #. Resource IDs: (Dialog IDD_CERTCHECK: Control id 65535)
 msgid "Common Name:"
-msgstr ""
+msgstr "Tên thông thường:"
 
 #. Resource IDs: (IDS_LOG_POPUP_COMPARECHANGESET)
 msgid "Comp&are change sets"
@@ -3066,7 +3099,7 @@ msgstr ""
 #. Resource IDs: (IDS_REVGRAPH_POPUP_COMPAREHEADS,
 #. ID_VIEW_COMPAREHEADREVISIONS - Menu)
 msgid "Compare &HEAD revisions"
-msgstr "So sánh các bản chỉnh sửa &CHÍNH"
+msgstr "So sánh các bản chỉnh sửa &HEAD"
 
 #. Resource IDs: (IDS_LOG_POPUP_COMPARE_PARENT_WC)
 msgid "Compare parent with working tree"
@@ -3247,7 +3280,7 @@ msgstr "Sao chép"
 
 #. Resource IDs: (IDS_BLAME_POPUP_COPYHASHTOCLIPBOARD, IDS_COPY_COMMIT_HASH)
 msgid "Copy SHA-1 to clipboard"
-msgstr ""
+msgstr "Sao chép SHA-1 sang bảng tạm"
 
 #. Resource IDs: (IDS_STATUSLIST_CONTEXT_COPYEXT)
 msgid "Copy all information to clipboard"
@@ -3334,7 +3367,7 @@ msgstr "Không thể xác định được bản chỉnh sửa cuối cùng!"
 
 #. Resource IDs: (IDS_ERR_NOTFOUND_SUPER_PRJECT)
 msgid "Could not find Super-project"
-msgstr ""
+msgstr "Không thể tìm siêu dự án"
 
 #. Resource IDs: (IDS_ERR_GITNEEDHACKS)
 msgid ""
@@ -3459,7 +3492,7 @@ msgstr "Không thể bắt đầu mạch!"
 
 #. Resource IDs: (Dialog IDD_FIND: Control id 1501)
 msgid "Coun&t"
-msgstr ""
+msgstr "Đế&m"
 
 #. Resource IDs: (IDS_FIND_COUNT)
 #, c-format
@@ -3468,7 +3501,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENUBRANCH)
 msgid "Create &Branch..."
-msgstr ""
+msgstr "Tạo &nhánh..."
 
 #. Resource IDs: (Dialog IDD_SETTINGSMAIN: Control id 1683)
 msgid "Create &Library"
@@ -3476,7 +3509,7 @@ msgstr "Tạo &thư viện"
 
 #. Resource IDs: (Dialog IDD_GITSWITCH: Control id 1527)
 msgid "Create &New Branch"
-msgstr ""
+msgstr "Tạo nhánh &mới"
 
 #. Resource IDs: (IDS_CREATE_TAG_AT_THIS)
 msgid "Create &Tag at this version..."
@@ -3488,19 +3521,19 @@ msgstr ""
 
 #. Resource IDs: (cmdCreateUnifiedDiff_LabelTitle_RESID)
 msgid "Create &patch file"
-msgstr ""
+msgstr "Tạo tệp &vá"
 
 #. Resource IDs: (Dialog IDD_SVNIGNORE: Control id 1641)
 msgid "Create .gitignore file"
-msgstr ""
+msgstr "Tạo tệp .gitignore"
 
 #. Resource IDs: (IDS_CREATE_BRANCH_AT_THIS)
 msgid "Create Br&anch at this version..."
-msgstr ""
+msgstr "Tạo nhánh tại &phiên bản này"
 
 #. Resource IDs: (IDS_PROGS_TITLE_CREATEBRANCH)
 msgid "Create Branch"
-msgstr ""
+msgstr "Tạo nhánh"
 
 #. Resource IDs: (Dialog IDD_CREATECHANGELIST: Control id 243)
 msgid "Create Changelist"
@@ -3508,17 +3541,17 @@ msgstr "Tạo danh sách thay đổi"
 
 #. Resource IDs: (IDS_MENUFORMATPATCH)
 msgid "Create Patch Serial..."
-msgstr ""
+msgstr "Tạo mã số vá..."
 
 #. Resource IDs: (IDS_PROGS_TITLE_CREATETAG)
 msgid "Create Tag"
-msgstr ""
+msgstr "Tạo nhãn"
 
 #. Resource IDs: (57600)
 msgid ""
 "Create a new document\n"
 "New"
-msgstr ""
+msgstr "Tạo một tài liệu mới\nMới"
 
 #. Resource IDs: (IDS_CLONE_DEPTH_TT)
 msgid ""
@@ -3531,15 +3564,15 @@ msgstr ""
 
 #. Resource IDs: (ID_EDIT_CREATEUNIFIEDDIFFFILE - Menu)
 msgid "Create patch file"
-msgstr "Tạo tập tin vá"
+msgstr "Tạo tệp vá"
 
 #. Resource IDs: (IDS_PROC_REQUESTPULL)
 msgid "Create pull &request"
-msgstr ""
+msgstr "Tạo &yêu cầu kéo"
 
 #. Resource IDs: (IDS_MENUCREATEREPOS)
 msgid "Create repositor&y here..."
-msgstr ""
+msgstr "Tạo &kho chứa tại đây"
 
 #. Resource IDs: (IDS_PROC_CREATED)
 msgid "Created"
@@ -3569,11 +3602,11 @@ msgstr "Tạo tập tin chứa khác biệt thống nhất với tất cả thay
 
 #. Resource IDs: (IDS_PROC_CREATINGPULLREUQEST)
 msgid "Creating pull-request..."
-msgstr ""
+msgstr "Đang tạo yêu cầu kéo..."
 
 #. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 4591)
 msgid "Credential"
-msgstr ""
+msgstr "Chứng chỉ"
 
 #. Resource IDs: (IDS_GITCREDENTIAL_HELPEREMPTY)
 msgid "Credential helper must not be empty."
@@ -3598,7 +3631,7 @@ msgstr "Nhánh hiện tại"
 
 #. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
 msgid "Current Branch:"
-msgstr ""
+msgstr "Nhánh hiện tại:"
 
 #. Resource IDs: (IDS_PROC_COMMIT_DETACHEDWARNING)
 msgid ""
@@ -3620,6 +3653,11 @@ msgid ""
 "anyway?"
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_MERGE: Control id 65535, Dialog IDD_RESET:
+#. Control id 65535)
+msgid "Current branch:"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_CHECKFORUPDATES: Control id 1113)
 msgid "Current version is:"
 msgstr "Phiên bản hiện tại là:"
@@ -3631,7 +3669,7 @@ msgstr "Phiên bản hiện tại là: %s"
 
 #. Resource IDs: (IDS_TOOLBAR_CUSTOMIZE)
 msgid "Customize..."
-msgstr ""
+msgstr "Tùy chỉnh..."
 
 #. Resource IDs: (57635)
 msgid ""
@@ -3649,11 +3687,11 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENUDAEMON)
 msgid "Daemon"
-msgstr ""
+msgstr "Daemon"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_1: Control id 1699)
 msgid "Dark theme"
-msgstr ""
+msgstr "Chủ đề tối"
 
 #. Resource IDs: (IDS_DARKTHEME_TT)
 msgid ""
@@ -3667,7 +3705,7 @@ msgstr "Ngày tháng"
 
 #. Resource IDs: (IDS_DATELASTCOMMIT)
 msgid "Date Last Commit"
-msgstr ""
+msgstr "Ngày giao thác cuối"
 
 #. Resource IDs: (IDS_DEFAULT)
 msgid "Default"
@@ -3835,11 +3873,11 @@ msgstr "Độ sâu"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS: Control id 65535)
 msgid "Describe"
-msgstr ""
+msgstr "Mô tả"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS: Control id 65535)
 msgid "Describe Strategy"
-msgstr ""
+msgstr "Mô tả chiến thuật"
 
 #. Resource IDs: (IDS_DESCRIPTION)
 msgid "Description"
@@ -3887,27 +3925,27 @@ msgstr "Ảnh độc lập với thiết bị\nmột ảnh độc lập với th
 
 #. Resource IDs: (Dialog IDD_SETTINGSSAVEDDATA: Control id 1277)
 msgid "Dialog sizes and positions"
-msgstr "Kích thước và vị trí của hộp thoại"
+msgstr "Kích thước và vị trí hộp thoại"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS3: Control id 65535)
 msgid "Dialogs"
-msgstr ""
+msgstr "Hộp thoại"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS: Control id 196)
 msgid "Dialogs 1"
-msgstr ""
+msgstr "Hộp thoại 1"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS2: Control id 197)
 msgid "Dialogs 2"
-msgstr ""
+msgstr "Hộp thoại 2"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS3: Control id 4593)
 msgid "Dialogs 3"
-msgstr ""
+msgstr "Hộp thoại 3"
 
 #. Resource IDs: (cmdGroupDiff_LabelTitle_RESID)
 msgid "Diff"
-msgstr "Tìm Khác Biệt"
+msgstr "Diff"
 
 #. Resource IDs: (Dialog IDD_DIFFFILES: Control id 1789)
 msgid "Diff Options"
@@ -3988,13 +4026,13 @@ msgid "Diffs two any commits"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_FORMAT_PATCH: Control id 65535, Dialog
-#. IDD_OPENDLG: Control id 65535)
+#. IDD_OPENDLG: Control id 65535, Dialog IDD_WORKTREE_CREATE: Control id 1518)
 msgid "Directory:"
 msgstr "Thư mục:"
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS2: Control id 1796)
 msgid "Disable sounds"
-msgstr ""
+msgstr "Vô hiệu hóa âm thanh"
 
 #. Resource IDs: (Dialog IDD_SETTINGSOVERLAY: Control id 1536)
 msgid "Disable status cache for elevated processes"
@@ -4012,7 +4050,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_DETECT_MOVED_OR_COPIED_LINES_DISABLED)
 msgid "Disabled"
-msgstr ""
+msgstr "Đã vô hiệu"
 
 #. Resource IDs: (AFX_IDP_FILE_DISKFULL)
 #, c-format
@@ -4088,7 +4126,7 @@ msgstr "Không hiện thực đơn ngữ cảnh cho các đường dẫn sau:"
 
 #. Resource IDs: (Dialog IDD_CLEAN: Control id 1730)
 msgid "Do not use recycle bin"
-msgstr ""
+msgstr "Không sử dụng thùng rác"
 
 #. Resource IDs: (IDS_PROC_DELETEALLSTASH)
 #, c-format
@@ -4098,6 +4136,10 @@ msgstr ""
 #. Resource IDs: (IDS_PROC_DELETEBRANCHTAG)
 #, c-format
 msgid "Do you really want to delete \"%s\"?"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_DELETE_WORKTREE)
+msgid "Do you really want to delete the selected worktree(s)?"
 msgstr ""
 
 #. Resource IDs: (IDS_DISABLEUPDATECHECKS)
@@ -4218,6 +4260,10 @@ msgstr ""
 msgid "Document :"
 msgstr "Tài liệu :"
 
+#. Resource IDs: (Dialog IDD_CHECKFORUPDATES: Control id 1032)
+msgid "Don't ask me &again"
+msgstr ""
+
 #. Resource IDs: (IDS_PROC_SYNC_PUSH_UNKNOWNBRANCH)
 #, c-format
 msgid "Don't know what will push because unknown branch \"%s\""
@@ -4251,7 +4297,7 @@ msgstr "Đừng hiện lại thông điệp này nữa"
 
 #. Resource IDs: (IDS_DONE)
 msgid "Done"
-msgstr ""
+msgstr "Xong"
 
 #. Resource IDs: (Dialog IDD_REBASE: Control id 1384)
 msgid "Down"
@@ -4518,11 +4564,11 @@ msgstr "Gặp lỗi không xác định được khi đang ghi %1."
 
 #. Resource IDs: (Dialog IDD_SETTINGSMTP: Control id 1759)
 msgid "Encryption"
-msgstr ""
+msgstr "Mã hóa"
 
 #. Resource IDs: (Dialog IDD_REQUESTPULL: Control id 1617)
 msgid "End"
-msgstr ""
+msgstr "Kết thúc"
 
 #. Resource IDs: (IDS_VIEWCONTEXTMENU_EOL)
 msgid "End of Line Style"
@@ -4646,6 +4692,10 @@ msgstr ""
 #. Resource IDs: (Dialog IDD_AUTOTEXTTESTDLG: Control id 2)
 msgid "Exit"
 msgstr "Thoát"
+
+#. Resource IDs: (IDS_LOG_POPUP_EXPAND)
+msgid "Expand collapsed revisions"
+msgstr ""
 
 #. Resource IDs: (IDS_STATUSLIST_CONTEXT_EXPLORE)
 msgid "Explore to"
@@ -5164,10 +5214,6 @@ msgstr ""
 msgid "Force unlock"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_PUSH: Control id 1796)
-msgid "Force: May discard"
-msgstr ""
-
 #. Resource IDs: (Dialog IDD_SETCOLORPAGE: Control id 65535, Dialog
 #. IDD_SETTINGSUDIFF: Control id 65535)
 msgid "Foreground"
@@ -5248,6 +5294,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_LOG_POPUP_CLIPBOARD_FULL)
 msgid "Full data"
+msgstr ""
+
+#. Resource IDs: (IDS_WALKBEHAVIOUR_FULLHISTORY)
+msgid "Full history"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_FIND: Control id 20086)
@@ -5364,6 +5414,10 @@ msgstr "Di chuyển Git và đổi tên các đối tượng phiên bản tại 
 #. Resource IDs: (IDS_DROPMOVEMENU)
 msgid "Git Move versioned item(s) here"
 msgstr "Di chuyển (các) đối tượng trong phiên bản Git tại đây"
+
+#. Resource IDs: (IDS_DROPNEWWORKTREE)
+msgid "Git New worktree..."
+msgstr ""
 
 #. Resource IDs: (IDS_PROCS_TITLE_GITREMOTESETTINGS)
 msgid "Git Remote Settings"
@@ -5512,6 +5566,10 @@ msgstr "HEAD:"
 msgid "HTTP (URLs start with \"http://\" or \"https://\")"
 msgstr ""
 
+#. Resource IDs: (IDS_HANDLESUBMODULES)
+msgid "Handle submodules"
+msgstr ""
+
 #. Resource IDs: (IDS_RESET_HARD)
 msgid "Hard"
 msgstr ""
@@ -5539,7 +5597,8 @@ msgstr ""
 #. IDD_SETTINGSBUGTRAQADV: Control id 9, Dialog IDD_SETTINGSHOOKCONFIG:
 #. Control id 9, Dialog IDD_STASH: Control id 9, Dialog IDD_SUBMODULE_ADD:
 #. Control id 9, Dialog IDD_SUBMODULE_UPDATE: Control id 9, Dialog
-#. IDD_SVNDCOMMITTYPE: Control id 9, Dialog IDD_SYNC: Control id 9,
+#. IDD_SVNDCOMMITTYPE: Control id 9, Dialog IDD_SYNC: Control id 9, Dialog
+#. IDD_WORKTREE_CREATE: Control id 9, Dialog IDD_WORKTREE_LIST: Control id 9,
 #. IDS_MSGBOX_HELP)
 msgid "Help"
 msgstr "Giúp đỡ"
@@ -5558,6 +5617,14 @@ msgstr "Ẩn thực đơn cho các đường dẫn chưa phiên bản"
 
 #. Resource IDs: (IDS_PROC_COMMIT_HIDEPATCH)
 msgid "Hide Patch<<"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_COMMIT_HIDE_STAGING)
+msgid "Hide Staging<<"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_COMMIT_HIDE_UNSTAGING)
+msgid "Hide Unstaging<<"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSHOOKCONFIG: Control id 1326)
@@ -5797,6 +5864,10 @@ msgstr "ID:57637:V C +V"
 msgid "ID:57643:V C +Z"
 msgstr "ID:57643:V C +Z"
 
+#. Accelerator Entry for Menu ID:57644; ''
+msgid "ID:57644:V C +Y"
+msgstr ""
+
 #. Accelerator Entry for Menu ID:57665; 'E&xit'
 #. Accelerator Entry for Menu ID:57665; 'E&xit'
 msgid "ID:57665:V C +Q"
@@ -6028,6 +6099,10 @@ msgstr ""
 msgid "Ignore line &endings (recommended)"
 msgstr "Bỏ qua các dấu &hết dòng (khuyên dùng)"
 
+#. Resource IDs: (cmdViewIgnoreEOL_LabelTitle_RESID)
+msgid "Ignore line endings"
+msgstr ""
+
 #. Resource IDs: (IDS_MENUIGNOREMULTIPLEMASK2)
 msgid "Ignore multiple items by &extension"
 msgstr ""
@@ -6201,6 +6276,13 @@ msgstr "Tiền tệ không hợp lệ"
 msgid "Invalid revision number!"
 msgstr ""
 
+#. Resource IDs: (IDS_ERROR_PARTIALSTAGING)
+msgid ""
+"Invalid selection.\n"
+"\n"
+"If this is a single-line file that has been modified, you must click the checkbox to stage or unstage the whole file."
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_SETTINGSBUGTRAQ_CONFIG: Control id 4571)
 msgid "Issue Tracker Config"
 msgstr ""
@@ -6252,9 +6334,9 @@ msgstr "KOI8-U"
 
 #. Resource IDs: (IDS_PROC_OVERWRITEEXPORT_KEEP)
 msgid "Keep"
-msgstr ""
+msgstr "Giữ"
 
-#. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1126)
+#. Resource IDs: (IDS_STATUSLIST_CONTEXT_KEEPCHANGELISTS)
 msgid "Keep changelists"
 msgstr "Giữ danh sách thay đổi"
 
@@ -6276,7 +6358,7 @@ msgstr ""
 msgid "L"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_CLONE: Control id 1847, IDS_MENULFS)
+#. Resource IDs: (IDS_MENULFS)
 msgid "LFS"
 msgstr ""
 
@@ -6444,11 +6526,11 @@ msgstr "Dòng: %*ld"
 
 #. Resource IDs: (IDS_FILEDIFF_STATADD, IDS_STATUSLIST_COLADD)
 msgid "Lines added"
-msgstr ""
+msgstr "Số dòng đã thêm"
 
 #. Resource IDs: (IDS_FILEDIFF_STATDEL, IDS_STATUSLIST_COLDEL)
 msgid "Lines removed"
-msgstr ""
+msgstr "Số dòng đã bớt"
 
 #. Resource IDs: (57667)
 msgid ""
@@ -6533,6 +6615,15 @@ msgstr "Thanh định vị"
 msgid "Lock"
 msgstr ""
 
+#. Resource IDs: (IDS_LOCKED)
+msgid "Locked"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_LOCKED_WORKTREES)
+#, c-format
+msgid "Locked %d worktree(s)."
+msgstr ""
+
 #. Resource IDs: (IDS_MENUDESCLFSLOCK)
 msgid "Locks a file using LFS"
 msgstr ""
@@ -6575,7 +6666,7 @@ msgstr "Các thông điệp tường trình (Hiện hộp thoại tường trìn
 
 #. Resource IDs: (Dialog IDD_SETTINGSMTP: Control id 1760)
 msgid "Login:"
-msgstr ""
+msgstr "Đăng nhập:"
 
 #. Resource IDs: (Dialog IDD_MERGEABORT: Control id 1550)
 msgid "M&erge: Resets the index and try to reconstruct the pre-merge state"
@@ -6603,15 +6694,19 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_PUSH: Control id 1382)
 msgid "Mana&ge"
-msgstr ""
+msgstr "&Quản lý"
 
 #. Resource IDs: (Dialog IDD_SYNC: Control id 1483)
 msgid "Manage"
-msgstr ""
+msgstr "Quản lý"
 
 #. Resource IDs: (Dialog IDD_PULLFETCH: Control id 1382,
 #. IDS_PROC_BROWSEREFS_MANAGEREMOTES)
 msgid "Manage Remotes"
+msgstr "Quản lý từ xa"
+
+#. Resource IDs: (IDS_MENUDESCWORKTREE)
+msgid "Manages the worktrees of a repository"
 msgstr ""
 
 #. Resource IDs: (IDS_SVNPROGRESS_MENUMARKASRESOLVED, ID_EDIT_MARKASRESOLVED -
@@ -6631,7 +6726,7 @@ msgstr "Đánh dấu để so sánh"
 
 #. Resource IDs: (IDS_VIEWCONTEXTMENU_MARKBLOCK)
 msgid "Mark this block"
-msgstr ""
+msgstr "Đánh dấu khối này"
 
 #. Resource IDs: (IDS_ASKFORSAVE_MARKEDBLOCKS)
 msgid "Marked Blocks"
@@ -6759,7 +6854,7 @@ msgstr "Linh tinh"
 
 #. Resource IDs: (IDS_PATHACTIONS_MISSING)
 msgid "Missing"
-msgstr ""
+msgstr "Bị thiếu"
 
 #. Resource IDs: (AFX_IDS_CHECKLISTBOX_MIXED, IDS_RESET_MIXED)
 msgid "Mixed"
@@ -6870,11 +6965,15 @@ msgstr "Mới"
 
 #. Resource IDs: (Dialog IDD_RENAME: Control id 1076)
 msgid "New &name:"
-msgstr "&Tên mới"
+msgstr "&Tên mới:"
 
 #. Resource IDs: (Dialog IDD_NEW_BRANCH_TAG: Control id 309)
 msgid "New Branch/Tag"
-msgstr "Nhánh mới/Thẻ đánh dấu"
+msgstr "Nhánh/Nhãn mới"
+
+#. Resource IDs: (Dialog IDD_WORKTREE_CREATE: Control id 4603)
+msgid "New Worktree"
+msgstr ""
 
 #. Resource IDs: (IDS_NEWHASH)
 msgid "New hash"
@@ -7080,7 +7179,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_3: Control id 65535)
 msgid "Node size"
-msgstr ""
+msgstr "Kích cỡ nút"
 
 #. Resource IDs: (Dialog IDD_SETTINGSOVERLAY: Control id 1272, IDS_NONE)
 msgid "None"
@@ -7161,7 +7260,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_ERROR_NOTHING_COMMIT)
 msgid "Nothing to commit"
-msgstr ""
+msgstr "Không có gì để giao thác"
 
 #. Resource IDs: (IDS_WARN_NOTE)
 msgid "Notice"
@@ -7226,7 +7325,7 @@ msgstr "OEM 858"
 
 #. Resource IDs: (5053 - Menu)
 msgid "OEM 860: Portuguese"
-msgstr ""
+msgstr "OEM 860: Tiếng Bồ Đào Nha"
 
 #. Resource IDs: (5054 - Menu)
 msgid "OEM 861: Icelandic"
@@ -7238,7 +7337,7 @@ msgstr "OEM 862"
 
 #. Resource IDs: (5056 - Menu)
 msgid "OEM 863: French"
-msgstr ""
+msgstr "OEM 863: Tiếng Pháp"
 
 #. Resource IDs: (5057 - Menu)
 msgid "OEM 865: Nordic"
@@ -7285,7 +7384,8 @@ msgstr "OEM-US"
 #. Dialog IDD_SVNDCOMMITTYPE: Control id 1, Dialog IDD_SVNIGNORE: Control id
 #. 1, Dialog IDD_SVNPROGRESS: Control id 1, Dialog IDD_TOOLASSOC: Control id
 #. 1, Dialog IDD_URL: Control id 1, Dialog IDD_USER_PASSWD: Control id 1,
-#. IDS_MSGBOX_OK)
+#. Dialog IDD_WORKTREE_CREATE: Control id 1, Dialog IDD_WORKTREE_LIST: Control
+#. id 1, IDS_MSGBOX_OK)
 msgid "OK"
 msgstr "OK"
 
@@ -7325,15 +7425,15 @@ msgstr "Một hay nhiều tập tin ở trong trạng thái mâu thuẫn."
 
 #. Resource IDs: (Dialog IDD_REVGRAPHFILTER: Control id 1542)
 msgid "Only Current Branch"
-msgstr ""
+msgstr "Chỉ nhánh hiện tại"
 
 #. Resource IDs: (Dialog IDD_REVGRAPHFILTER: Control id 1543)
 msgid "Only Local Branches"
-msgstr ""
+msgstr "Chỉ các nhánh nội bộ"
 
 #. Resource IDs: (IDS_ONLYMERGEDFILES)
 msgid "Only Merged Files"
-msgstr ""
+msgstr "Chỉ các tệp đã sát nhập"
 
 #. Resource IDs: (Dialog IDD_SETTINGSTBLAME: Control id 1677,
 #. ID_VIEW_ONLYCONSIDERFIRSTPARENTS - Menu)
@@ -7372,7 +7472,7 @@ msgstr "Mở"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 1849)
 msgid "Open &settings"
-msgstr ""
+msgstr "Mở &thiết lập"
 
 #. Resource IDs: (57601)
 msgid ""
@@ -7382,7 +7482,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_CERTCHECK: Control id 1797)
 msgid "Open certificate"
-msgstr ""
+msgstr "Mở chứng chỉ"
 
 #. Resource IDs: (cmdOpen)
 msgid ""
@@ -7392,7 +7492,7 @@ msgstr "Mở các tập tin để xem khác biệt hoặc áp dụng một bản
 
 #. Resource IDs: (IDS_PATCH_COPYFROMCLIPBOARD)
 msgid "Open from clipboard"
-msgstr "Mở từ clipboard"
+msgstr "Mở từ bảng tạm"
 
 #. Resource IDs: (IDS_OPENIMAGEFILE)
 msgid "Open image file..."
@@ -7413,7 +7513,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_LOG_POPUP_OPENWITH)
 msgid "Open with..."
-msgstr "Mở với"
+msgstr "Mở bằng..."
 
 #. Resource IDs: (57666)
 msgid ""
@@ -7436,7 +7536,7 @@ msgstr "Tuỳ chọn"
 
 #. Resource IDs: (Dialog IDD_NEW_BRANCH_TAG: Control id 1517, Dialog
 #. IDD_PULLFETCH: Control id 1517, Dialog IDD_PUSH: Control id 1502, Dialog
-#. IDD_STASH: Control id 1517)
+#. IDD_STASH: Control id 1517, Dialog IDD_WORKTREE_CREATE: Control id 1517)
 msgid "Options"
 msgstr "Các tùy chọn"
 
@@ -7462,7 +7562,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROC_SYNC_OUTCOMMITS)
 msgid "Out Commits"
-msgstr ""
+msgstr "Giao thác ra"
 
 #. Resource IDs: (AFX_IDS_MEMORY_EXCEPTION)
 msgid "Out of memory."
@@ -7474,7 +7574,7 @@ msgstr ""
 
 #. Resource IDs: (AFX_IDS_PRINTDEFAULT)
 msgid "Output.prn"
-msgstr "Output.pm"
+msgstr "Output.prn"
 
 #. Resource IDs: (Dialog IDD_SETTINGSOVERLAYHANDLERS: Control id 338)
 msgid "Overlay Handlers"
@@ -7482,7 +7582,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROC_OVERWRITEEXPORT_OVERWRITE)
 msgid "Overwrite"
-msgstr ""
+msgstr "Ghi đè"
 
 #. Resource IDs: (Dialog IDD_GITSWITCH: Control id 1521)
 msgid "Overwrite working tree changes (&force)"
@@ -7494,14 +7594,18 @@ msgstr ""
 
 #. Resource IDs: (cmdNavigatePreviousConflict_Keytip_RESID)
 msgid "PC"
-msgstr ""
+msgstr "PC"
 
 #. Resource IDs: (cmdNavigatePreviousDifference_Keytip_RESID)
 msgid "PD"
-msgstr ""
+msgstr "PD"
 
 #. Resource IDs: (cmdNavigatePreviousInlineDiff_Keytip_RESID)
 msgid "PI"
+msgstr "PI"
+
+#. Resource IDs: (IDS_PACKAGE_REGISTERED)
+msgid "Package registered"
 msgstr ""
 
 #. Resource IDs: (AFX_IDS_PRINTPAGENUM)
@@ -7563,6 +7667,16 @@ msgstr ""
 msgid "Parent(s)"
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1639,
+#. IDS_PROC_COMMIT_PARTIAL_STAGING)
+msgid "Partial Staging>>"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1638,
+#. IDS_PROC_COMMIT_PARTIAL_UNSTAGING)
+msgid "Partial Unstaging>>"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_USER_PASSWD: Control id 4585)
 msgid "Password"
 msgstr ""
@@ -7611,15 +7725,15 @@ msgstr ""
 
 #. Resource IDs: (IDS_PATCH_ALL)
 msgid "Patch all files"
-msgstr "Vá tất cả các món"
+msgstr "Vá tất cả các tệp"
 
 #. Resource IDs: (IDS_PATCH_SELECTED)
 msgid "Patch selected files"
-msgstr "Vá tất cả các món được chọn"
+msgstr "Vá các tệp được chọn"
 
 #. Resource IDs: (IDS_PATCHFILEFILTER)
 msgid "Patchfiles (*.diff, *.patch)|*.diff;*.patch|All Files (*.*)|*.*||"
-msgstr ""
+msgstr "Tệp vá (*.diff, *.patch)|*.diff;*.patch|Tất cả tệp (*.*)|*.*||"
 
 #. Resource IDs: (IDS_PATCH_PROGTITLE)
 msgid "Patching"
@@ -7628,7 +7742,7 @@ msgstr "Đang vá"
 #. Resource IDs: (IDS_PATCH_PATHINGFILE)
 #, c-format
 msgid "Patching file '%s'"
-msgstr ""
+msgstr "Đang vá tệp '%s'"
 
 #. Resource IDs: (IDS_PATH, IDS_PROGRS_PATH, IDS_SETTINGS_BUGTRAQ_PATHCOL,
 #. IDS_SETTINGS_HOOKS_PATHCOL, IDS_STATUSLIST_COLFILE)
@@ -7659,20 +7773,20 @@ msgstr "Phần trăm"
 
 #. Resource IDs: (IDS_PATHACTIONS_PICK, IDS_REBASE_PICK)
 msgid "Pick"
-msgstr ""
+msgstr "Chọn"
 
 #. Resource IDs: (IDS_COMMITDLG_POPUP_PICKCOMMITHASH)
 msgid "Pick commit &hash"
-msgstr ""
+msgstr "Chọn &hash giao thác"
 
 #. Resource IDs: (IDS_COMMITDLG_POPUP_PICKCOMMITMESSAGE)
 msgid "Pick commit &message"
-msgstr ""
+msgstr "Chọn &thông điệp giao thác"
 
 #. Resource IDs: (IDS_PROC_PICK)
 #, c-format
 msgid "Pick up %s"
-msgstr ""
+msgstr "Chọn %s"
 
 #. Resource IDs: (AFX_IDS_METAFILE_FORMAT)
 msgid ""
@@ -7685,17 +7799,17 @@ msgid ""
 "Pictures (*.svg, *.wmf, *.jpg, *.png, *.bmp, "
 "*.gif)|*.svg;*.wmf;*.jpg;*.jpeg;*.png;*.bmp;*.gif|Graphs (*.gv)|*.gv|All "
 "Files (*.*)|*.*||"
-msgstr ""
+msgstr "Ảnh (*.svg, *.wmf, *.jpg, *.png, *.bmp, *.gif)|*.svg;*.wmf;*.jpg;*.jpeg;*.png;*.bmp;*.gif|Biểu đồ (*.gv)|*.gv|Tất cả tệp (*.*)|*.*||"
 
 #. Resource IDs: (IDS_STATPICFILEFILTER)
 msgid ""
 "Pictures (*.wmf, *.jpg, *.png, *.bmp, "
 "*.gif)|*.wmf;*.jpg;*.jpeg;*.png;*.bmp;*.gif|All Files (*.*)|*.*||"
-msgstr ""
+msgstr "Ảnh (*.wmf, *.jpg, *.png, *.bmp, *.gif)|*.wmf;*.jpg;*.jpeg;*.png;*.bmp;*.gif|Tất cả tệp (*.*)|*.*||"
 
 #. Resource IDs: (IDS_STATGRAPH_PIEBUTTON_TT)
 msgid "Pie Graph"
-msgstr "Biểu đồ bánh"
+msgstr "Biểu đồ tròn"
 
 #. Resource IDs: (IDS_ERR_NOHOOKCOMMANDPECIFIED)
 msgid "Please enter a hook script to execute."
@@ -7749,7 +7863,7 @@ msgstr "Vui lòng chờ..."
 
 #. Resource IDs: (65535 - PopupMenu)
 msgid "Popup"
-msgstr ""
+msgstr "Hộp thoại"
 
 #. Resource IDs: (Dialog AFX_IDD_PRINTDLG: Control id 65535)
 msgid "Port :"
@@ -7757,7 +7871,7 @@ msgstr "Cổng :"
 
 #. Resource IDs: (Dialog IDD_SETTINGSMTP: Control id 1758)
 msgid "Port:"
-msgstr ""
+msgstr "Cổng:"
 
 #. Resource IDs: (IDS_HOOKTYPE_POSTCOMMIT)
 msgid "Post-Commit Hook"
@@ -7801,7 +7915,7 @@ msgstr "Xem trước tập tin được vá"
 
 #. Resource IDs: (ID_VIEW_PREV - Menu)
 msgid "Previous"
-msgstr ""
+msgstr "Trước"
 
 #. Resource IDs: (IDS_PROC_PREVIOUSVERSION)
 msgid "Previous Version"
@@ -7844,7 +7958,7 @@ msgstr "Máy in:"
 
 #. Resource IDs: (AFX_IDS_PRINTFILTER)
 msgid "Printer Files (*.prn)|*.prn|All Files (*.*)|*.*||"
-msgstr "Các tập tin máy in (*.prn)|*.prn|All Files (*.*)|*.*||"
+msgstr "Các tệp máy in (*.prn)|*.prn|Tất cả tệp (*.*)|*.*||"
 
 #. Resource IDs: (Dialog AFX_IDD_PRINTDLG: Control id 65535)
 msgid "Printing"
@@ -7852,7 +7966,7 @@ msgstr "Đang in"
 
 #. Resource IDs: (IDS_HOOK_FORCEDPROCEED)
 msgid "Proceed anyway"
-msgstr ""
+msgstr "Vẫn tiếp tục"
 
 #. Resource IDs: (IDS_PROGS_TOOLCOL)
 msgid "Program"
@@ -7869,7 +7983,7 @@ msgstr "Tiến triển"
 #. Resource IDs: (Dialog IDD_SETTINGSBUGTRAQ_CONFIG: Control id 1772, Dialog
 #. IDD_SETTINGSDIALOGS3: Control id 1772, IDS_CONFIG_PROJECT)
 msgid "Project"
-msgstr ""
+msgstr "Dự án"
 
 #. Resource IDs: (IDS_PROPPROPERTY)
 msgid "Property"
@@ -7905,7 +8019,7 @@ msgstr "Thiết lập Proxy"
 
 #. Resource IDs: (Dialog IDD_PULLFETCH: Control id 1603, Dialog
 #. IDD_SETTINGIT_CONFIG: Control id 1603, Dialog IDD_SETTINREMOTE: Control id
-#. 1603)
+#. 1603, IDS_PRUNE)
 msgid "Prune"
 msgstr ""
 
@@ -7937,11 +8051,11 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROC_SYNC_PUSH)
 msgid "Pus&h"
-msgstr ""
+msgstr "Đẩ&y"
 
 #. Resource IDs: (IDS_MENUPUSH)
 msgid "Pus&h..."
-msgstr ""
+msgstr "Đẩ&y..."
 
 #. Resource IDs: (Dialog IDD_PUSH: Control id 303, Dialog IDD_SYNC: Control id
 #. 1612)
@@ -7950,7 +8064,7 @@ msgstr "Đẩy"
 
 #. Resource IDs: (Dialog IDD_PUSH: Control id 1492)
 msgid "Push &option:"
-msgstr ""
+msgstr "&Tùy chọn đẩy:"
 
 #. Resource IDs: (Dialog IDD_SETTINREMOTE: Control id 1786)
 msgid "Push Default"
@@ -7958,7 +8072,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINREMOTE: Control id 65535)
 msgid "Push URL:"
-msgstr ""
+msgstr "URL đẩy:"
 
 #. Resource IDs: (IDS_MENUDESCPUSH)
 msgid "Push commits to a remote repository."
@@ -7974,11 +8088,11 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINREMOTE: Control id 65535)
 msgid "Putty Key:"
-msgstr ""
+msgstr "Khóa Putty:"
 
 #. Resource IDs: (IDS_PUTTYKEYFILEFILTER)
 msgid "Putty Private Key (*.ppk)|*.ppk|All Files (*.*)|*.*||"
-msgstr ""
+msgstr "Khóa riêng tư Putty (*.ppk)|*.ppk|Tất cả tệp (*.*)|*.*||"
 
 #. Resource IDs: (57665, cmdExit)
 msgid ""
@@ -8041,7 +8155,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_PUSH: Control id 1494)
 msgid "Re&mote:"
-msgstr ""
+msgstr "&Từ xa:"
 
 #. Resource IDs: (Dialog IDD_SETTINGSOVERLAY: Control id 1048)
 msgid "Re&movable drives"
@@ -8070,6 +8184,10 @@ msgstr ""
 #. Resource IDs: (IDS_MENUDESCHELP)
 msgid "Read the 'Daily Use Guide' before you are stuck..."
 msgstr "Đọc 'Hướng dẫn sử dụng hàng ngày' trước khi bạn bị kẹt..."
+
+#. Resource IDs: (IDS_REASON)
+msgid "Reason"
+msgstr ""
 
 #. Resource IDs: (Dialog IDD_REBASE: Control id 318)
 msgid "Rebase"
@@ -8177,7 +8295,7 @@ msgstr "Làm mới"
 
 #. Resource IDs: (IDS_PROC_SYNC_REFRESHING)
 msgid "Refreshing..."
-msgstr ""
+msgstr "Đang làm mới..."
 
 #. Resource IDs: (65535 - PopupMenu, Dialog IDD_REGEXFILTER: Control id 165,
 #. cmdRegexFilterConfig1, cmdRegexFilterConfig1_LabelTitle_RESID)
@@ -8190,6 +8308,10 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_REGEXFILTER: Control id 65535)
 msgid "Regex:"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETTINGSWIN11CONTEXTMENU: Control id 1861)
+msgid "Register context menu"
 msgstr ""
 
 #. Resource IDs: (IDS_LOG_FILTER_REGEX_TT)
@@ -8246,15 +8368,15 @@ msgstr "Từ xa"
 #. Resource IDs: (Dialog IDD_PULLFETCH: Control id 65535, Dialog
 #. IDD_SELECTREMOTEREF: Control id 65535)
 msgid "Remote &Branch:"
-msgstr ""
+msgstr "&Nhánh từ xa:"
 
 #. Resource IDs: (Dialog IDD_SYNC: Control id 1618)
 msgid "Remote &URL:"
-msgstr ""
+msgstr "&URL từ xa:"
 
 #. Resource IDs: (Dialog IDD_SUBMODULE_UPDATE: Control id 1754)
 msgid "Remote &tracking branch"
-msgstr ""
+msgstr "Nhánh &theo dõi từ xa"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_2: Control id 65535,
 #. IDS_PROC_REMOTEBRANCH)
@@ -8263,23 +8385,23 @@ msgstr "Nhánh từ xa"
 
 #. Resource IDs: (IDS_TAGCOMPARE_REMOTEHASH)
 msgid "Remote SHA1"
-msgstr ""
+msgstr "SHA1 từ xa"
 
 #. Resource IDs: (IDS_PROC_GITCONFIG_URLEMPTY)
 msgid "Remote URL must not be empty."
-msgstr ""
+msgstr "URL từ xa không thể để trống."
 
 #. Resource IDs: (IDS_PROC_SYNC_REMOTEUPDATE)
 msgid "Remote Update"
-msgstr ""
+msgstr "Cập nhật từ xa"
 
 #. Resource IDs: (IDS_TAGCOMPARE_REMOTEMESSAGE)
 msgid "Remote message"
-msgstr ""
+msgstr "Thông điệp từ xa"
 
 #. Resource IDs: (IDS_PROC_GITCONFIG_REMOTEEMPTY)
 msgid "Remote name must not be empty."
-msgstr ""
+msgstr "Tên từ xa không thể để trống."
 
 #. Resource IDs: (IDS_CHSTAT_REPOCOL)
 msgid "Remote status"
@@ -8330,7 +8452,7 @@ msgstr "Loại bỏ khỏi danh sách &bỏ qua"
 
 #. Resource IDs: (IDS_STATUSLIST_CONTEXT_REMOVEFROMCS)
 msgid "Remove from changelist"
-msgstr "Loại bỏ khỏi danh sách bỏ qua"
+msgstr "Loại bỏ khỏi danh sách thay đổi"
 
 #. Resource IDs: (Dialog IDD_CLEAN: Control id 1629)
 msgid "Remove ignored files (-fX)"
@@ -8384,7 +8506,7 @@ msgstr "Đổi tên %s"
 
 #. Resource IDs: (Dialog IDD_RENAME: Control id 151)
 msgid "Rename - TortoiseGit"
-msgstr ""
+msgstr "Đổi tên - TortoiseGit"
 
 #. Resource IDs: (IDS_RENAME_INFO)
 #, c-format
@@ -8407,7 +8529,7 @@ msgstr "Lập lại hành động cuối cùng\nLập lại"
 
 #. Resource IDs: (Dialog IDD_FIND: Control id 1512)
 msgid "Replace &All"
-msgstr ""
+msgstr "Đổi tên &tất cả"
 
 #. Resource IDs: (57641)
 msgid ""
@@ -8474,11 +8596,6 @@ msgstr ""
 msgid "Reset columns"
 msgstr "Đặt lại các cột"
 
-#. Resource IDs: (IDS_PROC_RESETBRANCH)
-#, c-format
-msgid "Reset current branch \"%s\" to"
-msgstr ""
-
 #. Resource IDs: (Dialog IDD_RESOLVE: Control id 207, IDS_PROGRS_CMD_RESOLVE,
 #. IDS_PROGRS_TITLE_RESOLVE)
 msgid "Resolve"
@@ -8521,7 +8638,8 @@ msgstr "Khôi phục"
 #. id 1254, Dialog IDD_SETTINGSCOLORS_3: Control id 1254, Dialog
 #. IDD_SETTINGSEXTMENU: Control id 1254, Dialog IDD_SETTINGSLOOKANDFEEL:
 #. Control id 1254, Dialog IDD_SETTINGSTBLAME: Control id 1254, Dialog
-#. IDD_SETTINGSUDIFF: Control id 1254)
+#. IDD_SETTINGSUDIFF: Control id 1254, Dialog IDD_SETTINGSWIN11CONTEXTMENU:
+#. Control id 1254)
 msgid "Restore Default"
 msgstr "Khôi phục mặc định"
 
@@ -8673,11 +8791,6 @@ msgstr ""
 
 #. Resource IDs: (cmdSave_Keytip_RESID)
 msgid "S"
-msgstr ""
-
-#. Resource IDs: (Dialog IDD_MERGEABORT: Control id 1383, Dialog IDD_RESET:
-#. Control id 1383)
-msgid "S&how modified files in working tree"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_REBASE_UNSELECTED_SKIP)
@@ -8976,7 +9089,7 @@ msgstr "Scintilla"
 
 #. Resource IDs: (ID_FILE_SETTINGS - Menu)
 msgid "Se&ttings..."
-msgstr ""
+msgstr "Cà&i đặt..."
 
 #. Resource IDs: (IDS_LOG_POPUP_FIND)
 msgid "Search &log messages..."
@@ -8984,7 +9097,7 @@ msgstr "Tìm kiếm trên các &thông điệp tường trình..."
 
 #. Resource IDs: (Dialog IDD_FIND: Control id 1074)
 msgid "Search &up"
-msgstr ""
+msgstr "Tìm &lên"
 
 #. Resource IDs: (Dialog IDD_FIND: Control id 65535)
 msgid "Search for:"
@@ -9075,8 +9188,8 @@ msgstr ""
 
 #. Resource IDs: (IDS_SETTINGS_AUTOCLOSE_TT)
 msgid ""
-"Select the behaviour of the progress dialog at the end of the operation."
-msgstr "Chọn biểu hiện của hộp thoại tiến triển vào cuối tác vụ."
+"Select the behavior of the progress dialog at the end of the operation."
+msgstr ""
 
 #. Resource IDs: (57642)
 msgid ""
@@ -9112,7 +9225,8 @@ msgstr ""
 #. Control id 1067, Dialog IDD_LFS_LOCKS: Control id 1067, Dialog IDD_RESOLVE:
 #. Control id 1067, Dialog IDD_REVERT: Control id 1067, Dialog
 #. IDD_SETTINGSEXTMENU: Control id 1067, Dialog IDD_SETTINGSLOOKANDFEEL:
-#. Control id 1067, Dialog IDD_SUBMODULE_UPDATE: Control id 1067)
+#. Control id 1067, Dialog IDD_SETTINGSWIN11CONTEXTMENU: Control id 1067,
+#. Dialog IDD_SUBMODULE_UPDATE: Control id 1067)
 msgid "Select/deselect &all"
 msgstr ""
 
@@ -9122,7 +9236,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_SENDMAIL: Control id 1)
 msgid "Send"
-msgstr ""
+msgstr "Gửi"
 
 #. Resource IDs: (IDS_PROGRS_CMD_SENDMAIL)
 msgid "Send Email"
@@ -9445,6 +9559,11 @@ msgstr ""
 msgid "Show long format even if a tag is exactly on that commit"
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_MERGEABORT: Control id 1383, Dialog IDD_RESET:
+#. Control id 1383)
+msgid "Show modified files in &working tree"
+msgstr ""
+
 #. Resource IDs: (25308)
 msgid ""
 "Show next change of selected commit\n"
@@ -9676,6 +9795,20 @@ msgstr "Chồng các đồ thị thanh"
 msgid "Stacked Line Graph"
 msgstr "Chồng các đồ thị dòng"
 
+#. Resource IDs: (IDS_PROC_STAGE_SELECTED_HUNKS, ID_STAGING_STAGESELECTEDHUNKS
+#. - Menu)
+msgid "Stage selected &hunks"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_STAGE_SELECTED_LINES, ID_STAGING_STAGESELECTEDLINES
+#. - Menu)
+msgid "Stage selected &lines"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1855)
+msgid "Staging support (EXPERIMENTAL)"
+msgstr ""
+
 #. Resource IDs: (IDS_TOOLBAR_STANDARD)
 msgid "Standard"
 msgstr "Tiêu chuẩn"
@@ -9771,7 +9904,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_STATE)
 msgid "State"
-msgstr ""
+msgstr "Trạng thái"
 
 #. Resource IDs: (Dialog IDD_GITPROGRESS: Control id 1487, Dialog
 #. IDD_RESOLVE_CONFLICT: Control id 4572, Dialog IDD_RESOLVE_CONFLICT: Control
@@ -9790,7 +9923,7 @@ msgstr "Trạng thái"
 
 #. Resource IDs: (cmdViewStatusBar_LabelTitle_RESID)
 msgid "Status Bar"
-msgstr ""
+msgstr "Thanh trạng thái"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_1: Control id 65535)
 msgid "Status and action colors"
@@ -9839,7 +9972,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_LOG_FILTER_SUBJECT, IDS_SUBJECT)
 msgid "Subject"
-msgstr ""
+msgstr "Chủ đề"
 
 #. Resource IDs: (Dialog IDD_DIFFSUBMODULE: Control id 1714, Dialog
 #. IDD_DIFFSUBMODULE: Control id 1715, Dialog IDD_RESOLVESUBMODULECONFLICT:
@@ -9847,7 +9980,7 @@ msgstr ""
 #. Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 1717, Dialog IDD_SENDMAIL:
 #. Control id 65535)
 msgid "Subject:"
-msgstr ""
+msgstr "Chủ đề:"
 
 #. Resource IDs: (IDS_LOG_POPUP_CLIPBOARD_SUBJECTS)
 msgid "Subjects"
@@ -9912,6 +10045,11 @@ msgstr ""
 
 #. Resource IDs: (IDS_SUCCESS)
 msgid "Success"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_UNLOCKED_WORKTREES)
+#, c-format
+msgid "Successfully unlocked %d worktree(s)."
 msgstr ""
 
 #. Resource IDs: (IDS_SWITCH_TO_THIS)
@@ -9999,7 +10137,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENUSYNC)
 msgid "Sync..."
-msgstr ""
+msgstr "Đồng bộ..."
 
 #. Resource IDs: (Dialog IDD_SETTINGIT_CONFIG: Control id 1774, Dialog
 #. IDD_SETTINGSBUGTRAQ_CONFIG: Control id 1774, Dialog IDD_SETTINGSDIALOGS3:
@@ -10044,15 +10182,15 @@ msgstr "Kích thước dấu tab:"
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_2: Control id 65535, IDS_PROC_TAG)
 msgid "Tag"
-msgstr ""
+msgstr "Nhãn"
 
 #. Resource IDs: (IDS_PROC_TAG_FF)
 msgid "Tag (FF)"
-msgstr ""
+msgstr "Nhãn (FF)"
 
 #. Resource IDs: (IDS_PROC_LOG_TAGINFO)
 msgid "Tag Info"
-msgstr ""
+msgstr "Thông tin nhãn"
 
 #. Resource IDs: (IDS_LOG_POPUP_CLIPBOARD_TAGBRANCHES)
 msgid "Tag/branch names"
@@ -10609,7 +10747,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_DIFFSUBMODULE: Control id 1676)
 msgid "To"
-msgstr ""
+msgstr "Đến"
 
 #. Resource IDs: (IDS_PROC_GITCONFIG_ASKTAGOPT)
 msgid ""
@@ -10636,6 +10774,14 @@ msgstr "Đến:"
 msgid "Toggle filters"
 msgstr ""
 
+#. Resource IDs: (IDS_STATUSLIST_TOOMANYITEMS)
+msgid "Too many files to display."
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETTINGSWIN11CONTEXTMENU: Control id 65535)
+msgid "Top context menu on Windows 11"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_CERTCHECK: Control id 4594, Dialog
 #. IDD_SETTINGSMAIN: Control id 65535, IDS_APPNAME)
 msgid "TortoiseGit"
@@ -10655,7 +10801,7 @@ msgstr "TortoiseGit %d.%d.%d.%d %s\n%s\n"
 
 #. Resource IDs: (IDS_FIRSTSTART_LANGUAGEHINT1)
 msgid "TortoiseGit can be localized using language packs."
-msgstr ""
+msgstr "TortoiseGit có thể được nội bộ hóa bằng các gói ngôn ngữ."
 
 #. Resource IDs: (IDS_ASK_REMOVE_FROM_INDEX)
 #, c-format
@@ -10755,8 +10901,8 @@ msgid ""
 "/showinfo\t\tto show the image info boxes"
 msgstr ""
 
-#. Resource IDs: (100, 32897, AFX_IDS_APP_TITLE, Dialog IDD_OPENDLG: Control
-#. id 130, IDS_APPNAME)
+#. Resource IDs: (1, 32897, AFX_IDS_APP_TITLE, Dialog IDD_OPENDLG: Control id
+#. 130, IDS_APPNAME)
 msgid "TortoiseGitMerge"
 msgstr "TortoiseGitMerge"
 
@@ -10824,7 +10970,7 @@ msgstr "Tổng số thay đổi tập tin:"
 
 #. Resource IDs: (Dialog IDD_NEW_BRANCH_TAG: Control id 1520)
 msgid "Trac&k"
-msgstr ""
+msgstr "T&heo dõi"
 
 #. Resource IDs: (Dialog IDD_PROPPAGE: Control id 11023)
 msgid "Tracked Remote Branch:"
@@ -10836,7 +10982,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_TRACKEDBRANCH)
 msgid "Tracked branch"
-msgstr ""
+msgstr "Nhánh đang theo dõi"
 
 #. Resource IDs: (IDS_SVN_PROGRESS_SPEED)
 #, c-format
@@ -10953,6 +11099,11 @@ msgstr "Không thể ghi vào %1, nó là chỉ-đọc hoặc được mở bở
 msgid "Uncheck"
 msgstr "Bỏ chọn"
 
+#. Resource IDs: (Dialog IDD_SETTINGSWIN11CONTEXTMENU: Control id 65535)
+msgid ""
+"Unchecked items are not shown in the top menu but only in the original menu"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_SETTINGSLOOKANDFEEL: Control id 65535)
 msgid ""
 "Unchecked items will appear in the TortoiseGit submenu, checked items "
@@ -11008,6 +11159,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENULFSUNLOCK, IDS_PROGRS_CMD_LFS_UNLOCK)
 msgid "Unlock"
+msgstr "Mở khóa"
+
+#. Resource IDs: (IDS_UNLOCKED)
+msgid "Unlocked"
 msgstr ""
 
 #. Resource IDs: (IDS_MENUDESCLFSUNLOCK)
@@ -11024,6 +11179,16 @@ msgstr "Các mâu thuẫn chưa được giải quyết!"
 
 #. Resource IDs: (IDS_PROC_BROWSEREFS_DROPTRACKEDBRANCH)
 msgid "Unset tracked branch"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_UNSTAGE_SELECTED_HUNKS,
+#. ID_UNSTAGING_UNSTAGESELECTEDHUNKS - Menu)
+msgid "Unstage selected &hunks"
+msgstr ""
+
+#. Resource IDs: (IDS_PROC_UNSTAGE_SELECTED_LINES,
+#. ID_UNSTAGING_UNSTAGESELECTEDLINES - Menu)
+msgid "Unstage selected &lines"
 msgstr ""
 
 #. Resource IDs: (AFX_IDS_UNTITLED)
@@ -11080,28 +11245,8 @@ msgstr "Dùng chế độ xem &một bảng như là mặc định cho việc so
 msgid "Use &other text block"
 msgstr "Sử dụng khối văn bản &khác"
 
-#. Resource IDs: (cmdUseMineBlock_LabelTitle_RESID)
-msgid "Use 'mine' text block"
-msgstr "Sử dụng khối văn bản 'của tôi'"
-
-#. Resource IDs: (cmdUseMineThenTheirsBlock_LabelTitle_RESID)
-msgid "Use 'mine' text block then 'theirs'"
-msgstr "Sử dụng khối văn bản 'của tôi' rồi đến 'của họ'"
-
-#. Resource IDs: (cmdUseTheirsBlock_LabelTitle_RESID)
-msgid "Use 'theirs' text block"
-msgstr "Sử dụng khối 'của họ'"
-
-#. Resource IDs: (cmdUseTheirsThenMineBlock_LabelTitle_RESID)
-msgid "Use 'theirs' text block then 'mine'"
-msgstr "Sử dụng khối văn bản 'của họ' rồi đến 'của tôi'"
-
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS2: Control id 1911)
 msgid "Use .mailmap"
-msgstr ""
-
-#. Resource IDs: (IDS_PROC_USELFS_TT)
-msgid "Use Git LFS (only required for Git < 2.15 and Git LFS < 2.3)"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 1761)
@@ -11162,11 +11307,11 @@ msgstr "Sử dụng cả hai khối văn bản (cái này cuối)"
 
 #. Resource IDs: (Dialog IDD_STATGRAPH: Control id 1128)
 msgid "Use commit dates"
-msgstr ""
+msgstr "Sử dụng ngày giao thác"
 
 #. Resource IDs: (Dialog IDD_STATGRAPH: Control id 1127)
 msgid "Use committer names"
-msgstr ""
+msgstr "Sử dụng tên người giao thác"
 
 #. Resource IDs: (IDS_COMMON_ANCESTOR)
 msgid "Use common ancestor (A...B diff)"
@@ -11189,11 +11334,13 @@ msgstr "Sử dụng khối bên trái"
 msgid "Use left file"
 msgstr "Dùng tập tin bên trái"
 
-#. Resource IDs: (ID_EDIT_USETHEIRBLOCK - Menu)
+#. Resource IDs: (ID_EDIT_USETHEIRBLOCK - Menu,
+#. cmdUseTheirsBlock_LabelTitle_RESID)
 msgid "Use left text block"
 msgstr ""
 
-#. Resource IDs: (ID_EDIT_USETHEIRTHENMYBLOCK - Menu)
+#. Resource IDs: (ID_EDIT_USETHEIRTHENMYBLOCK - Menu,
+#. cmdUseTheirsThenMineBlock_LabelTitle_RESID)
 msgid "Use left text block then right"
 msgstr ""
 
@@ -11213,11 +11360,12 @@ msgstr "Dùng biểu thức thông thường"
 msgid "Use right block"
 msgstr ""
 
-#. Resource IDs: (ID_EDIT_USEMYBLOCK - Menu)
+#. Resource IDs: (ID_EDIT_USEMYBLOCK - Menu, cmdUseMineBlock_LabelTitle_RESID)
 msgid "Use right text block"
 msgstr ""
 
-#. Resource IDs: (ID_EDIT_USEMINETHENTHEIRBLOCK - Menu)
+#. Resource IDs: (ID_EDIT_USEMINETHENTHEIRBLOCK - Menu,
+#. cmdUseMineThenTheirsBlock_LabelTitle_RESID)
 msgid "Use right text block then left"
 msgstr ""
 
@@ -11312,13 +11460,16 @@ msgstr "Dùng &toàn bộ tập tin này"
 msgid "Use this block on left"
 msgstr ""
 
+#. Resource IDs: (IDS_COMMIT_AMEND_TT)
+msgid ""
+"Use this to modify/replace the latest checked out commit with a new commit. "
+"The message from the original commit is used as the starting point. "
+"Attention: This modifies the Git history."
+msgstr ""
+
 #. Resource IDs: (IDS_VIEWCONTEXTMENU_USEOTHERFILE)
 msgid "Use whole other &file"
 msgstr "Dùng toàn bộ &tập tin kia"
-
-#. Resource IDs: (IDS_COMMIT_AMEND_TT)
-msgid "Used to amend the tip of the current branch."
-msgstr ""
 
 #. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
 msgid "User Email:"
@@ -11330,7 +11481,7 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
 msgid "User Name:"
-msgstr ""
+msgstr "Tên người dùng:"
 
 #. Resource IDs: (IDS_USERCANCELLED)
 msgid "User cancelled"
@@ -11438,8 +11589,17 @@ msgstr ""
 msgid "View Bars"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_PATCH_VIEW: Control id 328, IDS_MENU_VIEWPATCH)
+#. Resource IDs: (Dialog IDD_PATCH_VIEW: Control id 328, IDS_MENU_VIEWPATCH,
+#. IDS_VIEWPATCH)
 msgid "View Patch"
+msgstr ""
+
+#. Resource IDs: (IDS_VIEWPATCH_HEAD_INDEX)
+msgid "View Patch - HEAD to index"
+msgstr ""
+
+#. Resource IDs: (IDS_VIEWPATCH_INDEX_WORKTREE)
+msgid "View Patch - index to working tree"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1637, Dialog IDD_DIFFFILES:
@@ -11484,10 +11644,10 @@ msgstr "Chờ cho kịch bản hoàn tất"
 
 #. Resource IDs: (IDS_PROC_SYNC_WAINTINPUT)
 msgid "Waiting for input"
-msgstr ""
+msgstr "Đang chờ đầu vào"
 
 #. Resource IDs: (Dialog IDD_LOGMESSAGE: Control id 1776)
-msgid "Walk Be&haviour"
+msgid "Walk Be&havior"
 msgstr ""
 
 #. Resource IDs: (IDS_WARN_WARNING)
@@ -11574,6 +11734,20 @@ msgstr ""
 msgid "Whether to reference only annotated tags, all tags or all refs"
 msgstr ""
 
+#. Resource IDs: (IDS_TIPSTAGINGMODE)
+msgid ""
+"While in this mode, the checkbox for each file reflects its staging status:\n"
+"- Checked means all the changes for the file are staged\n"
+"- Unchecked means all the changes for the file are unstaged\n"
+"- A gray square means that only some changes for the file are staged\n"
+"\n"
+"Clicking the checkboxes immediately stages or unstages the whole file.\n"
+"\n"
+"You can also click \"Partial Staging\" or \"Partial Unstaging\". A window shows up where you can select hunks or lines in the currently selected file and stage or unstage them.\n"
+"\n"
+"Please note that, for performance reasons, the file's group (Modified Files, Not Versioned Files...) and status (Added, Modified, Unknown...) are not updated when clicking its checkbox. If you want to see the updated group and status, you can trigger a full refresh by pressing F5."
+msgstr ""
+
 #. Resource IDs: (IDS_NEED_TO_RESOLVE_CONFLICTS_HINT)
 msgid ""
 "While merging, i.e. integrating changes of another (remote) branch into your local branch, a conflict in at least one file occurred. This means that you need to resolve this manually (i.e., you need to integrate your changes into a file which was also modified on another branch).\n"
@@ -11599,6 +11773,14 @@ msgstr ""
 #. cmdGroupWhitespaces_LabelTitle_RESID)
 msgid "Whitespaces"
 msgstr "Khoảng trắng"
+
+#. Resource IDs: (Dialog IDD_SETTINGSWIN11CONTEXTMENU: Control id 4602)
+msgid "Windows 11 Context Menu"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 1859)
+msgid "Windows Credential Manager"
+msgstr ""
 
 #. Resource IDs: (5020 - Menu)
 msgid "Windows-1250"
@@ -11646,14 +11828,22 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_CHANGEDFILES: Control id 158, IDS_WORKING_TREE)
 msgid "Working Tree"
-msgstr ""
+msgstr "Cây làm việc"
 
 #. Resource IDs: (Dialog IDD_SETTINGSBUGTRAQADV: Control id 1472)
 msgid "Working Tree Path:"
-msgstr ""
+msgstr "Đường dẫn cây làm việc:"
 
 #. Resource IDs: (IDS_LOG_WORKINGDIRCHANGES)
 msgid "Working tree changes"
+msgstr "Các thay đổi trong cây làm việc"
+
+#. Resource IDs: (Dialog IDD_WORKTREE_LIST: Control id 4604)
+msgid "Worktree List"
+msgstr ""
+
+#. Resource IDs: (IDS_MENUWORKTREE)
+msgid "Worktrees"
 msgstr ""
 
 #. Resource IDs: (cmdViewWrapLines_LabelTitle_RESID)
@@ -12029,9 +12219,13 @@ msgstr ""
 msgid "file/foldernames"
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_PUSH: Control id 1498)
+msgid "force &with lease"
+msgstr ""
+
 #. Resource IDs: (IDS_STATUSLIST_CONTEXT_COPYFULLPATHS)
 msgid "full paths"
-msgstr ""
+msgstr "đường dẫn đầy đủ"
 
 #. Resource IDs: (IDS_PROC_PROGRESS_GITUNCLEANEXIT)
 #, c-format
@@ -12083,7 +12277,7 @@ msgid ""
 "%s = %ld\n"
 "%s = %ld\n"
 "%s = %ld"
-msgstr ""
+msgstr "dòng: %d(+) %d(-) các tệp: %s = %ld\n%s = %ld\n%s = %ld\n%s = %ld"
 
 #. Resource IDs: (IDS_STATUSLIST_STATUSLINE2)
 #, c-format
@@ -12187,7 +12381,7 @@ msgstr ""
 
 #. Resource IDs: (cmdOpen_Keytip_RESID)
 msgid "o1"
-msgstr ""
+msgstr "o1"
 
 #. Resource IDs: (IDS_STATUSOBSTRUCTED)
 msgid "obstructed"
@@ -12265,10 +12459,6 @@ msgstr "sang %1"
 #, c-format
 msgid "to %s"
 msgstr "sang %s"
-
-#. Resource IDs: (Dialog IDD_PUSH: Control id 1480)
-msgid "u&nknown changes"
-msgstr ""
 
 #. Resource IDs: (IDS_STATGRAPH_COMMITSBYDATEXWEEK)
 msgid "week"

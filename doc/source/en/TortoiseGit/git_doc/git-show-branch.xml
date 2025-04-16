@@ -13,12 +13,12 @@
 <simplesect id="git-show-branch(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git show-branch</emphasis> [-a|--all] [-r|--remotes] [--topo-order | --date-order]
+<literallayout><emphasis>git show-branch</emphasis> [-a | --all] [-r | --remotes] [--topo-order | --date-order]
                 [--current] [--color[=&lt;when&gt;] | --no-color] [--sparse]
                 [--more=&lt;n&gt; | --list | --independent | --merge-base]
                 [--no-name | --sha1-name] [--topics]
                 [(&lt;rev&gt; | &lt;glob&gt;)&#8230;]
-<emphasis>git show-branch</emphasis> (-g|--reflog)[=&lt;n&gt;[,&lt;base&gt;]] [--list] [&lt;ref&gt;]</literallayout>
+<emphasis>git show-branch</emphasis> (-g | --reflog)[=&lt;n&gt;[,&lt;base&gt;]] [--list] [&lt;ref&gt;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-show-branch(1)__description">
@@ -26,7 +26,7 @@
 <simpara>Shows the commit ancestry graph starting from the commits named
 with &lt;rev&gt;s or &lt;glob&gt;s (or all refs under refs/heads
 and/or refs/tags) semi-visually.</simpara>
-<simpara>It cannot show more than 29 branches and commits at a time.</simpara>
+<simpara>It cannot show more than 26 branches and commits at a time.</simpara>
 <simpara>It uses <emphasis>showbranch.default</emphasis> multi-valued configuration items if
 no &lt;rev&gt; or &lt;glob&gt; is given on the command line.</simpara>
 </simplesect>
@@ -90,7 +90,7 @@ no &lt;rev&gt; or &lt;glob&gt; is given on the command line.</simpara>
 <listitem>
 <simpara>
         With this option, the command includes the current
-        branch to the list of revs to be shown when it is not
+        branch in the list of revs to be shown when it is not
         given on the command line.
 </simpara>
 </listitem>
@@ -142,8 +142,7 @@ no &lt;rev&gt; or &lt;glob&gt; is given on the command line.</simpara>
         that is the common ancestor of all the branches.  This
         flag tells the command to go &lt;n&gt; more common commits
         beyond that.  When &lt;n&gt; is negative, display only the
-        &lt;reference&gt;s given, without showing the commit ancestry
-        tree.
+        &lt;ref&gt;s given, without showing the commit ancestry tree.
 </simpara>
 </listitem>
 </varlistentry>
@@ -177,8 +176,8 @@ no &lt;rev&gt; or &lt;glob&gt; is given on the command line.</simpara>
 </term>
 <listitem>
 <simpara>
-        Among the &lt;reference&gt;s given, display only the ones that
-        cannot be reached from any other &lt;reference&gt;.
+        Among the &lt;ref&gt;s given, display only the ones that cannot be
+        reached from any other &lt;ref&gt;.
 </simpara>
 </listitem>
 </varlistentry>
@@ -262,22 +261,22 @@ no &lt;rev&gt; or &lt;glob&gt; is given on the command line.</simpara>
 </listitem>
 </varlistentry>
 </variablelist>
-<simpara>Note that --more, --list, --independent and --merge-base options
+<simpara>Note that --more, --list, --independent, and --merge-base options
 are mutually exclusive.</simpara>
 </simplesect>
 <simplesect id="git-show-branch(1)__output">
 <title>OUTPUT</title>
-<simpara>Given N &lt;references&gt;, the first N lines are the one-line
-description from their commit message.  The branch head that is
-pointed at by $GIT_DIR/HEAD is prefixed with an asterisk <emphasis>*</emphasis>
-character while other heads are prefixed with a <emphasis>!</emphasis> character.</simpara>
-<simpara>Following these N lines, one-line log for each commit is
+<simpara>Given N &lt;ref&gt;s, the first N lines are the one-line description from
+their commit message. The branch head that is pointed at by
+$GIT_DIR/HEAD is prefixed with an asterisk <emphasis>*</emphasis> character while other
+heads are prefixed with a <emphasis>!</emphasis> character.</simpara>
+<simpara>Following these N lines, a one-line log for each commit is
 displayed, indented N places.  If a commit is on the I-th
 branch, the I-th indentation character shows a <emphasis>+</emphasis> sign;
 otherwise it shows a space.  Merge commits are denoted by
 a <emphasis>-</emphasis> sign.  Each commit shows a short name that
 can be used as an extended SHA-1 to name that commit.</simpara>
-<simpara>The following example shows three branches, "master", "fixes"
+<simpara>The following example shows three branches, "master", "fixes",
 and "mhf":</simpara>
 <screen>$ git show-branch master fixes mhf
 * [master] Add 'git show-branch'.
@@ -285,7 +284,7 @@ and "mhf":</simpara>
   ! [mhf] Allow "+remote:local" refspec to cause --force when fetching.
 ---
   + [mhf] Allow "+remote:local" refspec to cause --force when fetching.
-  + [mhf~1] Use git-octopus when pulling more than one heads.
+  + [mhf~1] Use git-octopus when pulling more than one head.
  +  [fixes] Introduce "reset type" flag to "git reset"
   + [mhf~2] "git fetch --force".
   + [mhf~3] Use .git/remote/origin, not .git/branches/origin.
@@ -315,7 +314,26 @@ your topic branch, it is shown as well.</simpara>
 <screen>$ git show-branch --reflog="10,1 hour ago" --list master</screen>
 <simpara>shows 10 reflog entries going back from the tip as of 1 hour ago.
 Without <emphasis>--list</emphasis>, the output also shows how these tips are
-topologically related with each other.</simpara>
+topologically related to each other.</simpara>
+</simplesect>
+<simplesect id="git-show-branch(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+showBranch.default
+</term>
+<listitem>
+<simpara>
+        The default set of branches for <xref linkend="git-show-branch(1)" />.
+        See <xref linkend="git-show-branch(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
 </simplesect>
 <simplesect id="git-show-branch(1)__git">
 <title>GIT</title>

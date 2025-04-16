@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016 - TortoiseGit
+// Copyright (C) 2016, 2023 - TortoiseGit
 // Copyright (C) 2003-2007,2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -49,24 +49,24 @@ public:
 	int			GetUnderline() const;
 
 public:
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
-	virtual BOOL DestroyWindow() override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL DestroyWindow() override;
 protected:
-	virtual void PreSubclassWindow() override;
+	void PreSubclassWindow() override;
 
 protected:
-	HINSTANCE	GotoURL(LPCTSTR url);
+	HINSTANCE	GotoURL(LPCWSTR url);
 	void		SetDefaultCursor();
 
 protected:
 	COLORREF	m_crLinkColor;			///< Hyperlink color
 	COLORREF	m_crHoverColor;			///< Hover color
-	BOOL		m_bOverControl;			///< cursor over control?
+	BOOL		m_bOverControl = FALSE;	///< cursor over control?
 	int			m_nUnderline;			///< underline hyperlink?
 	CString		m_strURL;				///< hyperlink URL
 	CFont		m_UnderlineFont;		///< Font for underline display
 	CFont		m_StdFont;				///< Standard font
-	HCURSOR		m_hLinkCursor;			///< Cursor for hyperlink
+	HCURSOR		m_hLinkCursor = nullptr;///< Cursor for hyperlink
 	CToolTipCtrl m_ToolTip;				///< The tooltip
 	UINT		m_nTimerID;
 

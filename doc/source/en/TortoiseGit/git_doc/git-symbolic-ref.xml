@@ -14,7 +14,7 @@
 <title>SYNOPSIS</title>
 <blockquote>
 <literallayout><emphasis>git symbolic-ref</emphasis> [-m &lt;reason&gt;] &lt;name&gt; &lt;ref&gt;
-<emphasis>git symbolic-ref</emphasis> [-q] [--short] &lt;name&gt;
+<emphasis>git symbolic-ref</emphasis> [-q] [--short] [--no-recurse] &lt;name&gt;
 <emphasis>git symbolic-ref</emphasis> --delete [-q] &lt;name&gt;</literallayout>
 </blockquote>
 </simplesect>
@@ -30,7 +30,7 @@ point at the given branch &lt;ref&gt;.</simpara>
 symbolic ref.</simpara>
 <simpara>A symbolic ref is a regular file that stores a string that
 begins with <emphasis>ref: refs/</emphasis>.  For example, your <emphasis>.git/HEAD</emphasis> is
-a regular file whose contents is <emphasis>ref: refs/heads/master</emphasis>.</simpara>
+a regular file whose content is <emphasis>ref: refs/heads/master</emphasis>.</simpara>
 </simplesect>
 <simplesect id="git-symbolic-ref(1)__options">
 <title>OPTIONS</title>
@@ -76,6 +76,24 @@ a regular file whose contents is <emphasis>ref: refs/heads/master</emphasis>.</s
 </varlistentry>
 <varlistentry>
 <term>
+--recurse
+</term>
+<term>
+--no-recurse
+</term>
+<listitem>
+<simpara>
+        When showing the value of &lt;name&gt; as a symbolic ref, if
+        &lt;name&gt; refers to another symbolic ref, follow such a chain
+        of symbolic refs until the result no longer points at a
+        symbolic ref (<emphasis>--recurse</emphasis>, which is the default).
+        <emphasis>--no-recurse</emphasis> stops after dereferencing only a single level
+        of symbolic ref.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 -m
 </term>
 <listitem>
@@ -99,6 +117,10 @@ default.</simpara>
 <simpara><emphasis>git symbolic-ref</emphasis> will exit with status 0 if the contents of the
 symbolic ref were printed correctly, with status 1 if the requested
 name is not a symbolic ref, or 128 if another error occurs.</simpara>
+</simplesect>
+<simplesect id="git-symbolic-ref(1)__see_also">
+<title>SEE ALSO</title>
+<simpara><xref linkend="git-update-ref(1)" /></simpara>
 </simplesect>
 <simplesect id="git-symbolic-ref(1)__git">
 <title>GIT</title>

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2023, 2025 - TortoiseGit
 // Copyright (C) 2007-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@
 #include "Git.h"
 #include "GitHash.h"
 #include "TGitPath.h"
-#include "GitLogListBase.h"
+#include "LogDlgHelper.h"
 #include "UnicodeUtils.h"
 
 void CLogDataVector::ClearAll()
@@ -78,7 +78,7 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 	}
 	catch (const char* msg)
 	{
-		MessageBox(nullptr, L"Could not initialize libgit.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+		MessageBox(nullptr, L"Could not initialize libgit.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 		return -1;
 	}
 
@@ -89,28 +89,33 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 		if (git_open_log(&handle, CUnicodeUtils::GetUTF8(cmd)))
 			return -1;
 	}
-	catch (char* msg)
+	catch (const char* msg)
 	{
-		MessageBox(nullptr, L"Could not open log.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+		MessageBox(nullptr, L"Could not open log.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 		return -1;
 	}
 
 	try
 	{
 		CAutoLocker lock(g_Git.m_critGitDllSec);
-		[&]{ git_get_log_firstcommit(handle); }();
+		if (git_get_log_firstcommit(handle) < 0)
+		{
+			MessageBox(nullptr, L"Getting first commit and preparing the revision walk failed. Broken repository?", L"TortoiseGit", MB_ICONERROR);
+			git_close_log(handle, 0);
+			return -1;
+		}
 	}
-	catch (char* msg)
+	catch (const char* msg)
 	{
-		MessageBox(nullptr, L"Could not get first commit.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+		MessageBox(nullptr, L"Could not get first commit.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 		return -1;
 	}
 
 	if (CGitMailmap::ShouldLoadMailmap())
 		GitRevLoglist::s_Mailmap = std::make_shared<CGitMailmap>();
-	else if (GitRevLoglist::s_Mailmap)
-		GitRevLoglist::s_Mailmap = nullptr;
-	auto mailmap = GitRevLoglist::s_Mailmap;
+	else if (GitRevLoglist::s_Mailmap.load())
+		GitRevLoglist::s_Mailmap.store(nullptr);
+	auto mailmap{ GitRevLoglist::s_Mailmap.load() };
 
 	int ret = 0;
 	while (ret == 0)
@@ -122,9 +127,9 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 			CAutoLocker lock(g_Git.m_critGitDllSec);
 			[&]{ ret = git_get_log_nextcommit(handle, &commit, infomask & CGit::LOG_INFO_FOLLOW); }();
 		}
-		catch (char* msg)
+		catch (const char* msg)
 		{
-			MessageBox(nullptr, L"Could not get next commit.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+			MessageBox(nullptr, L"Could not get next commit.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 			break;
 		}
 
@@ -167,7 +172,7 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 
 	{
 		CAutoLocker lock(g_Git.m_critGitDllSec);
-		git_close_log(handle);
+		git_close_log(handle, 1);
 	}
 
 	return 0;
@@ -196,15 +201,15 @@ int CLogDataVector::Fill(const std::unordered_set<CGitHash>& hashes)
 	}
 	catch (const char* msg)
 	{
-		MessageBox(nullptr, L"Could not initialize libgit.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+		MessageBox(nullptr, L"Could not initialize libgit.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 		return -1;
 	}
 
 	if (CGitMailmap::ShouldLoadMailmap())
 		GitRevLoglist::s_Mailmap = std::make_shared<CGitMailmap>();
-	else if (GitRevLoglist::s_Mailmap)
-		GitRevLoglist::s_Mailmap = nullptr;
-	auto mailmap = GitRevLoglist::s_Mailmap;
+	else if (GitRevLoglist::s_Mailmap.load())
+		GitRevLoglist::s_Mailmap.store(nullptr);
+	auto mailmap{ GitRevLoglist::s_Mailmap.load() };
 
 	std::set<GitRevLoglist*, SortByParentDate> revs;
 	for (const auto& hash : hashes)
@@ -216,9 +221,9 @@ int CLogDataVector::Fill(const std::unordered_set<CGitHash>& hashes)
 			if (git_get_commit_from_hash(&commit, hash.ToRaw()))
 				return -1;
 		}
-		catch (char * msg)
+		catch (const char* msg)
 		{
-			MessageBox(nullptr, L"Could not get commit \"" + hash.ToString() + L"\".\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+			MessageBox(nullptr, L"Could not get commit \"" + hash.ToString() + L"\".\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 			return -1;
 		}
 
@@ -242,16 +247,16 @@ int CLogDataVector::Fill(const std::unordered_set<CGitHash>& hashes)
 	return 0;
 }
 
-void CLogDataVector::append(CGitHash& sha, bool storeInVector)
+void CLogDataVector::append(CGitHash& sha, bool storeInVector, bool onlyFirstParent)
 {
 	if (storeInVector)
 		this->push_back(sha);
 
 	GitRevLoglist* r = &m_pLogCache->m_HashMap[sha];
-	updateLanes(*r, this->m_Lns, sha);
+	updateLanes(*r, this->m_Lns, sha, onlyFirstParent);
 }
 
-void CLogDataVector::setLane(const CGitHash& sha)
+void CLogDataVector::setLane(const CGitHash& sha, bool onlyFirstParent)
 {
 	Lanes* l = &(this->m_Lns);
 	int i = m_FirstFreeLane;
@@ -265,7 +270,7 @@ void CLogDataVector::setLane(const CGitHash& sha)
 		CGitHash curSha=r->m_CommitHash;
 
 		if (r->m_Lanes.empty())
-			updateLanes(*r, *l, curSha);
+			updateLanes(*r, *l, curSha, onlyFirstParent);
 
 		if (curSha == sha)
 			break;
@@ -293,7 +298,7 @@ void CLogDataVector::setLane(const CGitHash& sha)
 #endif
 }
 
-void CLogDataVector::updateLanes(GitRevLoglist& c, Lanes& lns, const CGitHash& sha)
+void CLogDataVector::updateLanes(GitRevLoglist& c, Lanes& lns, const CGitHash& sha, bool onlyFirstParent)
 {
 // we could get third argument from c.sha(), but we are in fast path here
 // and c.sha() involves a deep copy, so we accept a little redundancy
@@ -302,20 +307,20 @@ void CLogDataVector::updateLanes(GitRevLoglist& c, Lanes& lns, const CGitHash& s
 		lns.init(sha);
 
 	bool isDiscontinuity;
-	bool isFork = lns.isFork(sha, isDiscontinuity);
-	bool isMerge = (c.ParentsCount() > 1);
-	bool isInitial = (c.ParentsCount() == 0);
+	const bool isFork = lns.isFork(sha, isDiscontinuity);
+	const bool isMerge = (c.ParentsCount() > 1);
+	const bool isInitial = (c.ParentsCount() == 0);
 
 	if (isDiscontinuity)
 		lns.changeActiveLane(sha); // uses previous isBoundary state
 
 	lns.setBoundary(c.IsBoundary() == TRUE, isInitial); // update must be here
-	//TRACE(L"%s %d", static_cast<LPCTSTR>(c.m_CommitHash.ToString()), c.IsBoundary());
+	//TRACE(L"%s %d", static_cast<LPCWSTR>(c.m_CommitHash.ToString()), c.IsBoundary());
 
 	if (isFork)
 		lns.setFork(sha);
 	if (isMerge)
-		lns.setMerge(c.m_ParentHash);
+		lns.setMerge(c.m_ParentHash, onlyFirstParent);
 	//if (c.isApplied)
 	//	lns.setApplied();
 	if (isInitial)

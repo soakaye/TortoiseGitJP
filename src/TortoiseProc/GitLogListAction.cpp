@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2005-2007 Marco Costalba
 
 // This program is free software; you can redistribute it and/or
@@ -17,24 +17,18 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-// GitLogList.cpp : implementation file
-//
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "GitLogList.h"
 #include "GitRev.h"
 #include "IconMenu.h"
-#include "cursor.h"
-#include "GitProgressDlg.h"
-#include "ProgressDlg.h"
 #include "SysProgressDlg.h"
-#include "LogDlg.h"
 #include "MessageBox.h"
 #include "registry.h"
 #include "AppUtils.h"
 #include "StringUtils.h"
 #include "UnicodeUtils.h"
-#include "TempFile.h"
 #include "CommitDlg.h"
 #include "RebaseDlg.h"
 #include "CommitIsOnRefsDlg.h"
@@ -81,13 +75,13 @@ int CGitLogList::RevertSelectedCommits(int parent)
 	GitAdminDir::GetWorktreeAdminDirPath(g_Git.m_CurrentDir, dotGitPath);
 	while(pos)
 	{
-		int index = GetNextSelectedItem(pos);
+		const int index = GetNextSelectedItem(pos);
 		GitRev* r1 = m_arShownList.SafeGetAt(index);
 
 		if (progress.IsVisible())
 		{
-			progress.FormatNonPathLine(1, IDS_PROC_REVERTCOMMIT, static_cast<LPCTSTR>(r1->m_CommitHash.ToString()));
-			progress.FormatNonPathLine(2, L"%s", static_cast<LPCTSTR>(r1->GetSubject()));
+			progress.FormatNonPathLine(1, IDS_PROC_REVERTCOMMIT, static_cast<LPCWSTR>(r1->m_CommitHash.ToString()));
+			progress.FormatNonPathLine(2, L"%s", static_cast<LPCWSTR>(r1->GetSubject()));
 			progress.SetProgress(i, this->GetSelectedCount());
 		}
 		++i;
@@ -102,13 +96,13 @@ int CGitLogList::RevertSelectedCommits(int parent)
 			str = g_Git.GetGitLastErr(str, CGit::GIT_CMD_REVERT);
 			if( GetSelectedCount() == 1)
 				CMessageBox::Show(GetParentHWND(), str, L"TortoiseGit", MB_OK | MB_ICONERROR);
-			else if (CMessageBox::Show(GetParentHWND(), str, L"TortoiseGit", 2, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_SKIPBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+			else if (CMessageBox::Show(GetParentHWND(), str, IDS_APPNAME, 2, IDI_ERROR, IDS_SKIPBUTTON, IDS_ABORTBUTTON) == 2)
 				return ret;
 		}
 		else
 		{
 			if (!mergeMsg.IsEmpty())
-				mergeMsg += "\r\n";
+				mergeMsg += L"\r\n";
 			CGit::LoadTextFile(dotGitPath + L"MERGE_MSG", mergeMsg);
 			ret = 0;
 		}
@@ -124,7 +118,7 @@ int CGitLogList::CherryPickFrom(CString from, CString to)
 {
 	CLogDataVector logs(&m_LogCache);
 	CString range;
-	range.Format(L"%s..%s", static_cast<LPCTSTR>(from), static_cast<LPCTSTR>(to));
+	range.Format(L"%s..%s", static_cast<LPCWSTR>(from), static_cast<LPCWSTR>(to));
 	if (logs.ParserFromLog(nullptr, 0, 0, &range))
 		return -1;
 
@@ -142,14 +136,14 @@ int CGitLogList::CherryPickFrom(CString from, CString to)
 	{
 		if (progress.IsVisible())
 		{
-			progress.FormatNonPathLine(1, IDS_PROC_PICK, static_cast<LPCTSTR>(logs.GetGitRevAt(i).m_CommitHash.ToString()));
-			progress.FormatNonPathLine(2, L"%s", static_cast<LPCTSTR>(logs.GetGitRevAt(i).GetSubject()));
+			progress.FormatNonPathLine(1, IDS_PROC_PICK, static_cast<LPCWSTR>(logs.GetGitRevAt(i).m_CommitHash.ToString()));
+			progress.FormatNonPathLine(2, L"%s", static_cast<LPCWSTR>(logs.GetGitRevAt(i).GetSubject()));
 			progress.SetProgress64(logs.size() - i, logs.size());
 		}
 		if (progress.HasUserCancelled())
 			throw std::exception(CUnicodeUtils::GetUTF8(CString(MAKEINTRESOURCE(IDS_USERCANCELLED))));
 		CString cmd,out;
-		cmd.Format(L"git.exe cherry-pick %s", static_cast<LPCTSTR>(logs.GetGitRevAt(i).m_CommitHash.ToString()));
+		cmd.Format(L"git.exe cherry-pick %s", static_cast<LPCWSTR>(logs.GetGitRevAt(i).m_CommitHash.ToString()));
 		if(g_Git.Run(cmd,&out,CP_UTF8))
 			throw std::exception(CUnicodeUtils::GetUTF8(CString(MAKEINTRESOURCE(IDS_PROC_CHERRYPICKFAILED)) + L":\r\n\r\n" + out));
 	}
@@ -160,7 +154,7 @@ int CGitLogList::CherryPickFrom(CString from, CString to)
 void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CMenu* popmenu, const MAP_HASH_NAME& hashMap)
 {
 	POSITION pos = GetFirstSelectedItemPosition();
-	int indexNext = GetNextSelectedItem(pos);
+	const int indexNext = GetNextSelectedItem(pos);
 	if (indexNext < 0)
 		return;
 
@@ -205,6 +199,11 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					else if ((cmd & 0xFFFF) == 0xFFFD)
 					{
 						CString tempfile = GetTempFile();
+						if (tempfile.IsEmpty())
+						{
+							MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+							break;
+						}
 						CString gitcmd = L"git.exe diff-tree --cc " + r1->m_CommitHash.ToString();
 						CString lastErr;
 						if (g_Git.RunLogFile(gitcmd, tempfile, &lastErr))
@@ -269,7 +268,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					}
 				}
 				else
-					CAppUtils::StartShowUnifiedDiff(nullptr, m_Path, L"HEAD", m_Path, GitRev::GetWorkingCopy(), bShiftPressed);
+					CAppUtils::StartShowUnifiedDiff(nullptr, m_Path, L"HEAD", m_Path, GitRev::GetWorkingCopyRef(), bShiftPressed);
 			}
 			break;
 
@@ -432,6 +431,11 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 				auto pLastEntry = m_arShownList.SafeGetAt(LastSelect);
 				CString patch1 = GetTempFile();
 				CString patch2 = GetTempFile();
+				if (patch1.IsEmpty() || patch2.IsEmpty())
+				{
+					MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+					break;
+				}
 				if (CString err; g_Git.RunLogFile(L"git.exe format-patch --stdout " + pFirstEntry->m_CommitHash.ToString() + L"~1.." + pFirstEntry->m_CommitHash.ToString() + L"", patch1, &err))
 				{
 					MessageBox(L"Could not generate patch for commit " + pFirstEntry->m_CommitHash.ToString() + L".\n" + err, L"TortoiseGit", MB_ICONERROR);
@@ -446,6 +450,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 			}
 			break;
 		case ID_LOG_VIEWRANGE:
+		case ID_LOG_VIEWRANGE_REVERSE:
 		case ID_LOG_VIEWRANGE_REACHABLEFROMONLYONE:
 			{
 				GitRev* pLastEntry = m_arShownList.SafeGetAt(LastSelect);
@@ -455,8 +460,10 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					sep = L"...";
 
 				CString cmdline;
-				cmdline.Format(L"/command:log /path:\"%s\" /range:\"%s%s%s\"",
-					static_cast<LPCTSTR>(g_Git.CombinePath(m_Path)), static_cast<LPCTSTR>(pLastEntry->m_CommitHash.ToString()), static_cast<LPCTSTR>(sep), static_cast<LPCTSTR>(pSelLogEntry->m_CommitHash.ToString()));
+				if ((cmd & 0xFFFF) == ID_LOG_VIEWRANGE_REVERSE)
+					cmdline.Format(L"/command:log /path:\"%s\" /range:\"%s%s%s\"", static_cast<LPCWSTR>(g_Git.CombinePath(m_Path)), static_cast<LPCWSTR>(pSelLogEntry->m_CommitHash.ToString()), static_cast<LPCWSTR>(sep), static_cast<LPCWSTR>(pLastEntry->m_CommitHash.ToString()));
+				else
+					cmdline.Format(L"/command:log /path:\"%s\" /range:\"%s%s%s\"", static_cast<LPCWSTR>(g_Git.CombinePath(m_Path)), static_cast<LPCWSTR>(pLastEntry->m_CommitHash.ToString()), static_cast<LPCWSTR>(sep), static_cast<LPCWSTR>(pSelLogEntry->m_CommitHash.ToString()));
 				CAppUtils::RunTortoiseGitProc(cmdline);
 			}
 			break;
@@ -638,13 +645,13 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 			//Use throw to abort this process (reset back to original HEAD)
 			try
 			{
-				sCmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(pFirstEntry->m_CommitHash.ToString()));
+				sCmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(pFirstEntry->m_CommitHash.ToString()));
 				if(g_Git.Run(sCmd, &out, CP_UTF8))
 				{
 					MessageBox(out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 					throw std::exception(CUnicodeUtils::GetUTF8(CString(MAKEINTRESOURCE(IDS_PROC_COMBINE_ERRORSTEP1)) + L"\r\n\r\n" + out));
 				}
-				sCmd.Format(L"git.exe reset --soft %s --", static_cast<LPCTSTR>(hashLast.ToString()));
+				sCmd.Format(L"git.exe reset --soft %s --", static_cast<LPCWSTR>(hashLast.ToString()));
 				if(g_Git.Run(sCmd, &out, CP_UTF8))
 				{
 					MessageBox(out, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -661,7 +668,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 				dlg.m_bWholeProject=true;
 				dlg.m_bSelectFilesForCommit = true;
 				dlg.m_bForceCommitAmend=true;
-				int squashDate = CRegDWORD(L"Software\\TortoiseGit\\SquashDate", 0);
+				dlg.m_bCommitAmend = TRUE;
+				const int squashDate = CRegDWORD(L"Software\\TortoiseGit\\SquashDate", 0);
 				if (squashDate == 1)
 					dlg.SetTime(m_arShownList.SafeGetAt(FirstSelect)->GetAuthorDate());
 				else if (squashDate == 2)
@@ -699,7 +707,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 			catch(std::exception& e)
 			{
 				CMessageBox::Show(GetParentHWND(), CUnicodeUtils::GetUnicode(e.what()), L"TortoiseGit", MB_OK | MB_ICONERROR);
-				sCmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(headhash.ToString()));
+				sCmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(headhash.ToString()));
 				out.Empty();
 				if(g_Git.Run(sCmd, &out, CP_UTF8))
 					MessageBox(CString(MAKEINTRESOURCE(IDS_PROC_COMBINE_ERRORRESETHEAD)) + L"\r\n\r\n" + out, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -721,7 +729,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 				POSITION pos2 = GetFirstSelectedItemPosition();
 				while(pos2)
 				{
-					int indexNext2 = GetNextSelectedItem(pos2);
+					const int indexNext2 = GetNextSelectedItem(pos2);
 					dlg.m_CommitList.m_logEntries.push_back(m_arShownList.SafeGetAt(indexNext2)->m_CommitHash);
 					dlg.m_CommitList.m_LogCache.m_HashMap[m_arShownList.SafeGetAt(indexNext2)->m_CommitHash] = *m_arShownList.SafeGetAt(indexNext2);
 					dlg.m_CommitList.m_logEntries.GetGitRevAt(dlg.m_CommitList.m_logEntries.size() - 1).GetRebaseAction() |= LOGACTIONS_REBASE_PICK;
@@ -788,13 +796,26 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 
 		case ID_REFLOG_DEL:
 			{
+				// security measure, make sure the view is still up2date before deleting any refs, see issue #3782
+				std::vector<GitRevLoglist> cache;
+				if (CString err; GitRevLoglist::GetRefLog(m_CurrentBranch, cache, err))
+				{
+					MessageBox(L"Error while loading reflog.\n" + err, L"TortoiseGit", MB_ICONERROR);
+					break;
+				}
+				if (cache.size() != m_arShownList.size() || !cache.empty() && (cache.at(0).GetCommitterDate() != m_arShownList.SafeGetAt(0)->GetCommitterDate() || cache.at(0).m_CommitHash != m_arShownList.SafeGetAt(0)->m_CommitHash || cache.at(cache.size() - 1).m_CommitHash != m_arShownList.SafeGetAt(m_arShownList.size() - 1)->m_CommitHash))
+				{
+					MessageBox(L"The current view seems to be out of date. Please refresh, e.g. by pressing F5 and recheck the selection.", L"TortoiseGit", MB_ICONERROR);
+					break;
+				}
+
 				CString str;
 				if (GetSelectedCount() > 1)
 					str.Format(IDS_PROC_DELETENREFS, GetSelectedCount());
 				else
-					str.Format(IDS_PROC_DELETEREF, static_cast<LPCTSTR>(pSelLogEntry->m_Ref));
+					str.Format(IDS_PROC_DELETEREF, static_cast<LPCWSTR>(pSelLogEntry->m_Ref));
 
-				if (CMessageBox::Show(GetParentHWND(), str, L"TortoiseGit", 1, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+				if (CMessageBox::Show(GetParentHWND(), str, IDS_APPNAME, 1, IDI_QUESTION, IDS_DELETEBUTTON, IDS_ABORTBUTTON) == 2)
 					return;
 
 				std::vector<CString> refsToDelete;
@@ -804,7 +825,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					CString ref = m_arShownList.SafeGetAt(GetNextSelectedItem(pos2))->m_Ref;
 					if (CStringUtils::StartsWith(ref, L"refs/"))
 						ref = ref.Mid(static_cast<int>(wcslen(L"refs/")));
-					int refpos = ref.ReverseFind(L'{');
+					const int refpos = ref.ReverseFind(L'{');
 					if (refpos > 0 && ref.Mid(refpos - 1, 2) != L"@{")
 						ref = ref.Left(refpos) + L'@'+ ref.Mid(refpos);
 					refsToDelete.push_back(ref);
@@ -815,9 +836,9 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					CString ref = *revIt;
 					CString sCmd, out;
 					if (CStringUtils::StartsWith(ref, L"stash"))
-						sCmd.Format(L"git.exe stash drop %s", static_cast<LPCTSTR>(ref));
+						sCmd.Format(L"git.exe stash drop %s", static_cast<LPCWSTR>(ref));
 					else
-						sCmd.Format(L"git.exe reflog delete %s", static_cast<LPCTSTR>(ref));
+						sCmd.Format(L"git.exe reflog delete %s", static_cast<LPCWSTR>(ref));
 
 					if (g_Git.Run(sCmd, &out, CP_UTF8))
 						MessageBox(out, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -837,7 +858,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 			break;
 		case ID_CREATE_PATCH:
 			{
-				int select=this->GetSelectedCount();
+				const int select = this->GetSelectedCount();
 				CString sCmd = L"/command:formatpatch";
 				sCmd += L" /path:\"" + g_Git.m_CurrentDir + L"\" ";
 
@@ -887,14 +908,14 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 		case ID_BISECTGOOD:
 			{
 				GitRev* first = m_arShownList.SafeGetAt(FirstSelect);
-				if (CAppUtils::BisectOperation(GetParentHWND(), L"good", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : L""))
+				if (CAppUtils::BisectOperation(GetParentHWND(), L"good", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : CString()))
 					Refresh();
 			}
 			break;
 		case ID_BISECTBAD:
 			{
 				GitRev* first = m_arShownList.SafeGetAt(FirstSelect);
-				if (CAppUtils::BisectOperation(GetParentHWND(), L"bad", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : L""))
+				if (CAppUtils::BisectOperation(GetParentHWND(), L"bad", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : CString()))
 					Refresh();
 			}
 			break;
@@ -904,10 +925,10 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 			POSITION pos2 = GetFirstSelectedItemPosition();
 			while (pos2)
 			{
-				int indexNext2 = GetNextSelectedItem(pos2);
+					const int indexNext2 = GetNextSelectedItem(pos2);
 				auto rev = m_arShownList.SafeGetAt(indexNext2);
 				if (!rev->m_CommitHash.IsEmpty())
-					refs.AppendFormat(L" %s", static_cast<LPCTSTR>(rev->m_CommitHash.ToString()));
+					refs.AppendFormat(L" %s", static_cast<LPCWSTR>(rev->m_CommitHash.ToString()));
 			}
 			if (CAppUtils::BisectOperation(GetParentHWND(), L"skip", refs))
 				Refresh();
@@ -922,16 +943,23 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 		case ID_REPOBROWSE:
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:repobrowser /path:\"%s\" /rev:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(pSelLogEntry->m_CommitHash.ToString()));
+				sCmd.Format(L"/command:repobrowser /path:\"%s\" /rev:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(pSelLogEntry->m_CommitHash.ToString()));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			}
 			break;
 		case ID_PUSH:
 			{
+				CString workingDir = g_Git.m_CurrentDir;
+				workingDir.Replace(L':', L'_');
+				bool pushAllBranches = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\Push\\" + workingDir + L"\\AllBranches", FALSE) == TRUE;
+
 				CString guessAssociatedBranch = pSelLogEntry->m_CommitHash.ToString();
 				auto branch = popmenu ? reinterpret_cast<const CString*>(static_cast<CIconMenu*>(popmenu)->GetMenuItemData(cmd)) : nullptr;
 				if (branch && !CStringUtils::StartsWith(*branch, L"refs/remotes/"))
+				{
 					guessAssociatedBranch = *branch;
+					pushAllBranches = false;
+				}
 				else if (auto refList = hashMap.find(pSelLogEntry->m_CommitHash); refList != hashMap.cend())
 				{
 					if (!GetFirstEntryStartingWith(refList->second, L"refs/heads/", guessAssociatedBranch))
@@ -941,7 +969,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 				if (CStringUtils::EndsWith(guessAssociatedBranch, L"^{}"))
 					guessAssociatedBranch.Truncate(guessAssociatedBranch.GetLength() - static_cast<int>(wcslen(L"^{}")));
 
-				if (CAppUtils::Push(GetParentHWND(), guessAssociatedBranch))
+				if (CAppUtils::Push(GetParentHWND(), guessAssociatedBranch, pushAllBranches))
 					Refresh();
 			}
 			break;
@@ -966,21 +994,21 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 		case ID_CLEANUP:
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:cleanup /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:cleanup /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			}
 			break;
 		case ID_SUBMODULE_UPDATE:
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			}
 			break;
 		case ID_SHOWBRANCHES:
 			{
 				CCommitIsOnRefsDlg* dlg = new CCommitIsOnRefsDlg(this);
-				dlg->m_Rev = static_cast<LPCTSTR>(pSelLogEntry->m_CommitHash.ToString());
+				dlg->m_Rev = static_cast<LPCWSTR>(pSelLogEntry->m_CommitHash.ToString());
 				dlg->Create(this);
 				// pointer won't leak as it is destroyed within PostNcDestroy()
 			}
@@ -1020,6 +1048,24 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 				CRect rect;
 				this->GetItemRect(FirstSelect,&rect,LVIR_BOUNDS);
 				this->InvalidateRect(rect);
+			}
+			break;
+
+		case ID_TOGGLE_ROLLUP:
+			{
+				auto newRollUpStates = std::make_shared<RollUpStateMap>(*m_RollUpStates.load());
+				RollUpState newNodeState = pSelLogEntry->m_RolledUp ? RollUpState::Expand : RollUpState::Collapse;
+				if (auto it = newRollUpStates->find(pSelLogEntry->m_CommitHash); it != newRollUpStates->end())
+				{
+					if (pSelLogEntry->m_RolledUpIsForced)
+						newRollUpStates->erase(it);
+					else
+						it->second = newNodeState;
+				}
+				else
+					newRollUpStates->emplace(pSelLogEntry->m_CommitHash, newNodeState);
+				m_RollUpStates.store(newRollUpStates);
+				this->Refresh();
 			}
 			break;
 
@@ -1126,13 +1172,14 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 
 		case ID_OPENWITH:
 			bOpenWith = true;
+			[[fallthrough]];
 		case ID_OPEN:
 			{
 				CProgressDlg progDlg;
 				progDlg.SetTitle(IDS_APPNAME);
 				progDlg.SetAnimation(IDR_DOWNLOAD);
 				CString sInfoLine;
-				sInfoLine.Format(IDS_PROGRESSGETFILEREVISION, m_path.GetWinPath(), static_cast<LPCTSTR>(revSelected.ToString()));
+				sInfoLine.Format(IDS_PROGRESSGETFILEREVISION, m_path.GetWinPath(), static_cast<LPCWSTR>(revSelected.ToString()));
 				progDlg.SetLine(1, sInfoLine, true);
 				SetAndClearProgressInfo(&progDlg);
 				progDlg.ShowModeless(m_hWnd);
@@ -1201,8 +1248,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 			{
 				CString sCmd;
 				sCmd.Format(L"%s /command:export /path:\"%s\" /revision:%ld",
-					static_cast<LPCTSTR>(CPathUtils::GetAppDirectory() + L"TortoiseGitProc.exe"),
-					static_cast<LPCTSTR>(pathURL), static_cast<LONG>(revSelected));
+					static_cast<LPCWSTR>(CPathUtils::GetAppDirectory() + L"TortoiseGitProc.exe"),
+					static_cast<LPCWSTR>(pathURL), static_cast<LONG>(revSelected));
 				CAppUtils::LaunchApplication(sCmd, nullptr, false);
 			}
 			break;

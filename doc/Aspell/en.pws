@@ -4,6 +4,7 @@ autocomplete
 autolist
 Autoload
 autostart
+boolean
 branchings
 CamelCase
 changelist
@@ -67,6 +68,8 @@ screenshot
 screenshots
 scrollbars
 SpecialCase
+subfolder
+subfolders
 submenu
 symlink
 textbox
@@ -79,6 +82,9 @@ un
 uncheck
 unchecking
 unselected
+unstage
+unstages
+unstaging
 untracked
 unversion
 unversioned
@@ -92,3 +98,4 @@ whitespaces
 wildcard
 wildcards
 worktree
+worktrees

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2019 - TortoiseGit
+// Copyright (C) 2011-2019, 2021, 2023, 2025 - TortoiseGit
 // Copyright (C) 2006-2008, 2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include "registry.h"
 #include "TGitPath.h"
 #include "ProjectProperties.h"
 
@@ -26,7 +26,7 @@
  * \ingroup TortoiseProc
  * enumeration of all client hook types
  */
-typedef enum hooktype
+enum class HookType
 {
 	unknown_hook,
 	start_commit_hook,
@@ -36,7 +36,7 @@ typedef enum hooktype
 	pre_push_hook,
 	post_push_hook,
 	pre_rebase_hook,
-} hooktype;
+};
 
 /**
  * \ingroup TortoiseProc
@@ -46,9 +46,9 @@ typedef enum hooktype
 class hookkey
 {
 public:
-	hooktype		htype;
+	HookType		htype = HookType::unknown_hook;
 	CTGitPath		path;
-	bool			local;
+	bool			local = false;
 
 	bool operator < (const hookkey& hk) const
 	{
@@ -69,26 +69,26 @@ public:
  * helper struct, used as the value to the std::map we
  * store the data for the client hook scripts in.
  */
-typedef struct hookcmd
+struct hookcmd
 {
 	CString			commandline;
-	bool			bWait;
-	bool			bShow;
-	bool			bEnabled;
-	bool			bLocal;
-	bool			bApproved; ///< user explicitly approved
-	bool			bStored; ///< use decision is stored in reg
+	bool			bWait = true;
+	bool			bShow = true;
+	bool			bEnabled = false;
+	bool			bLocal = false;
+	bool			bApproved = false; ///< user explicitly approved
+	bool			bStored = false; ///< use decision is stored in reg
 	CString			sRegKey;
-} hookcmd;
+};
 
-typedef std::map<hookkey, hookcmd>::iterator hookiterator;
-typedef std::map<hookkey, hookcmd>::const_iterator const_hookiterator;
+using hookiterator = std::map<hookkey, hookcmd>::iterator;
+using const_hookiterator = std::map<hookkey, hookcmd>::const_iterator;
 
 /**
  * \ingroup TortoiseProc
  * Singleton class which deals with the client hook scripts.
  */
-class CHooks : public std::map<hookkey, hookcmd>
+class CHooks : private std::map<hookkey, hookcmd>
 {
 private:
 	CHooks();
@@ -110,6 +110,10 @@ public:
 	/// Destroys the singleton object. Call this at the end of the program.
 	static void			Destroy();
 
+	using std::map<hookkey, hookcmd>::begin;
+	using std::map<hookkey, hookcmd>::end;
+	using std::map<hookkey, hookcmd>::empty;
+
 public:
 	/// Saves the hook script information to the registry.
 	bool				Save();
@@ -121,7 +125,7 @@ public:
 	/**
 	 * Adds a new hook script. To make the change persistent, call Save().
 	 */
-	void				Add(hooktype ht, const CTGitPath& Path, LPCTSTR szCmd,
+	void				Add(HookType ht, const CTGitPath& Path, LPCWSTR szCmd,
 							bool bWait, bool bShow, bool bEnabled, bool bLocal);
 
 	/**
@@ -131,9 +135,9 @@ public:
 	bool				SetEnabled(const hookkey& key, bool bEnabled);
 
 	/// returns the string representation of the hook type.
-	static CString		GetHookTypeString(hooktype t);
+	static CString		GetHookTypeString(HookType t);
 	/// returns the hooktype from a string representation of the same.
-	static hooktype		GetHookType(const CString& s);
+	static HookType		GetHookType(const CString& s);
 
 	/// Add hook script data from project properties
 	void				SetProjectProperties(const CTGitPath& Path, const ProjectProperties& pp);
@@ -187,7 +191,7 @@ public:
 
 	bool	PreRebase(HWND hWnd, const CString& workingTree, const CString& upstream, const CString& rebasedBranch, DWORD& exitcode, CString& error);
 
-	bool	IsHookPresent(hooktype t, const CString& workingTree);
+	bool	IsHookPresent(HookType t, const CString& workingTree);
 
 private:
 	/**
@@ -198,12 +202,12 @@ private:
 	 * \param bShow set to true if the process should be started visible.
 	 * \return the exit code of the process if \c bWait is true, zero otherwise.
 	 */
-	static DWORD		RunScript(CString cmd, LPCTSTR currentDir, CString& error, bool bWait, bool bShow);
+	static DWORD		RunScript(CString cmd, LPCWSTR currentDir, CString& error, bool bWait, bool bShow);
 	/**
 	 * Find the hook script information for the hook type \c t which matches the
 	 * path in \c workingTree.
 	 */
-	hookiterator	FindItem(hooktype t, const CString& workingTree);
+	hookiterator	FindItem(HookType t, const CString& workingTree);
 
 	static void ParseHookString(CString strhooks, bool bLocal);
 

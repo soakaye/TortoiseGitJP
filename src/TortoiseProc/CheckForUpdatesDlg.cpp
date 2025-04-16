@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2008 - TortoiseSVN
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "Git.h"
@@ -28,10 +29,8 @@
 #include "AppUtils.h"
 #include "TempFile.h"
 #include "SmartHandle.h"
-#include "SysInfo.h"
 #include "PathUtils.h"
 #include "DirFileEnum.h"
-#include "UnicodeUtils.h"
 #include "UpdateCrypto.h"
 #include <MsiDefs.h>
 #include <MsiQuery.h>
@@ -48,12 +47,6 @@
 IMPLEMENT_DYNAMIC(CCheckForUpdatesDlg, CResizableStandAloneDialog)
 CCheckForUpdatesDlg::CCheckForUpdatesDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CCheckForUpdatesDlg::IDD, pParent)
-	, m_bShowInfo(FALSE)
-	, m_bForce(FALSE)
-	, m_bVisible(FALSE)
-	, m_pDownloadThread(nullptr)
-	, m_bThreadRunning(FALSE)
-	, m_updateDownloader(nullptr)
 	, m_sUpdateDownloadLink(L"https://tortoisegit.org/download")
 {
 }
@@ -102,7 +95,7 @@ BOOL CCheckForUpdatesDlg::OnInitDialog()
 		}
 	}
 	if (m_myVersion.version.IsEmpty() || !m_myVersion.major)
-		m_myVersion = { _T(STRFILEVER), L"", TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD };
+		m_myVersion = { _T(STRFILEVER), L"", L"", TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD };
 
 	CString temp;
 	temp.Format(IDS_CHECKNEWER_YOURVERSION, m_myVersion.major, m_myVersion.minor, m_myVersion.micro, m_myVersion.build);
@@ -114,27 +107,15 @@ BOOL CCheckForUpdatesDlg::OnInitDialog()
 	if (FAILED(m_pTaskbarList.CoCreateInstance(CLSID_TaskbarList)))
 		m_pTaskbarList = nullptr;
 
-	// hide download controls
-	m_ctrlFiles.ShowWindow(SW_HIDE);
-	GetDlgItem(IDC_GROUP_DOWNLOADS)->ShowWindow(SW_HIDE);
-	RECT rectWindow, rectGroupDownloads, rectOKButton;
-	GetWindowRect(&rectWindow);
-	GetDlgItem(IDC_GROUP_DOWNLOADS)->GetWindowRect(&rectGroupDownloads);
-	GetDlgItem(IDOK)->GetWindowRect(&rectOKButton);
-	LONG bottomDistance = rectWindow.bottom - rectOKButton.bottom;
-	OffsetRect(&rectOKButton, 0, rectGroupDownloads.top - rectOKButton.top);
-	rectWindow.bottom = rectOKButton.bottom + bottomDistance;
-	SetMinTrackSize(CSize(rectWindow.right - rectWindow.left, rectWindow.bottom - rectWindow.top));
-	MoveWindow(&rectWindow);
-	::MapWindowPoints(nullptr, GetSafeHwnd(), reinterpret_cast<LPPOINT>(&rectOKButton), 2);
-	GetDlgItem(IDOK)->MoveWindow(&rectOKButton);
+	// hide changelog and download controls
+	AdjustSize(false, false, false);
 
 	temp.LoadString(IDS_STATUSLIST_COLFILE);
 	m_ctrlFiles.InsertColumn(0, temp, 0, -1);
 	m_ctrlFiles.InsertColumn(1, temp, 0, -1);
 	m_ctrlFiles.SetExtendedStyle(LVS_EX_DOUBLEBUFFER | LVS_EX_CHECKBOXES);
-	m_ctrlFiles.SetColumnWidth(0, CDPIAware::Instance().ScaleX(350));
-	m_ctrlFiles.SetColumnWidth(1, CDPIAware::Instance().ScaleX(200));
+	m_ctrlFiles.SetColumnWidth(0, CDPIAware::Instance().ScaleX(GetSafeHwnd(), 350));
+	m_ctrlFiles.SetColumnWidth(1, CDPIAware::Instance().ScaleX(GetSafeHwnd(), 200));
 
 	m_cLogMessage.Init(-1);
 	m_cLogMessage.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
@@ -159,6 +140,8 @@ BOOL CCheckForUpdatesDlg::OnInitDialog()
 	AddAnchor(IDC_PROGRESSBAR, BOTTOM_LEFT, BOTTOM_RIGHT);
 	AddAnchor(IDC_BUTTON_UPDATE, BOTTOM_RIGHT);
 	AddAnchor(IDOK, BOTTOM_CENTER);
+
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	SetTimer(100, 1000, nullptr);
 	return TRUE;
@@ -261,7 +244,7 @@ UINT CCheckForUpdatesDlg::CheckThread()
 		if (CRegDWORD(L"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\GlobalUserOffline", 0))
 			errorText.LoadString(IDS_OFFLINEMODE); // offline mode enabled
 		else
-			errorText.FormatMessage(IDS_CHECKNEWER_NETERROR_FORMAT, static_cast<LPCTSTR>(GetWinINetError(ret) + L" URL: " + sCheckURL), ret);
+			errorText.FormatMessage(IDS_CHECKNEWER_NETERROR_FORMAT, static_cast<LPCWSTR>(GetWinINetError(ret) + L" URL: " + sCheckURL), ret);
 		SetDlgItemText(IDC_CHECKRESULT, errorText);
 		goto finish;
 	}
@@ -294,13 +277,14 @@ UINT CCheckForUpdatesDlg::CheckThread()
 			bNewer = TRUE;
 
 		m_sNewVersionNumber.Format(L"%u.%u.%u.%u", version.major, version.minor, version.micro, version.build);
+		m_sNewVersionNumberLanguagepacks = version.version_languagepacks;
 		if (m_sNewVersionNumber != version.version_for_filename)
 		{
 			CString versionstr = m_sNewVersionNumber + L" (" + version.version_for_filename + L")";
-			temp.Format(IDS_CHECKNEWER_CURRENTVERSION, static_cast<LPCTSTR>(versionstr));
+			temp.Format(IDS_CHECKNEWER_CURRENTVERSION, static_cast<LPCWSTR>(versionstr));
 		}
 		else
-			temp.Format(IDS_CHECKNEWER_CURRENTVERSION, static_cast<LPCTSTR>(m_sNewVersionNumber));
+			temp.Format(IDS_CHECKNEWER_CURRENTVERSION, static_cast<LPCWSTR>(m_sNewVersionNumber));
 		SetDlgItemText(IDC_CURRENTVERSION, temp);
 
 		if (bNewer)
@@ -317,62 +301,21 @@ UINT CCheckForUpdatesDlg::CheckThread()
 			SetDlgItemText(IDC_CHECKRESULT, temp);
 
 			FillChangelog(versioncheck, official);
-			FillDownloads(versioncheck);
 
-			RemoveAnchor(IDC_GROUP_CHANGELOG);
-			RemoveAnchor(IDC_LOGMESSAGE);
-			RemoveAnchor(IDC_GROUP_DOWNLOADS);
-			RemoveAnchor(IDC_LIST_DOWNLOADS);
-			RemoveAnchor(IDC_PROGRESSBAR);
-			RemoveAnchor(IDC_DONOTASKAGAIN);
-			RemoveAnchor(IDC_BUTTON_UPDATE);
-			RemoveAnchor(IDOK);
+			if (versioncheck.GetTortoiseGitIsDirectDownloadable())
+				FillDownloads(versioncheck);
 
-			// Show download controls
-			RECT rectWindow, rectProgress, rectGroupDownloads, rectOKButton;
-			GetWindowRect(&rectWindow);
-			m_progress.GetWindowRect(&rectProgress);
-			GetDlgItem(IDC_GROUP_DOWNLOADS)->GetWindowRect(&rectGroupDownloads);
-			GetDlgItem(IDOK)->GetWindowRect(&rectOKButton);
-			LONG bottomDistance = rectWindow.bottom - rectOKButton.bottom;
-			OffsetRect(&rectOKButton, 0, (rectGroupDownloads.bottom + (rectGroupDownloads.bottom - rectProgress.bottom)) - rectOKButton.top);
-			rectWindow.bottom = rectOKButton.bottom + bottomDistance;
-			SetMinTrackSize(CSize(rectWindow.right - rectWindow.left, rectWindow.bottom - rectWindow.top));
-			MoveWindow(&rectWindow);
-			::MapWindowPoints(nullptr, GetSafeHwnd(), reinterpret_cast<LPPOINT>(&rectOKButton), 2);
-			if (CRegDWORD(L"Software\\TortoiseGit\\VersionCheck", TRUE) != FALSE && !m_bForce && !m_bShowInfo)
-			{
-				RECT rectDoNotAskAgainButton;
-				GetDlgItem(IDC_DONOTASKAGAIN)->GetWindowRect(&rectDoNotAskAgainButton);
-				::MapWindowPoints(nullptr, GetSafeHwnd(), reinterpret_cast<LPPOINT>(&rectDoNotAskAgainButton), 2);
-				rectDoNotAskAgainButton.top = rectOKButton.top;
-				rectDoNotAskAgainButton.bottom = rectOKButton.bottom;
-				GetDlgItem(IDC_DONOTASKAGAIN)->MoveWindow(&rectDoNotAskAgainButton);
-				GetDlgItem(IDC_DONOTASKAGAIN)->ShowWindow(SW_SHOW);
-				rectOKButton.left += CDPIAware::Instance().ScaleX(60);
-				temp.LoadString(IDS_REMINDMELATER);
-				GetDlgItem(IDOK)->SetWindowText(temp);
-				rectOKButton.right += CDPIAware::Instance().ScaleX(160);
-			}
-			GetDlgItem(IDOK)->MoveWindow(&rectOKButton);
-			AddAnchor(IDC_GROUP_CHANGELOG, TOP_LEFT, BOTTOM_RIGHT);
-			AddAnchor(IDC_LOGMESSAGE, TOP_LEFT, BOTTOM_RIGHT);
-			AddAnchor(IDC_GROUP_DOWNLOADS, BOTTOM_LEFT, BOTTOM_RIGHT);
-			AddAnchor(IDC_LIST_DOWNLOADS, BOTTOM_LEFT, BOTTOM_RIGHT);
-			AddAnchor(IDC_PROGRESSBAR, BOTTOM_LEFT, BOTTOM_RIGHT);
-			AddAnchor(IDC_DONOTASKAGAIN, BOTTOM_CENTER);
-			AddAnchor(IDC_BUTTON_UPDATE, BOTTOM_RIGHT);
-			AddAnchor(IDOK, BOTTOM_CENTER);
-			m_ctrlFiles.ShowWindow(SW_SHOW);
-			GetDlgItem(IDC_GROUP_DOWNLOADS)->ShowWindow(SW_SHOW);
-			CenterWindow();
-			m_bShowInfo = TRUE;
+			AdjustSize(versioncheck.GetTortoiseGitHasChangelog(), versioncheck.GetTortoiseGitIsDirectDownloadable());
+			m_bShowInfo = true;
 		}
 		else if (m_bShowInfo)
 		{
 			temp.LoadString(IDS_CHECKNEWER_YOURUPTODATE);
 			SetDlgItemText(IDC_CHECKRESULT, temp);
 			FillChangelog(versioncheck, official);
+
+			// Show changelog controls
+			AdjustSize(versioncheck.GetTortoiseGitHasChangelog(), false);
 		}
 	}
 
@@ -397,7 +340,7 @@ void CCheckForUpdatesDlg::FillDownloads(CVersioncheckParser& versioncheck)
 	else
 		m_ctrlFiles.InsertItem(0, L"TortoiseGit");
 	CString filenameMain = versioncheck.GetTortoiseGitMainfilename();
-	m_ctrlFiles.SetItemData(0, reinterpret_cast<DWORD_PTR>(new CUpdateListCtrl::Entry(filenameMain, CUpdateListCtrl::STATUS_NONE)));
+	m_ctrlFiles.SetItemData(0, reinterpret_cast<DWORD_PTR>(new CUpdateListCtrl::Entry(filenameMain, false, CUpdateListCtrl::STATUS_NONE)));
 	m_ctrlFiles.SetCheck(0 , TRUE);
 
 	if (isHotfix)
@@ -448,7 +391,7 @@ void CCheckForUpdatesDlg::FillDownloads(CVersioncheckParser& versioncheck)
 	{
 		int pos = m_ctrlFiles.InsertItem(m_ctrlFiles.GetItemCount(), langs.languagepack.m_PackName);
 		m_ctrlFiles.SetItemText(pos, 1, langs.languagepack.m_LangName);
-		m_ctrlFiles.SetItemData(pos, reinterpret_cast<DWORD_PTR>(new CUpdateListCtrl::Entry(langs.languagepack.m_filename, CUpdateListCtrl::STATUS_NONE)));
+		m_ctrlFiles.SetItemData(pos, reinterpret_cast<DWORD_PTR>(new CUpdateListCtrl::Entry(langs.languagepack.m_filename, true, CUpdateListCtrl::STATUS_NONE)));
 
 		if (langs.m_Installed)
 			m_ctrlFiles.SetCheck(pos , TRUE);
@@ -466,16 +409,21 @@ void CCheckForUpdatesDlg::FillChangelog(CVersioncheckParser& versioncheck, bool 
 		pp.SetCheckRe(L"[Ii]ssues?:?(\\s*(,|and)?\\s*#?\\d+)+");
 		pp.SetBugIDRe(L"(\\d+)");
 	}
-	m_cLogMessage.Init(pp);
+
+	if (!versioncheck.GetTortoiseGitHasChangelog())
+	{
+		::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, reinterpret_cast<WPARAM>(&pp), reinterpret_cast<LPARAM>(static_cast<LPCWSTR>(L"No changelog provided.")));
+		return;
+	}
 
 	CString sChangelogURL;
-	sChangelogURL.FormatMessage(versioncheck.GetTortoiseGitChangelogURL(), m_myVersion.major, m_myVersion.minor, m_myVersion.micro, static_cast<LPCTSTR>(m_updateDownloader->m_sWindowsPlatform), static_cast<LPCTSTR>(m_updateDownloader->m_sWindowsVersion), static_cast<LPCTSTR>(m_updateDownloader->m_sWindowsServicePack));
+	sChangelogURL.FormatMessage(versioncheck.GetTortoiseGitChangelogURL(), m_myVersion.major, m_myVersion.minor, m_myVersion.micro, static_cast<LPCWSTR>(m_updateDownloader->m_sWindowsPlatform), static_cast<LPCWSTR>(m_updateDownloader->m_sWindowsVersion), static_cast<LPCWSTR>(m_updateDownloader->m_sWindowsServicePack));
 
 	CString tempchangelogfile = CTempFiles::Instance().GetTempFilePath(true).GetWinPathString();
 	if (DWORD err = m_updateDownloader->DownloadFile(sChangelogURL, tempchangelogfile, false); err != ERROR_SUCCESS)
 	{
 		CString msg = L"Could not load changelog.\r\nError: " + GetWinINetError(err) + L" (on " + sChangelogURL + L")";
-		::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, 0, reinterpret_cast<LPARAM>(static_cast<LPCTSTR>(msg)));
+		::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, reinterpret_cast<WPARAM>(&pp), reinterpret_cast<LPARAM>(static_cast<LPCWSTR>(msg)));
 		return;
 	}
 	if (official)
@@ -486,7 +434,7 @@ void CCheckForUpdatesDlg::FillChangelog(CVersioncheckParser& versioncheck, bool 
 			CString error = L"Could not verify digital signature.";
 			if (err)
 				error += L"\r\nError: " + GetWinINetError(err) + L" (on " + sChangelogURL + SIGNATURE_FILE_ENDING + L")";
-			::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, 0, reinterpret_cast<LPARAM>(static_cast<LPCTSTR>(error)));
+			::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, reinterpret_cast<WPARAM>(&pp), reinterpret_cast<LPARAM>(static_cast<LPCWSTR>(error)));
 			DeleteUrlCacheEntry(sChangelogURL);
 			DeleteUrlCacheEntry(sChangelogURL + SIGNATURE_FILE_ENDING);
 			return;
@@ -494,17 +442,16 @@ void CCheckForUpdatesDlg::FillChangelog(CVersioncheckParser& versioncheck, bool 
 	}
 
 	CString temp;
-	CStdioFile file;
-	if (file.Open(tempchangelogfile, CFile::modeRead | CFile::typeBinary))
+	if (CStdioFile file; file.Open(tempchangelogfile, CFile::modeRead | CFile::typeBinary) || file.GetLength() >= INT_MAX)
 	{
-		auto buf = std::make_unique<BYTE[]>(static_cast<UINT>(file.GetLength()));
+		auto buf = std::make_unique<char[]>(static_cast<UINT>(file.GetLength()));
 		UINT read = file.Read(buf.get(), static_cast<UINT>(file.GetLength()));
 		bool skipBom = read >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF;
-		CGit::StringAppend(&temp, buf.get() + (skipBom ? 3 : 0), CP_UTF8, read - (skipBom ? 3 : 0));
+		CGit::StringAppend(temp, buf.get() + (skipBom ? 3 : 0), CP_UTF8, read - (skipBom ? 3 : 0));
 	}
 	else
 		temp = L"Could not open downloaded changelog file.";
-	::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, 0, reinterpret_cast<LPARAM>(static_cast<LPCTSTR>(temp)));
+	::SendMessage(m_hWnd, WM_USER_FILLCHANGELOG, reinterpret_cast<WPARAM>(&pp), reinterpret_cast<LPARAM>(static_cast<LPCWSTR>(temp)));
 }
 
 void CCheckForUpdatesDlg::OnTimer(UINT_PTR nIDEvent)
@@ -516,7 +463,7 @@ void CCheckForUpdatesDlg::OnTimer(UINT_PTR nIDEvent)
 			KillTimer(100);
 			if (m_bShowInfo)
 			{
-				m_bVisible = TRUE;
+				m_bVisible = true;
 				ShowWindow(SW_SHOWNORMAL);
 			}
 			else
@@ -529,7 +476,7 @@ void CCheckForUpdatesDlg::OnTimer(UINT_PTR nIDEvent)
 void CCheckForUpdatesDlg::OnWindowPosChanging(WINDOWPOS* lpwndpos)
 {
 	CResizableStandAloneDialog::OnWindowPosChanging(lpwndpos);
-	if (m_bVisible == FALSE)
+	if (!m_bVisible)
 		lpwndpos->flags &= ~SWP_SHOWWINDOW;
 }
 
@@ -601,7 +548,7 @@ UINT CCheckForUpdatesDlg::DownloadThreadEntry(LPVOID pVoid)
 	return static_cast<CCheckForUpdatesDlg*>(pVoid)->DownloadThread();
 }
 
-bool CCheckForUpdatesDlg::VerifyUpdateFile(const CString& filename, const CString& filenameSignature, const CString& reportingFilename)
+bool CCheckForUpdatesDlg::VerifyUpdateFile(const CString& filename, const CString& filenameSignature, const CString& reportingFilename, const CString& versionnumber)
 {
 	if (VerifyIntegrity(filename, filenameSignature, m_updateDownloader) != 0)
 	{
@@ -617,14 +564,14 @@ bool CCheckForUpdatesDlg::VerifyUpdateFile(const CString& filename, const CStrin
 		sFileVer.Trim();
 		if (sFileVer.IsEmpty())
 		{
-			m_sErrors.AppendFormat(L"%s: Invalid filetype found (neither executable nor MSI).\r\n", static_cast<LPCTSTR>(reportingFilename));
-			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": MsiGetSummaryInformation reported: %s\n", static_cast<LPCTSTR>(CFormatMessageWrapper(ret)));
+			m_sErrors.AppendFormat(L"%s: Invalid filetype found (neither executable nor MSI).\r\n", static_cast<LPCWSTR>(reportingFilename));
+			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": MsiGetSummaryInformation reported: %s\n", static_cast<LPCWSTR>(CFormatMessageWrapper(ret)));
 			return false;
 		}
-		else if (sFileVer == m_sNewVersionNumber)
+		else if (sFileVer == versionnumber)
 			return true;
 
-		m_sErrors.AppendFormat(L"%s: Version number of downloaded file doesn't match (expected: \"%s\", got: \"%s\").\r\n", static_cast<LPCTSTR>(reportingFilename), static_cast<LPCTSTR>(m_sNewVersionNumber), static_cast<LPCTSTR>(sFileVer));
+		m_sErrors.AppendFormat(L"%s: Version number of downloaded file doesn't match (expected: \"%s\", got: \"%s\").\r\n", static_cast<LPCWSTR>(reportingFilename), static_cast<LPCWSTR>(versionnumber), static_cast<LPCWSTR>(sFileVer));
 		return false;
 	}
 	SCOPE_EXIT{ MsiCloseHandle(hSummary); };
@@ -635,33 +582,33 @@ bool CCheckForUpdatesDlg::VerifyUpdateFile(const CString& filename, const CStrin
 	int intValue;
 	if (MsiSummaryInfoGetProperty(hSummary, PID_SUBJECT, &uiDataType, &intValue, nullptr, CStrBuf(buffer, cchValue + 1), &cchValue))
 	{
-		m_sErrors.AppendFormat(L"%s: Error obtaining version of MSI file (%s).\r\n", static_cast<LPCTSTR>(reportingFilename), static_cast<LPCTSTR>(CFormatMessageWrapper(ret)));
+		m_sErrors.AppendFormat(L"%s: Error obtaining version of MSI file (%s).\r\n", static_cast<LPCWSTR>(reportingFilename), static_cast<LPCWSTR>(CFormatMessageWrapper(ret)));
 		return false;
 	}
 
 	if (VT_LPSTR != uiDataType)
 	{
-		m_sErrors.AppendFormat(L"%s: Error obtaining version of MSI file (invalid data type returned).\r\n", static_cast<LPCTSTR>(reportingFilename));
+		m_sErrors.AppendFormat(L"%s: Error obtaining version of MSI file (invalid data type returned).\r\n", static_cast<LPCWSTR>(reportingFilename));
 		return false;
 	}
 
-	CString sFileVer = buffer.Right(m_sNewVersionNumber.GetLength() + 1);
-	if (sFileVer != L"v" + m_sNewVersionNumber)
+	CString sFileVer = buffer.Right(versionnumber.GetLength() + 1);
+	if (sFileVer != L"v" + versionnumber)
 	{
-		m_sErrors.AppendFormat(L"%s: Version number of downloaded file doesn't match (expected: \"v%s\", got: \"%s\").\r\n", static_cast<LPCTSTR>(reportingFilename), static_cast<LPCTSTR>(m_sNewVersionNumber), static_cast<LPCTSTR>(sFileVer));
+		m_sErrors.AppendFormat(L"%s: Version number of downloaded file doesn't match (expected: \"v%s\", got: \"%s\").\r\n", static_cast<LPCWSTR>(reportingFilename), static_cast<LPCWSTR>(versionnumber), static_cast<LPCWSTR>(sFileVer));
 		return false;
 	}
 
 	return true;
 }
 
-bool CCheckForUpdatesDlg::Download(CString filename)
+bool CCheckForUpdatesDlg::Download(const CString& filename, const CString& versionnumber)
 {
 	CString url = m_sFilesURL + filename;
 	CString destFilename = GetDownloadsDirectory() + filename;
 	if (PathFileExists(destFilename) && PathFileExists(destFilename + SIGNATURE_FILE_ENDING))
 	{
-		if (VerifyUpdateFile(destFilename, destFilename + SIGNATURE_FILE_ENDING, destFilename))
+		if (VerifyUpdateFile(destFilename, destFilename + SIGNATURE_FILE_ENDING, destFilename, versionnumber))
 			return true;
 		else
 		{
@@ -702,18 +649,18 @@ bool CCheckForUpdatesDlg::Download(CString filename)
 		m_sErrors += url + L": " + GetWinINetError(ret) + L"\r\n";
 	if (!ret)
 	{
-		if (VerifyUpdateFile(tempfile, signatureTempfile, url))
+		if (VerifyUpdateFile(tempfile, signatureTempfile, url, versionnumber))
 		{
 			DeleteFile(destFilename);
 			DeleteFile(destFilename + SIGNATURE_FILE_ENDING);
 			if (!MoveFile(tempfile, destFilename))
 			{
-				m_sErrors.AppendFormat(L"Could not move \"%s\" to \"%s\".\r\n", static_cast<LPCTSTR>(tempfile), static_cast<LPCTSTR>(destFilename));
+				m_sErrors.AppendFormat(L"Could not move \"%s\" to \"%s\".\r\n", static_cast<LPCWSTR>(tempfile), static_cast<LPCWSTR>(destFilename));
 				return false;
 			}
 			if (!MoveFile(signatureTempfile, destFilename + SIGNATURE_FILE_ENDING))
 			{
-				m_sErrors.AppendFormat(L"Could not move \"%s\" to \"%s\".\r\n", static_cast<LPCTSTR>(signatureTempfile), static_cast<LPCTSTR>(destFilename + SIGNATURE_FILE_ENDING));
+				m_sErrors.AppendFormat(L"Could not move \"%s\" to \"%s\".\r\n", static_cast<LPCWSTR>(signatureTempfile), static_cast<LPCWSTR>(destFilename + SIGNATURE_FILE_ENDING));
 				return false;
 			}
 			return true;
@@ -739,7 +686,7 @@ UINT CCheckForUpdatesDlg::DownloadThread()
 		{
 			data->m_status = CUpdateListCtrl::STATUS_DOWNLOADING;
 			m_ctrlFiles.InvalidateRect(rect);
-			if (Download(data->m_filename))
+			if (Download(data->m_filename, data->m_languagepack ? m_sNewVersionNumberLanguagepacks : m_sNewVersionNumber))
 				data->m_status = CUpdateListCtrl::STATUS_SUCCESS;
 			else
 			{
@@ -799,11 +746,13 @@ LRESULT CCheckForUpdatesDlg::OnEndDownload(WPARAM, LPARAM)
 	return 0;
 }
 
-LRESULT CCheckForUpdatesDlg::OnFillChangelog(WPARAM, LPARAM lParam)
+LRESULT CCheckForUpdatesDlg::OnFillChangelog(WPARAM wParam, LPARAM lParam)
 {
-	ASSERT(lParam);
+	ASSERT(wParam && lParam);
 
-	LPCTSTR changelog = reinterpret_cast<LPCTSTR>(lParam);
+	m_cLogMessage.Init(*reinterpret_cast<ProjectProperties*>(wParam));
+
+	LPCWSTR changelog = reinterpret_cast<LPCWSTR>(lParam);
 	m_cLogMessage.SetText(changelog);
 	m_cLogMessage.Call(SCI_GOTOPOS, 0);
 	m_cLogMessage.Call(SCI_SETWRAPSTARTINDENT, 3);
@@ -815,7 +764,7 @@ CString CCheckForUpdatesDlg::GetDownloadsDirectory()
 {
 	if (CComHeapPtr<WCHAR> wcharPtr; SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_CREATE, nullptr, &wcharPtr)))
 	{
-		CString folder = wcharPtr;
+		CString folder { static_cast<LPCWSTR>(wcharPtr) };
 		return folder.TrimRight(L'\\') + L'\\';
 	}
 
@@ -850,13 +799,13 @@ LRESULT CCheckForUpdatesDlg::OnTaskbarBtnCreated(WPARAM /*wParam*/, LPARAM /*lPa
 
 CString CCheckForUpdatesDlg::GetWinINetError(DWORD err)
 {
-	CString readableError = CFormatMessageWrapper(err);
+	CString readableError { static_cast<LPCWSTR>(CFormatMessageWrapper(err)) };
 	if (readableError.IsEmpty())
 	{
 		for (const CString& module : { L"wininet.dll", L"urlmon.dll" })
 		{
-			LPTSTR buffer;
-			FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandle(module), err, 0, reinterpret_cast<LPTSTR>(&buffer), 0, nullptr);
+			LPWSTR buffer;
+			FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandle(module), err, 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
 			readableError = buffer;
 			LocalFree(buffer);
 			if (!readableError.IsEmpty())
@@ -873,4 +822,86 @@ void CCheckForUpdatesDlg::OnBnClickedDonotaskagain()
 		CRegDWORD(L"Software\\TortoiseGit\\VersionCheck") = FALSE;
 		OnOK();
 	}
+}
+
+void CCheckForUpdatesDlg::AdjustSize(bool changelog, bool downloads, bool handleAnchors)
+{
+	if (handleAnchors)
+	{
+		RemoveAnchor(IDC_GROUP_CHANGELOG);
+		RemoveAnchor(IDC_LOGMESSAGE);
+		RemoveAnchor(IDC_GROUP_DOWNLOADS);
+		RemoveAnchor(IDC_LIST_DOWNLOADS);
+		RemoveAnchor(IDC_PROGRESSBAR);
+		RemoveAnchor(IDC_DONOTASKAGAIN);
+		RemoveAnchor(IDC_BUTTON_UPDATE);
+		RemoveAnchor(IDOK);
+	}
+
+	m_ctrlFiles.ShowWindow(SW_HIDE);
+	GetDlgItem(IDC_GROUP_CHANGELOG)->ShowWindow(SW_HIDE);
+	GetDlgItem(IDC_LOGMESSAGE)->ShowWindow(SW_HIDE);
+	GetDlgItem(IDC_BUTTON_UPDATE)->ShowWindow(SW_HIDE);
+	GetDlgItem(IDC_GROUP_DOWNLOADS)->ShowWindow(SW_HIDE);
+	RECT rectWindow, rectOKButton, rectProgress, rectGroupDownloads, rectChangelog;
+	m_progress.GetWindowRect(&rectProgress);
+	GetDlgItem(IDC_GROUP_CHANGELOG)->GetWindowRect(&rectChangelog);
+	GetWindowRect(&rectWindow);
+	GetDlgItem(IDC_GROUP_DOWNLOADS)->GetWindowRect(&rectGroupDownloads);
+	GetDlgItem(IDOK)->GetWindowRect(&rectOKButton);
+	LONG bottomDistance = rectWindow.bottom - rectOKButton.bottom;
+	if (!changelog && !downloads)
+		OffsetRect(&rectOKButton, 0, rectChangelog.top - rectOKButton.top);
+	else if (changelog && !downloads)
+		OffsetRect(&rectOKButton, 0, rectGroupDownloads.top - rectOKButton.top);
+	else
+		OffsetRect(&rectOKButton, 0, (rectGroupDownloads.bottom + (rectGroupDownloads.bottom - rectProgress.bottom)) - rectOKButton.top);
+	rectWindow.bottom = rectOKButton.bottom + bottomDistance;
+	if (changelog || downloads) // download and no changelog currently not supported
+	{
+		GetDlgItem(IDC_LOGMESSAGE)->ShowWindow(SW_SHOW);
+		GetDlgItem(IDC_GROUP_CHANGELOG)->ShowWindow(SW_SHOW);
+	}
+	if (downloads)
+	{
+		m_ctrlFiles.ShowWindow(SW_SHOW);
+		GetDlgItem(IDC_GROUP_DOWNLOADS)->ShowWindow(SW_SHOW);
+		GetDlgItem(IDC_BUTTON_UPDATE)->ShowWindow(SW_SHOW);
+	}
+	SetMinTrackSize(CSize(rectWindow.right - rectWindow.left, rectWindow.bottom - rectWindow.top));
+	MoveWindow(&rectWindow);
+	::MapWindowPoints(nullptr, GetSafeHwnd(), reinterpret_cast<LPPOINT>(&rectOKButton), 2);
+	if (downloads)
+	{
+		if (CRegDWORD(L"Software\\TortoiseGit\\VersionCheck", TRUE) != FALSE && !m_bForce && !m_bShowInfo)
+		{
+			RECT rectDoNotAskAgainButton;
+			GetDlgItem(IDC_DONOTASKAGAIN)->GetWindowRect(&rectDoNotAskAgainButton);
+			::MapWindowPoints(nullptr, GetSafeHwnd(), reinterpret_cast<LPPOINT>(&rectDoNotAskAgainButton), 2);
+			rectDoNotAskAgainButton.top = rectOKButton.top;
+			rectDoNotAskAgainButton.bottom = rectOKButton.bottom;
+			GetDlgItem(IDC_DONOTASKAGAIN)->MoveWindow(&rectDoNotAskAgainButton);
+			GetDlgItem(IDC_DONOTASKAGAIN)->EnableWindow(TRUE);
+			GetDlgItem(IDC_DONOTASKAGAIN)->ShowWindow(SW_SHOW);
+			rectOKButton.left += CDPIAware::Instance().ScaleX(GetSafeHwnd(), 60);
+			CString temp;
+			temp.LoadString(IDS_REMINDMELATER);
+			GetDlgItem(IDOK)->SetWindowText(temp);
+			rectOKButton.right += CDPIAware::Instance().ScaleX(GetSafeHwnd(), 160);
+		}
+	}
+	GetDlgItem(IDOK)->MoveWindow(&rectOKButton);
+
+	if (handleAnchors)
+	{
+		AddAnchor(IDC_GROUP_CHANGELOG, TOP_LEFT, BOTTOM_RIGHT);
+		AddAnchor(IDC_LOGMESSAGE, TOP_LEFT, BOTTOM_RIGHT);
+		AddAnchor(IDC_GROUP_DOWNLOADS, BOTTOM_LEFT, BOTTOM_RIGHT);
+		AddAnchor(IDC_LIST_DOWNLOADS, BOTTOM_LEFT, BOTTOM_RIGHT);
+		AddAnchor(IDC_PROGRESSBAR, BOTTOM_LEFT, BOTTOM_RIGHT);
+		AddAnchor(IDC_DONOTASKAGAIN, BOTTOM_CENTER);
+		AddAnchor(IDC_BUTTON_UPDATE, BOTTOM_RIGHT);
+		AddAnchor(IDOK, BOTTOM_CENTER);
+	}
+	CenterWindow();
 }

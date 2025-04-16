@@ -46,11 +46,11 @@ public:
 // Attributes
 private:
 	// support for temporarily hiding the grip
-	DWORD m_dwGripTempState;
+	DWORD m_dwGripTempState = 1;
 
 	// flags
-	BOOL m_bEnableSaveRestore;
-	BOOL m_bRectOnly;
+	BOOL m_bEnableSaveRestore = FALSE;
+	BOOL m_bRectOnly = FALSE;
 
 	// internal status
 	CString m_sSection;			// section name (identifies a parent window)
@@ -63,8 +63,10 @@ public:
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(CResizableDialog)
 	protected:
-	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+	LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 	//}}AFX_VIRTUAL
+
+	bool m_noNcCalcSizeAdjustments = false;
 
 // Implementation
 public:

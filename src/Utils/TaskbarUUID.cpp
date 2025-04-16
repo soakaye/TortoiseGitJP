@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2020 - TortoiseGit
+// Copyright (C) 2013-2020, 2023 - TortoiseGit
 // Copyright (C) 2011-2012, 2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-#pragma once
 #include "stdafx.h"
 #include "TaskbarUUID.h"
 #include "registry.h"
@@ -36,7 +35,7 @@
 
 void SetTaskIDPerUUID()
 {
-	typedef HRESULT STDAPICALLTYPE SetCurrentProcessExplicitAppUserModelIDFN(PCWSTR AppID);
+	using SetCurrentProcessExplicitAppUserModelIDFN = HRESULT(STDAPICALLTYPE)(PCWSTR AppID);
 	CAutoLibrary hShell = AtlLoadSystemLibraryUsingFullPath(L"shell32.dll");
 	if (hShell)
 	{
@@ -49,7 +48,7 @@ void SetTaskIDPerUUID()
 	}
 }
 
-std::wstring GetTaskIDPerUUID(LPCTSTR uuid /*= nullptr */)
+std::wstring GetTaskIDPerUUID(LPCWSTR uuid /*= nullptr */)
 {
 	CRegStdDWORD r = CRegStdDWORD(L"Software\\TortoiseGit\\GroupTaskbarIconsPerRepo", 3);
 	std::wstring id = APPID;

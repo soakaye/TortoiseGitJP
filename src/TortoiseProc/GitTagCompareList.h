@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2017 - TortoiseGit
+// Copyright (C) 2015-2017, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@ protected:
 	afx_msg void OnContextMenu(CWnd *pWnd, CPoint point);
 	void OnContextMenuList(CWnd *pWnd, CPoint point);
 	void OnContextMenuHeader(CWnd *pWnd, CPoint point);
-	virtual ULONG GetGestureStatus(CPoint ptTouch) override;
+	ULONG GetGestureStatus(CPoint ptTouch) override;
 
 	DECLARE_MESSAGE_MAP()
 
@@ -66,13 +66,13 @@ private:
 
 	CString	m_remote;
 
-	int colTag;
-	int colDiff;
-	int colMyHash;
-	int colMyMessage;
-	int colTheirHash;
-	int colTheirMessage;
+	int colTag = 0;
+	int colDiff = 0;
+	int colMyHash = 0;
+	int colMyMessage = 0;
+	int colTheirHash = 0;
+	int colTheirMessage = 0;
 
-	bool	m_bAscending;		///< sort direction
-	int		m_nSortedColumn;	///< which column to sort
+	bool	m_bAscending = false;		///< sort direction
+	int		m_nSortedColumn = -1;	///< which column to sort
 };

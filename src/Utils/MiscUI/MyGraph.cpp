@@ -52,10 +52,6 @@ static char THIS_FILE[] = __FILE__;
 #define LEGEND_DIVISOR							 8			// Scale font to graph height.
 #define Y_AXIS_LABEL_DIVISOR					 6			// Scale font to graph height.
 
-#ifndef M_PI
-const double M_PI = 3.1415926535897932384626433832795;
-#endif
-
 /////////////////////////////////////////////////////////////////////////////
 // MyGraphSeries
 
@@ -238,7 +234,7 @@ CString MyGraphSeries::GetTipText(int nGroup, const CString &unitString) const
 	CString sTip;
 
 	sTip.Format(L"%d %s (%d%%)", m_dwaValues.GetAt(nGroup),
-		static_cast<LPCTSTR>(unitString),
+		static_cast<LPCWSTR>(unitString),
 		GetDataTotal() ? static_cast<int>(100.0 * static_cast<double>(m_dwaValues.GetAt(nGroup)) / static_cast<double>(GetDataTotal())) : 0);
 
 	return sTip;
@@ -384,7 +380,7 @@ CString MyGraph::GetTipText() const
 {
 	VALIDATE;
 
-	CString sTip("");
+	CString sTip;
 
 	// Get the position of the mouse.
 	CPoint pt;
@@ -393,10 +389,10 @@ CString MyGraph::GetTipText() const
 
 	// Ask each part of the graph to check and see if the mouse is over it.
 	if (m_rcLegend.PtInRect(pt)) {
-		sTip = "Legend";
+		sTip = L"Legend";
 	}
 	else if (m_rcTitle.PtInRect(pt)) {
-		sTip = "Title";
+		sTip = L"Title";
 	}
 	else {
 		int maxXAxis = m_ptOrigin.x + (m_nXAxisWidth - m_rcLegend.Width() - (GAP_PIXELS * 2));
@@ -405,7 +401,7 @@ CString MyGraph::GetTipText() const
 			int nMaxDataValue = max(GetMaxDataValue(), 1);
 			double barTop = m_ptOrigin.y - static_cast<double>(m_nYAxisHeight) * (average / static_cast<double>(nMaxDataValue));
 			if (pt.y >= barTop - 2 && pt.y <= barTop + 2) {
-				sTip.Format(L"Average: %d %s (%d%%)", average, static_cast<LPCTSTR>(m_sYAxisLabel), nMaxDataValue ? (100 * average / nMaxDataValue) : 0);
+				sTip.Format(L"Average: %d %s (%d%%)", average, static_cast<LPCWSTR>(m_sYAxisLabel), nMaxDataValue ? (100 * average / nMaxDataValue) : 0);
 				return sTip;
 			}
 		}
@@ -752,15 +748,15 @@ void MyGraph::DrawGraph(CDC& dc)
 		}
 
 		// Draw axes unless it's a pie.
-		if (m_eGraphType != MyGraph::PieChart) {
+		if (m_eGraphType != MyGraph::GraphType::PieChart) {
 			DrawAxes(dc);
 		}
 
 		// Draw series data and labels.
 		switch (m_eGraphType) {
-			case MyGraph::Bar:  DrawSeriesBar(dc);  break;
-			case MyGraph::Line: if (m_bStackedGraph) DrawSeriesLineStacked(dc); else DrawSeriesLine(dc); break;
-			case MyGraph::PieChart:  DrawSeriesPie(dc);  break;
+			case MyGraph::GraphType::Bar:  DrawSeriesBar(dc);  break;
+			case MyGraph::GraphType::Line: if (m_bStackedGraph) DrawSeriesLineStacked(dc); else DrawSeriesLine(dc); break;
+			case MyGraph::GraphType::PieChart:  DrawSeriesPie(dc);  break;
 			default: _ASSERTE(! "Bad default case"); break;
 		}
 		dc.SelectObject(oldThemePen);
@@ -807,7 +803,8 @@ void MyGraph::SetupAxes(CDC& dc)
 
 	// Since pie has no axis lines, set to full size minus GAP_PIXELS on each
 	// side.  These are needed for legend to plot itself.
-	if (MyGraph::PieChart == m_eGraphType) {
+	if (MyGraph::GraphType::PieChart == m_eGraphType)
+	{
 		m_nXAxisWidth = m_rcGraph.Width() - (GAP_PIXELS * 2);
 		m_nYAxisHeight = m_rcGraph.Height() - m_rcTitle.bottom;
 		m_ptOrigin.x = GAP_PIXELS;
@@ -973,7 +970,7 @@ void MyGraph::DrawAxes(CDC& dc) const
 {
 	VALIDATE;
 	ASSERT_VALID(&dc);
-	_ASSERTE(MyGraph::PieChart != m_eGraphType);
+	_ASSERTE(MyGraph::GraphType::PieChart != m_eGraphType);
 
 	dc.SetTextColor(CTheme::Instance().IsDarkTheme() ? CTheme::darkTextColor : GetSysColor(COLOR_WINDOWTEXT));
 
@@ -1081,7 +1078,7 @@ void MyGraph::DrawAxes(CDC& dc) const
 		ASSERT_VALID(pSeries);
 
 		// Ignore unpopulated series if bar chart.
-		if (m_eGraphType != MyGraph::Bar  ||
+		if (m_eGraphType != MyGraph::GraphType::Bar ||
 			0 < pSeries->GetNonZeroElementCount()) {
 			// Get the spacing of the series.
 			int nSeriesSpace(0);
@@ -1089,11 +1086,11 @@ void MyGraph::DrawAxes(CDC& dc) const
 			if (m_saLegendLabels.GetSize()) {
 				nSeriesSpace =
 					(m_nXAxisWidth - m_rcLegend.Width() - (GAP_PIXELS * 2)) /
-					(m_eGraphType == MyGraph::Bar ?
+					(m_eGraphType == MyGraph::GraphType::Bar ?
 					GetNonZeroSeriesCount() : static_cast<int>(m_olMyGraphSeries.GetCount()));
 			}
 			else {
-				nSeriesSpace = m_nXAxisWidth / (m_eGraphType == MyGraph::Bar ?
+				nSeriesSpace = m_nXAxisWidth / (m_eGraphType == MyGraph::GraphType::Bar ?
 					GetNonZeroSeriesCount() : static_cast<int>(m_olMyGraphSeries.GetCount()));
 			}
 

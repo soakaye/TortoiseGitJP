@@ -21,7 +21,7 @@
 <simpara>Use <emphasis>git mergetool</emphasis> to run one of several merge utilities to resolve
 merge conflicts.  It is typically run after <emphasis>git merge</emphasis>.</simpara>
 <simpara>If one or more &lt;file&gt; parameters are given, the merge tool program will
-be run to resolve differences on each file (skipping those without
+be run to resolve differences in each file (skipping those without
 conflicts).  Specifying a directory will include all unresolved files in
 that path.  If no &lt;file&gt; names are specified, <emphasis>git mergetool</emphasis> will run
 the merge tool program on every file with merge conflicts.</simpara>
@@ -58,7 +58,7 @@ by specifying the command line to invoke in a configuration
 variable <emphasis>mergetool.&lt;tool&gt;.cmd</emphasis>.</simpara>
 <simpara>When <emphasis>git mergetool</emphasis> is invoked with this tool (either through the
 <emphasis>-t</emphasis> or <emphasis>--tool</emphasis> option or the <emphasis>merge.tool</emphasis> configuration
-variable) the configured command line will be invoked with <emphasis>$BASE</emphasis>
+variable), the configured command line will be invoked with <emphasis>$BASE</emphasis>
 set to the name of a temporary file containing the common base for
 the merge, if available; <emphasis>$LOCAL</emphasis> set to the name of a temporary
 file containing the contents of the file on the current branch;
@@ -120,11 +120,12 @@ success of the resolution after the custom tool has exited.</simpara>
 </term>
 <listitem>
 <simpara>
-        When <emphasis>git-mergetool</emphasis> is invoked with the <emphasis>-g</emphasis> or <emphasis>--gui</emphasis> option
+        When <emphasis>git-mergetool</emphasis> is invoked with the <emphasis>-g</emphasis> or <emphasis>--gui</emphasis> option,
         the default merge tool will be read from the configured
         <emphasis>merge.guitool</emphasis> variable instead of <emphasis>merge.tool</emphasis>. If
         <emphasis>merge.guitool</emphasis> is not set, we will fallback to the tool
-        configured under <emphasis>merge.tool</emphasis>.
+        configured under <emphasis>merge.tool</emphasis>. This may be autoselected using
+        the configuration variable <emphasis>mergetool.guiDefault</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -134,9 +135,9 @@ success of the resolution after the custom tool has exited.</simpara>
 </term>
 <listitem>
 <simpara>
-        This overrides a previous <emphasis>-g</emphasis> or <emphasis>--gui</emphasis> setting and reads the
-        default merge tool will be read from the configured <emphasis>merge.tool</emphasis>
-        variable.
+        This overrides a previous <emphasis>-g</emphasis> or <emphasis>--gui</emphasis> setting or
+        <emphasis>mergetool.guiDefault</emphasis> configuration and reads the default merge
+        tool from the configured <emphasis>merge.tool</emphasis> variable.
 </simpara>
 </listitem>
 </varlistentry>
@@ -156,14 +157,429 @@ success of the resolution after the custom tool has exited.</simpara>
 </varlistentry>
 </variablelist>
 </simplesect>
+<simplesect id="git-mergetool(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+mergetool.&lt;tool&gt;.path
+</term>
+<listitem>
+<simpara>
+        Override the path for the given tool.  This is useful in case
+        your tool is not in the PATH.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.&lt;tool&gt;.cmd
+</term>
+<listitem>
+<simpara>
+        Specify the command to invoke the specified merge tool.  The
+        specified command is evaluated in shell with the following
+        variables available: <emphasis>BASE</emphasis> is the name of a temporary file
+        containing the common base of the files to be merged, if available;
+        <emphasis>LOCAL</emphasis> is the name of a temporary file containing the contents of
+        the file on the current branch; <emphasis>REMOTE</emphasis> is the name of a temporary
+        file containing the contents of the file from the branch being
+        merged; <emphasis>MERGED</emphasis> contains the name of the file to which the merge
+        tool should write the results of a successful merge.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.&lt;tool&gt;.hideResolved
+</term>
+<listitem>
+<simpara>
+        Allows the user to override the global <emphasis>mergetool.hideResolved</emphasis> value
+        for a specific tool. See <emphasis>mergetool.hideResolved</emphasis> for the full
+        description.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.&lt;tool&gt;.trustExitCode
+</term>
+<listitem>
+<simpara>
+        For a custom merge command, specify whether the exit code of
+        the merge command can be used to determine whether the merge was
+        successful.  If this is not set to true then the merge target file
+        timestamp is checked, and the merge is assumed to have been successful
+        if the file has been updated; otherwise, the user is prompted to
+        indicate the success of the merge.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.meld.hasOutput
+</term>
+<listitem>
+<simpara>
+        Older versions of <emphasis>meld</emphasis> do not support the <emphasis>--output</emphasis> option.
+        Git will attempt to detect whether <emphasis>meld</emphasis> supports <emphasis>--output</emphasis>
+        by inspecting the output of <emphasis>meld --help</emphasis>.  Configuring
+        <emphasis>mergetool.meld.hasOutput</emphasis> will make Git skip these checks and
+        use the configured value instead.  Setting <emphasis>mergetool.meld.hasOutput</emphasis>
+        to <emphasis>true</emphasis> tells Git to unconditionally use the <emphasis>--output</emphasis> option,
+        and <emphasis>false</emphasis> avoids using <emphasis>--output</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.meld.useAutoMerge
+</term>
+<listitem>
+<simpara>
+        When the <emphasis>--auto-merge</emphasis> is given, meld will merge all non-conflicting
+        parts automatically, highlight the conflicting parts, and wait for
+        user decision.  Setting <emphasis>mergetool.meld.useAutoMerge</emphasis> to <emphasis>true</emphasis> tells
+        Git to unconditionally use the <emphasis>--auto-merge</emphasis> option with <emphasis>meld</emphasis>.
+        Setting this value to <emphasis>auto</emphasis> makes git detect whether <emphasis>--auto-merge</emphasis>
+        is supported and will only use <emphasis>--auto-merge</emphasis> when available.  A
+        value of <emphasis>false</emphasis> avoids using <emphasis>--auto-merge</emphasis> altogether, and is the
+        default value.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.&lt;vimdiff variant&gt;.layout
+</term>
+<listitem>
+<simpara>
+        Configure the split window layout for vimdiff's <emphasis>&lt;variant&gt;</emphasis>, which is any of <emphasis>vimdiff</emphasis>,
+        <emphasis>nvimdiff</emphasis>, <emphasis>gvimdiff</emphasis>.
+        Upon launching <emphasis>git mergetool</emphasis> with <emphasis>--tool=&lt;variant&gt;</emphasis> (or without <emphasis>--tool</emphasis>
+        if <emphasis>merge.tool</emphasis> is configured as <emphasis>&lt;variant&gt;</emphasis>), Git will consult
+        <emphasis>mergetool.&lt;variant&gt;.layout</emphasis> to determine the tool's layout. If the
+        variant-specific configuration is not available, <emphasis>vimdiff</emphasis>'s is used as
+        fallback.  If that too is not available, a default layout with 4 windows
+        will be used.  To configure the layout, see the <emphasis>BACKEND SPECIFIC HINTS</emphasis>
+        section.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.hideResolved
+</term>
+<listitem>
+<simpara>
+        During a merge, Git will automatically resolve as many conflicts as
+        possible and write the <emphasis>MERGED</emphasis> file containing conflict markers around
+        any conflicts that it cannot resolve; <emphasis>LOCAL</emphasis> and <emphasis>REMOTE</emphasis> normally
+        represent the versions of the file from before Git's conflict
+        resolution. This flag causes <emphasis>LOCAL</emphasis> and <emphasis>REMOTE</emphasis> to be overwritten so
+        that only the unresolved conflicts are presented to the merge tool. Can
+        be configured per-tool via the <emphasis>mergetool.&lt;tool&gt;.hideResolved</emphasis>
+        configuration variable. Defaults to <emphasis>false</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.keepBackup
+</term>
+<listitem>
+<simpara>
+        After performing a merge, the original file with conflict markers
+        can be saved as a file with a <emphasis>.orig</emphasis> extension.  If this variable
+        is set to <emphasis>false</emphasis> then this file is not preserved.  Defaults to
+        <emphasis>true</emphasis> (i.e. keep the backup files).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.keepTemporaries
+</term>
+<listitem>
+<simpara>
+        When invoking a custom merge tool, Git uses a set of temporary
+        files to pass to the tool. If the tool returns an error and this
+        variable is set to <emphasis>true</emphasis>, then these temporary files will be
+        preserved; otherwise, they will be removed after the tool has
+        exited. Defaults to <emphasis>false</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.writeToTemp
+</term>
+<listitem>
+<simpara>
+        Git writes temporary <emphasis>BASE</emphasis>, <emphasis>LOCAL</emphasis>, and <emphasis>REMOTE</emphasis> versions of
+        conflicting files in the worktree by default.  Git will attempt
+        to use a temporary directory for these files when set <emphasis>true</emphasis>.
+        Defaults to <emphasis>false</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.prompt
+</term>
+<listitem>
+<simpara>
+        Prompt before each invocation of the merge resolution program.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+mergetool.guiDefault
+</term>
+<listitem>
+<simpara>
+        Set <emphasis>true</emphasis> to use the <emphasis>merge.guitool</emphasis> by default (equivalent to
+        specifying the <emphasis>--gui</emphasis> argument), or <emphasis>auto</emphasis> to select <emphasis>merge.guitool</emphasis>
+        or <emphasis>merge.tool</emphasis> depending on the presence of a <emphasis>DISPLAY</emphasis> environment
+        variable value. The default is <emphasis>false</emphasis>, where the <emphasis>--gui</emphasis> argument
+        must be provided explicitly for the <emphasis>merge.guitool</emphasis> to be used.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</simplesect>
 <simplesect id="git-mergetool(1)__temporary_files">
 <title>TEMPORARY FILES</title>
 <simpara><emphasis>git mergetool</emphasis> creates <emphasis>*.orig</emphasis> backup files while resolving merges.
 These are safe to remove once a file has been merged and its
 <emphasis>git mergetool</emphasis> session has completed.</simpara>
 <simpara>Setting the <emphasis>mergetool.keepBackup</emphasis> configuration variable to <emphasis>false</emphasis>
-causes <emphasis>git mergetool</emphasis> to automatically remove the backup as files
+causes <emphasis>git mergetool</emphasis> to automatically remove the backup files as files
 are successfully merged.</simpara>
+</simplesect>
+<simplesect id="git-mergetool(1)__backend_specific_hints">
+<title>BACKEND SPECIFIC HINTS</title>
+<section id="git-mergetool(1)__vimdiff">
+<title>vimdiff</title>
+<section id="git-mergetool(1)__description_2">
+<title>Description</title>
+<simpara>When specifying <emphasis>--tool=vimdiff</emphasis> in <emphasis>git mergetool</emphasis> Git will open Vim with a 4
+windows layout distributed in the following way:</simpara>
+<literallayout class="monospaced">------------------------------------------
+|             |           |              |
+|   LOCAL     |   BASE    |   REMOTE     |
+|             |           |              |
+------------------------------------------
+|                                        |
+|                MERGED                  |
+|                                        |
+------------------------------------------</literallayout>
+<simpara><emphasis>LOCAL</emphasis>, <emphasis>BASE</emphasis> and <emphasis>REMOTE</emphasis> are read-only buffers showing the contents of the
+conflicting file in specific commits ("commit you are merging into", "common
+ancestor commit" and "commit you are merging from" respectively)</simpara>
+<simpara><emphasis>MERGED</emphasis> is a writable buffer where you have to resolve the conflicts (using the
+other read-only buffers as a reference). Once you are done, save and exit Vim as
+usual (<emphasis>:wq</emphasis>) or, if you want to abort, exit using <emphasis>:cq</emphasis>.</simpara>
+</section>
+<section id="git-mergetool(1)__layout_configuration">
+<title>Layout configuration</title>
+<simpara>You can change the windows layout used by Vim by setting configuration variable
+<emphasis>mergetool.vimdiff.layout</emphasis> which accepts a string where the following separators
+have special meaning:</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>+</emphasis> is used to "open a new tab"
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>,</emphasis> is used to "open a new vertical split"
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>/</emphasis> is used to "open a new horizontal split"
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>@</emphasis> is used to indicate the file containing the final version after
+    solving the conflicts. If not present, <emphasis>MERGED</emphasis> will be used by default.
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>The precedence of the operators is as follows (you can use parentheses to change
+it):</simpara>
+<literallayout class="monospaced">`@` &gt; `+` &gt; `/` &gt; `,`</literallayout>
+<simpara>Let's see some examples to understand how it works:</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>layout = "(LOCAL,BASE,REMOTE)/MERGED"</emphasis>
+</simpara>
+<simpara>This is exactly the same as the default layout we have already seen.</simpara>
+<simpara>Note that <emphasis>/</emphasis> has precedence over <emphasis>,</emphasis> and thus the parenthesis are not
+needed in this case. The next layout definition is equivalent:</simpara>
+<literallayout class="monospaced">layout = "LOCAL,BASE,REMOTE / MERGED"</literallayout>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>layout = "LOCAL,MERGED,REMOTE"</emphasis>
+</simpara>
+<simpara>If, for some reason, we are not interested in the <emphasis>BASE</emphasis> buffer.</simpara>
+<literallayout class="monospaced">------------------------------------------
+|             |           |              |
+|             |           |              |
+|   LOCAL     |   MERGED  |   REMOTE     |
+|             |           |              |
+|             |           |              |
+------------------------------------------</literallayout>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>layout = "MERGED"</emphasis>
+</simpara>
+<simpara>Only the <emphasis>MERGED</emphasis> buffer will be shown. Note, however, that all the other
+ones are still loaded in vim, and you can access them with the "buffers"
+command.</simpara>
+<literallayout class="monospaced">------------------------------------------
+|                                        |
+|                                        |
+|                 MERGED                 |
+|                                        |
+|                                        |
+------------------------------------------</literallayout>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>layout = "@LOCAL,REMOTE"</emphasis>
+</simpara>
+<simpara>When <emphasis>MERGED</emphasis> is not present in the layout, you must "mark" one of the
+buffers with an asterisk. That will become the buffer you need to edit and
+save after resolving the conflicts.</simpara>
+<literallayout class="monospaced">------------------------------------------
+|                   |                    |
+|                   |                    |
+|                   |                    |
+|     LOCAL         |    REMOTE          |
+|                   |                    |
+|                   |                    |
+|                   |                    |
+------------------------------------------</literallayout>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>layout = "LOCAL,BASE,REMOTE / MERGED + BASE,LOCAL + BASE,REMOTE"</emphasis>
+</simpara>
+<simpara>Three tabs will open: the first one is a copy of the default layout, while
+the other two only show the differences between (<emphasis>BASE</emphasis> and <emphasis>LOCAL</emphasis>) and
+(<emphasis>BASE</emphasis> and <emphasis>REMOTE</emphasis>) respectively.</simpara>
+<literallayout class="monospaced">------------------------------------------
+| &lt;TAB #1&gt; |  TAB #2  |  TAB #3  |       |
+------------------------------------------
+|             |           |              |
+|   LOCAL     |   BASE    |   REMOTE     |
+|             |           |              |
+------------------------------------------
+|                                        |
+|                MERGED                  |
+|                                        |
+------------------------------------------</literallayout>
+<literallayout class="monospaced">------------------------------------------
+|  TAB #1  | &lt;TAB #2&gt; |  TAB #3  |       |
+------------------------------------------
+|                   |                    |
+|                   |                    |
+|                   |                    |
+|     BASE          |    LOCAL           |
+|                   |                    |
+|                   |                    |
+|                   |                    |
+------------------------------------------</literallayout>
+<literallayout class="monospaced">------------------------------------------
+|  TAB #1  |  TAB #2  | &lt;TAB #3&gt; |       |
+------------------------------------------
+|                   |                    |
+|                   |                    |
+|                   |                    |
+|     BASE          |    REMOTE          |
+|                   |                    |
+|                   |                    |
+|                   |                    |
+------------------------------------------</literallayout>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>layout = "LOCAL,BASE,REMOTE / MERGED + BASE,LOCAL + BASE,REMOTE + (LOCAL/BASE/REMOTE),MERGED"</emphasis>
+</simpara>
+<simpara>Same as the previous example, but adds a fourth tab with the same
+information as the first tab, with a different layout.</simpara>
+<literallayout class="monospaced">---------------------------------------------
+|  TAB #1  |  TAB #2  |  TAB #3  | &lt;TAB #4&gt; |
+---------------------------------------------
+|       LOCAL         |                     |
+|---------------------|                     |
+|       BASE          |        MERGED       |
+|---------------------|                     |
+|       REMOTE        |                     |
+---------------------------------------------</literallayout>
+<simpara>Note how in the third tab definition we need to use parentheses to make <emphasis>,</emphasis>
+have precedence over <emphasis>/</emphasis>.</simpara>
+</listitem>
+</itemizedlist>
+</section>
+<section id="git-mergetool(1)__variants">
+<title>Variants</title>
+<simpara>Instead of <emphasis>--tool=vimdiff</emphasis>, you can also use one of these other variants:</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>--tool=gvimdiff</emphasis>, to open gVim instead of Vim.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>--tool=nvimdiff</emphasis>, to open Neovim instead of Vim.
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>When using these variants, in order to specify a custom layout you will have to
+set configuration variables <emphasis>mergetool.gvimdiff.layout</emphasis> and
+<emphasis>mergetool.nvimdiff.layout</emphasis> instead of <emphasis>mergetool.vimdiff.layout</emphasis> (though the
+latter will be used as fallback if the variant-specific one is not set).</simpara>
+<simpara>In addition, for backwards compatibility with previous Git versions, you can
+also append <emphasis>1</emphasis>, <emphasis>2</emphasis> or <emphasis>3</emphasis> to either <emphasis>vimdiff</emphasis> or any of the variants (ex:
+<emphasis>vimdiff3</emphasis>, <emphasis>nvimdiff1</emphasis>, etc&#8230;) to use a predefined layout.
+In other words, using <emphasis>--tool=[g,n,]vimdiffx</emphasis> is the same as using
+<emphasis>--tool=[g,n,]vimdiff</emphasis> and setting configuration variable
+<emphasis>mergetool.[g,n,]vimdiff.layout</emphasis> to&#8230;</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>x=1</emphasis>: <emphasis>"@LOCAL, REMOTE"</emphasis>
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>x=2</emphasis>: <emphasis>"LOCAL, MERGED, REMOTE"</emphasis>
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>x=3</emphasis>: <emphasis>"MERGED"</emphasis>
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>Example: using <emphasis>--tool=gvimdiff2</emphasis> will open <emphasis>gvim</emphasis> with three columns (LOCAL,
+MERGED and REMOTE).</simpara>
+</section>
+</section>
 </simplesect>
 <simplesect id="git-mergetool(1)__git">
 <title>GIT</title>

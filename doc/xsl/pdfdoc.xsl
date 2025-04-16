@@ -5,6 +5,7 @@
 
 <xsl:import href="./db_pdfdoc.xsl"/>
 <xsl:import href="./defaults.xsl"/>
+<xsl:import href="./tgit.xsl"/>
 <xsl:param name="paper.type" select="'A4'"></xsl:param>
 <xsl:param name="page.orientation">portrait</xsl:param>
 <xsl:param name="double.sided" select="0"></xsl:param>
@@ -125,6 +126,11 @@
       <xsl:otherwise>red</xsl:otherwise>
     </xsl:choose>
   </xsl:attribute>
+</xsl:attribute-set>
+
+<xsl:attribute-set name="monospace.verbatim.properties">
+  <xsl:attribute name="wrap-option">wrap</xsl:attribute>
+  <!-- TODO: set a hyphenation-character, currently unsupported by FOP; http://www.sagehill.net/docbookxsl/FittingText.html#BreakLongLines -->
 </xsl:attribute-set>
 
 </xsl:stylesheet>

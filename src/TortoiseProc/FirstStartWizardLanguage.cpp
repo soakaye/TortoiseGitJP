@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2020 - TortoiseGit
+// Copyright (C) 2016-2020, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,10 +16,10 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "FirstStartWizard.h"
-#include "FirstStartWizardStart.h"
 #include "PathUtils.h"
 #include "DirFileEnum.h"
 #include "../version.h"
@@ -36,6 +36,7 @@ CFirstStartWizardLanguage::CFirstStartWizardLanguage() : CFirstStartWizardBasePa
 , m_dwLanguage(1033)
 , m_regLanguage(L"Software\\TortoiseGit\\LanguageID", 1033)
 {
+	m_dwInitialLanguage = m_regLanguage;
 	m_psp.dwFlags |= PSP_DEFAULT | PSP_USEHEADERTITLE;
 	m_psp.pszHeaderTitle = MAKEINTRESOURCE(IDS_FIRSTSTART_STARTTITLE);
 }
@@ -111,7 +112,7 @@ LRESULT CFirstStartWizardLanguage::OnWizardNext()
 {
 	UpdateData();
 
-	if (m_dwLanguage != m_regLanguage)
+	if (m_dwLanguage != m_dwInitialLanguage)
 	{
 		m_regLanguage = m_dwLanguage;
 
@@ -142,7 +143,7 @@ void CFirstStartWizardLanguage::OnBnClickedRefresh()
 	m_LanguageCombo.ResetContent();
 
 	// set up the language selecting combobox
-	TCHAR buf[MAX_PATH] = { 0 };
+	wchar_t buf[MAX_PATH] = { 0 };
 	GetLocaleInfo(1033, LOCALE_SNATIVELANGNAME, buf, _countof(buf));
 	m_LanguageCombo.AddString(buf);
 	m_LanguageCombo.SetItemData(0, 1033);

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2016-2017, 2019-2021, 2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -62,7 +62,7 @@ void CFirstStartWizardAuthentication::OnClickedNoSave()
 	m_ctrlSimpleCredential.EnableWindow(!m_bNoSave);
 }
 
-static bool IsToolBasename(const CString& toolname, LPCTSTR setting)
+static bool IsToolBasename(const CString& toolname, LPCWSTR setting)
 {
 	if (toolname.CompareNoCase(setting) == 0)
 		return true;
@@ -73,7 +73,7 @@ static bool IsToolBasename(const CString& toolname, LPCTSTR setting)
 	return false;
 }
 
-static bool IsTool(const CString& toolname, LPCTSTR setting)
+static bool IsTool(const CString& toolname, LPCWSTR setting)
 {
 	if (IsToolBasename(toolname, setting))
 		return true;
@@ -152,11 +152,6 @@ BOOL CFirstStartWizardAuthentication::OnInitDialog()
 	else
 	{
 		if (git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitGlobalXDGConfig()), GIT_CONFIG_LEVEL_XDG, nullptr, FALSE))
-			MessageBox(g_Git.GetLibGit2LastErr(), L"TortoiseGit", MB_ICONEXCLAMATION);
-	}
-	if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty())
-	{
-		if (git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitProgramDataConfig()), GIT_CONFIG_LEVEL_PROGRAMDATA, nullptr, FALSE))
 			MessageBox(g_Git.GetLibGit2LastErr(), L"TortoiseGit", MB_ICONEXCLAMATION);
 	}
 	if (git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitSystemConfig()), GIT_CONFIG_LEVEL_SYSTEM, nullptr, FALSE))
@@ -257,12 +252,14 @@ void CFirstStartWizardAuthentication::OnClickedLink(NMHDR* pNMHDR, LRESULT* pRes
 	ATLASSERT(pNMHDR && pResult);
 	auto pNMLink = reinterpret_cast<PNMLINK>(pNMHDR);
 	if (wcscmp(pNMLink->item.szID, L"manual") == 0)
-		HtmlHelp(0x20000 + IDD_FIRSTSTARTWIZARD_AUTHENTICATION);
+	{
+		if (!CAppUtils::StartHtmlHelp(0x20000 + IDD_FIRSTSTARTWIZARD_AUTHENTICATION))
+			AfxMessageBox(AFX_IDP_FAILED_TO_LAUNCH_HELP);
+	}
 	else if (wcscmp(pNMLink->item.szID, L"sshfaq") == 0)
 	{
-		CString helppath(theApp.m_pszHelpFilePath);
-		helppath += L"::/tgit-ssh-howto.html";
-		::HtmlHelp(GetSafeHwnd(), helppath, HH_DISPLAY_TOPIC, 0);
+		if (!CAppUtils::StartHtmlHelp(0, L"tgit-ssh-howto.html"))
+			AfxMessageBox(AFX_IDP_FAILED_TO_LAUNCH_HELP);
 	}
 	*pResult = 0;
 }

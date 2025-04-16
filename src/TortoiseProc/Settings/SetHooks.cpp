@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2019 - TortoiseGit
+// Copyright (C) 2016-2019, 2021-2022, 2024-2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -77,8 +77,6 @@ BOOL CSetHooks::OnInitDialog()
 	temp.LoadString(IDS_SETTINGS_HOOKS_SHOWCOL);
 	m_cHookList.InsertColumn(4, temp);
 
-	SetWindowTheme(m_hWnd, L"Explorer", nullptr);
-
 	ProjectProperties pp;
 	pp.ReadProps();
 	CHooks::Instance().SetProjectProperties(g_Git.m_CurrentDir, pp);
@@ -99,7 +97,7 @@ void CSetHooks::RebuildHookList()
 		{
 			int pos = m_cHookList.InsertItem(m_cHookList.GetItemCount(), CHooks::Instance().GetHookTypeString(it->first.htype));
 			m_cHookList.SetCheck(pos, it->second.bEnabled);
-			m_cHookList.SetItemText(pos, 1, it->second.bLocal ? L"local" : it->first.path.GetWinPathString());
+			m_cHookList.SetItemText(pos, 1, it->second.bLocal ? L"local" : it->first.path.GetWinPath());
 			m_cHookList.SetItemText(pos, 2, it->second.commandline);
 			m_cHookList.SetItemText(pos, 3, (it->second.bWait ? L"true" : L"false"));
 			m_cHookList.SetItemText(pos, 4, (it->second.bShow ? L"show" : L"hide"));
@@ -122,7 +120,7 @@ void CSetHooks::OnBnClickedRemovebutton()
 		if (m_cHookList.GetItemState(index, LVIS_SELECTED) & LVIS_SELECTED)
 		{
 			hookkey key;
-			key.htype = CHooks::GetHookType(static_cast<LPCTSTR>(m_cHookList.GetItemText(index, 0)));
+			key.htype = CHooks::GetHookType(static_cast<LPCWSTR>(m_cHookList.GetItemText(index, 0)));
 			key.path = CTGitPath(m_cHookList.GetItemText(index, 1));
 			key.local = m_cHookList.GetItemText(index, 1).Compare(L"local") == 0;;
 			if (key.local)
@@ -148,7 +146,7 @@ void CSetHooks::OnBnClickedEditbutton()
 	{
 		CSetHooksAdv dlg;
 		int index = m_cHookList.GetNextSelectedItem(pos);
-		dlg.key.htype = CHooks::GetHookType(static_cast<LPCTSTR>(m_cHookList.GetItemText(index, 0)));
+		dlg.key.htype = CHooks::GetHookType(static_cast<LPCWSTR>(m_cHookList.GetItemText(index, 0)));
 		dlg.key.path = CTGitPath(m_cHookList.GetItemText(index, 1));
 		dlg.cmd.bEnabled = m_cHookList.GetCheck(index) == BST_CHECKED;
 		dlg.cmd.commandline = m_cHookList.GetItemText(index, 2);
@@ -197,7 +195,7 @@ void CSetHooks::OnLvnItemchangedHooklist(NMHDR* pNMHDR, LRESULT* pResult)
 		return;
 
 	hookkey key;
-	key.htype = CHooks::GetHookType(static_cast<LPCTSTR>(m_cHookList.GetItemText(pNMLV->iItem, 0)));
+	key.htype = CHooks::GetHookType(static_cast<LPCWSTR>(m_cHookList.GetItemText(pNMLV->iItem, 0)));
 	key.path = CTGitPath(m_cHookList.GetItemText(pNMLV->iItem, 1));
 	key.local = m_cHookList.GetItemText(pNMLV->iItem, 1).Compare(L"local") == 0;
 	if (key.local)
@@ -206,10 +204,18 @@ void CSetHooks::OnLvnItemchangedHooklist(NMHDR* pNMHDR, LRESULT* pResult)
 		SetModified();
 }
 
-void CSetHooks::OnNMDblclkHooklist(NMHDR * /*pNMHDR*/, LRESULT *pResult)
+void CSetHooks::OnNMDblclkHooklist(NMHDR* pNMHDR, LRESULT* pResult)
 {
-	OnBnClickedEditbutton();
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
 	*pResult = 0;
+
+	CPoint point(pNMItemActivate->ptAction);
+	UINT uFlags = 0;
+	m_cHookList.HitTest(point, &uFlags);
+	if (uFlags == LVHT_ONITEMSTATEICON)
+		return;
+
+	OnBnClickedEditbutton();
 }
 
 BOOL CSetHooks::OnApply()
@@ -230,7 +236,7 @@ void CSetHooks::OnBnClickedHookcopybutton()
 	{
 		CSetHooksAdv dlg;
 		int index = m_cHookList.GetNextSelectedItem(pos);
-		dlg.key.htype = CHooks::GetHookType(static_cast<LPCTSTR>(m_cHookList.GetItemText(index, 0)));
+		dlg.key.htype = CHooks::GetHookType(static_cast<LPCWSTR>(m_cHookList.GetItemText(index, 0)));
 		dlg.cmd.commandline = m_cHookList.GetItemText(index, 2);
 		dlg.cmd.bWait = (m_cHookList.GetItemText(index, 3).Compare(L"true") == 0);
 		dlg.cmd.bShow = (m_cHookList.GetItemText(index, 4).Compare(L"show") == 0);

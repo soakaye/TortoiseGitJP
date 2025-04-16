@@ -13,7 +13,7 @@
 <simplesect id="git-gui(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git gui</emphasis> [&lt;command&gt;] [arguments]</literallayout>
+<literallayout><emphasis>git gui</emphasis> [&lt;command&gt;] [&lt;arguments&gt;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-gui(1)__description">
@@ -207,7 +207,7 @@ version
 versions are distributed as part of the Git suite for the convenience
 of end users.</simpara>
 <simpara>The official repository of the <emphasis>git gui</emphasis> project can be found at:</simpara>
-<literallayout class="monospaced">https://github.com/prati0100/git-gui.git/</literallayout>
+<literallayout class="monospaced">https://github.com/j6t/git-gui</literallayout>
 </simplesect>
 <simplesect id="git-gui(1)__git">
 <title>GIT</title>

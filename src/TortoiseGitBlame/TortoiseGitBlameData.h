@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2021, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -33,8 +33,7 @@ public:
 	virtual ~CTortoiseGitBlameData();
 
 public:
-	int GetEncode(unsigned char * buffer, int size, int *bomoffset);
-	int GetEncode(int *bomoffset);
+	int GetEncode(const char* buffer, int size, int* bomoffset);
 	void ParseBlameOutput(BYTE_VECTOR &data, CGitHashMap & HashToRev, DWORD dateFormat, bool bRelativeTimes);
 	// updates sourcecode lines to the given encoding, encode==0 detects the encoding, returns the used encoding
 	int UpdateEncoding(int encode = 0);
@@ -43,7 +42,7 @@ public:
 	{
 		return line >= 0 && line < static_cast<int>(m_Hash.size());
 	}
-	int FindNextLine(CGitHash& commithash, int line, bool bUpOrDown=false);
+	int FindNextLine(const std::unordered_set<CGitHash>& commitHashes, int line, bool bUpOrDown = false);
 	// find first line with the given hash starting with given "line"
 	int FindFirstLine(const CGitHash& commithash, int line)
 	{
@@ -117,12 +116,12 @@ public:
 
 	GitRevLoglist* GetRev(int line, CGitHashMap& hashToRev)
 	{
-		return GetRevForHash(hashToRev, GetHash(line), GitRevLoglist::s_Mailmap.get());
+		return GetRevForHash(hashToRev, GetHash(line), GitRevLoglist::s_Mailmap.load().get());
 	}
 
 private:
 	static GitRevLoglist* GetRevForHash(CGitHashMap& HashToRev, const CGitHash& hash, const CGitMailmap* mailmap, CString* err = nullptr);
-	static CString UnquoteFilename(CStringA& s);
+	static CString UnquoteFilename(const CStringA& s);
 
 	std::vector<CGitHash>		m_Hash;
 	std::vector<CString>		m_Dates;
@@ -131,6 +130,6 @@ private:
 	std::vector<int>			m_OriginalLineNumbers;
 	std::vector<BYTE_VECTOR>	m_RawLines;
 
-	int m_encode;
+	int m_encode = -1;
 	std::vector<CStringA> m_Utf8Lines;
 };

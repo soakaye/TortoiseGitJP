@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2020, 2023-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -32,13 +32,13 @@ public:
 	CString m_initialRefName;
 
 private:
-	CWnd *	m_pWin;
-	CWinThread*			m_pLoadingThread;
+	CWnd*	m_pWin = nullptr;
+	CWinThread* m_pLoadingThread = nullptr;
 	static UINT LoadingThreadEntry(LPVOID pVoid)
 	{
 		return static_cast<CChooseVersion*>(pVoid)->LoadingThread();
 	};
-	volatile LONG 		m_bLoadingThreadRunning;
+	volatile LONG m_bLoadingThreadRunning = FALSE;
 
 protected:
 	CHistoryCombo	m_ChooseVersioinBranch;
@@ -47,15 +47,15 @@ protected:
 	CButton			m_RadioBranch;
 	CButton			m_RadioTag;
 	CString			m_pendingRefName;
-	bool			m_bNotFullName;
-	bool			m_bSkipCurrentBranch;
+	bool			m_bNotFullName = true;
+	bool			m_bSkipCurrentBranch = false;
 
-	typedef struct
+	struct GUI_UPDATE_DATA
 	{
 		STRING_VECTOR branches;
-		int current_branch_idx;
+		int current_branch_idx = -1;
 		STRING_VECTOR tags;
-	} GUI_UPDATE_DATA;
+	};
 
 	//Notification when version changed. Can be implemented in derived classes.
 	virtual void OnVersionChanged(){}
@@ -68,7 +68,7 @@ protected:
 		m_pWin->GetDlgItem(IDC_BUTTON_BROWSE_REF)->EnableWindow(FALSE);
 		m_pWin->GetDlgItem(IDC_BUTTON_SHOW)->EnableWindow(FALSE);
 		m_bIsBranch = false;
-		int radio=m_pWin->GetCheckedRadioButton(IDC_RADIO_HEAD,IDC_RADIO_VERSION);
+		const int radio = m_pWin->GetCheckedRadioButton(IDC_RADIO_HEAD, IDC_RADIO_VERSION);
 		switch (radio)
 		{
 		case IDC_RADIO_HEAD:
@@ -118,7 +118,7 @@ protected:
 
 	void UpdateRevsionName()
 	{
-		int radio=m_pWin->GetCheckedRadioButton(IDC_RADIO_HEAD,IDC_RADIO_VERSION);
+		const int radio = m_pWin->GetCheckedRadioButton(IDC_RADIO_HEAD, IDC_RADIO_VERSION);
 		switch (radio)
 		{
 		case IDC_RADIO_HEAD:
@@ -154,12 +154,12 @@ protected:
 		{
 			m_pendingRefName = m_VersionName;
 			m_bNotFullName = true;
-			InitChooseVersion(false, true);
+			InitChooseVersion(true, true);
 			return;
 		}
 		m_pendingRefName = resultRef;
 		m_bNotFullName = false;
-		InitChooseVersion(false, true);
+		InitChooseVersion(true, true);
 	}
 
 	void SelectRef(CString refName, bool bRefNameIsPossiblyNotFullName = true)
@@ -207,7 +207,6 @@ protected:
 	UINT LoadingThread()
 	{
 		GUI_UPDATE_DATA data;
-		data.current_branch_idx = -1;
 		g_Git.GetBranchList(data.branches, &data.current_branch_idx, CRegDWORD(L"Software\\TortoiseGit\\BranchesIncludeFetchHead", TRUE) ? CGit::BRANCH_ALL_F : CGit::BRANCH_ALL, m_bSkipCurrentBranch);
 
 		g_Git.GetTagList(data.tags);
@@ -225,6 +224,8 @@ protected:
 			m_ChooseVersioinBranch.SetCurSel(data->current_branch_idx);
 			m_ChooseVersioinTags.SetList(data->tags);
 			m_ChooseVersioinTags.SetCurSel(0);
+			if (auto pCurrentBranch = m_pWin->GetDlgItem(IDC_CURRENTBRANCH); pCurrentBranch)
+				pCurrentBranch->SetWindowText(g_Git.GetCurrentBranch());
 		}
 
 		m_RadioBranch.EnableWindow(TRUE);
@@ -280,7 +281,7 @@ protected:
 	{
 		if(m_bLoadingThreadRunning && m_pLoadingThread)
 		{
-			DWORD ret =::WaitForSingleObject(m_pLoadingThread->m_hThread,20000);
+			const DWORD ret = ::WaitForSingleObject(m_pLoadingThread->m_hThread, 20000);
 			if(ret == WAIT_TIMEOUT)
 				::TerminateThread(m_pLoadingThread,0);
 		}
@@ -288,17 +289,11 @@ protected:
 	}
 public:
 	CString m_VersionName;
-	bool	m_bIsBranch;
-	bool	m_bIsFirstTimeToSetFocus;
+	bool	m_bIsBranch = false;
+	bool	m_bIsFirstTimeToSetFocus = false;
 	CChooseVersion(CWnd *win)
-	: m_bIsBranch(false)
-	, m_bIsFirstTimeToSetFocus(false)
-	, m_pLoadingThread(nullptr)
-	, m_bLoadingThreadRunning(FALSE)
-	, m_bNotFullName(true)
-	, m_bSkipCurrentBranch(false)
+		: m_pWin(win)
 	{
-		m_pWin=win;
 	};
 };
 
@@ -326,6 +321,8 @@ public:
 		AddAnchor(IDC_GROUP_BASEON, TOP_LEFT, TOP_RIGHT);		\
 		AddAnchor(IDC_BUTTON_SHOW,TOP_RIGHT);					\
 		AddAnchor(IDC_BUTTON_BROWSE_REF,TOP_RIGHT);				\
+		if (auto pCurrentBranch = GetDlgItem(IDC_CURRENTBRANCH); pCurrentBranch) \
+			AddAnchor(IDC_CURRENTBRANCH, TOP_LEFT, TOP_RIGHT); \
 	}
 
 #define CHOOSE_EVENT_RADIO() \

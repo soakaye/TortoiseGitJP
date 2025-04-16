@@ -1,4 +1,4 @@
-/***************************************************************************
+﻿/***************************************************************************
  *   Copyright (C) 2009-2010 by Stefan Fuhrmann                            *
  *   stefanfuhrmann@alice-dsl.de                                           *
  *                                                                         *
@@ -46,14 +46,11 @@ void CJobBase::OnUnSchedule (CJobScheduler*)
 
 // nothing special during construction / destuction
 
-CJobBase::CJobBase(void)
-    : waiting (TRUE)
-    , terminated (FALSE)
-    , scheduled (FALSE)
+CJobBase::CJobBase()
 {
 }
 
-CJobBase::~CJobBase(void)
+CJobBase::~CJobBase()
 {
     assert (deletable.Test());
 }

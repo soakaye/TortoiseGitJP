@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2017, 2019 - TortoiseGit
+// Copyright (C) 2013-2017, 2019, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,9 +16,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
-#include "SetMainPage.h"
 #include "ProjectProperties.h"
 #include "SetDialogs3.h"
 #include "AppUtils.h"
@@ -28,7 +28,6 @@ static std::vector<DWORD> g_langs;
 IMPLEMENT_DYNAMIC(CSetDialogs3, ISettingsPropPage)
 CSetDialogs3::CSetDialogs3()
 	: ISettingsPropPage(CSetDialogs3::IDD)
-	, m_bNeedSave(false)
 	, m_bInheritLogMinSize(FALSE)
 	, m_bInheritBorder(FALSE)
 	, m_bInheritIconFile(FALSE)
@@ -122,7 +121,7 @@ void CSetDialogs3::LoadDataImpl(CAutoConfig& config)
 			m_langCombo.SetCurSel(2);
 		else if (!value.IsEmpty())
 		{
-			LPTSTR strEnd;
+			LPWSTR strEnd;
 			long longValue = wcstol(value, &strEnd, 0);
 			if (longValue == 0)
 			{
@@ -188,9 +187,8 @@ BOOL CSetDialogs3::SafeDataImpl(CAutoConfig& config)
 	else
 	{
 		CString value;
-		char numBuf[20] = { 0 };
-		sprintf_s(numBuf, "%lu", static_cast<DWORD>(m_langCombo.GetItemData(m_langCombo.GetCurSel())));
-		if (!Save(config, PROJECTPROPNAME_PROJECTLANGUAGE, static_cast<CString>(numBuf)))
+		value.Format(L"%lu", static_cast<DWORD>(m_langCombo.GetItemData(m_langCombo.GetCurSel())));
+		if (!Save(config, PROJECTPROPNAME_PROJECTLANGUAGE, value))
 			return FALSE;
 	}
 
@@ -275,7 +273,7 @@ BOOL CSetDialogs3::OnApply()
 	return ISettingsPropPage::OnApply();
 }
 
-BOOL CSetDialogs3::EnumLocalesProc(LPTSTR lpLocaleString)
+BOOL CSetDialogs3::EnumLocalesProc(LPWSTR lpLocaleString)
 {
 	DWORD langID = wcstol(lpLocaleString, nullptr, 16);
 	g_langs.push_back(langID);
@@ -284,7 +282,7 @@ BOOL CSetDialogs3::EnumLocalesProc(LPTSTR lpLocaleString)
 
 void CSetDialogs3::AddLangToCombo(DWORD langID)
 {
-	TCHAR buf[MAX_PATH] = {0};
+	wchar_t buf[MAX_PATH] = { 0 };
 	GetLocaleInfo(langID, LOCALE_SNATIVELANGNAME, buf, _countof(buf));
 	CString sLang = buf;
 	GetLocaleInfo(langID, LOCALE_SNATIVECTRYNAME, buf, _countof(buf));

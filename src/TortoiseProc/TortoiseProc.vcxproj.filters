@@ -60,6 +60,9 @@
     <Filter Include="Commands\branch/tag">
       <UniqueIdentifier>{295ea7b9-86ee-4b71-aa2d-d461c4a1b9d3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Commands\worktree">
+      <UniqueIdentifier>{3f35c49a-3004-4cc7-8fb3-8f36993be9d3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Commands\Export">
       <UniqueIdentifier>{83356be3-ec90-4ddb-879d-eae742963aab}</UniqueIdentifier>
     </Filter>
@@ -337,6 +340,12 @@
     </ClCompile>
     <ClCompile Include="Commands\TagCommand.cpp">
       <Filter>Commands\branch/tag</Filter>
+    </ClCompile>
+    <ClCompile Include="Commands\WorktreeCommand.cpp">
+      <Filter>Commands\worktree</Filter>
+    </ClCompile>
+    <ClCompile Include="CreateWorktreeDlg.cpp">
+      <Filter>Commands\worktree</Filter>
     </ClCompile>
     <ClCompile Include="Commands\ExportCommand.cpp">
       <Filter>Commands\Export</Filter>
@@ -1021,6 +1030,15 @@
     </ClCompile>
     <ClCompile Include="..\Utils\Monitor.cpp">
       <Filter>Utils\General</Filter>
+    </ClCompile>
+    <ClCompile Include="StagingOperations.cpp">
+      <Filter>Commands\Commit</Filter>
+    </ClCompile>
+    <ClCompile Include="DiffLinesForStaging.cpp">
+      <Filter>Commands\Commit</Filter>
+    </ClCompile>
+    <ClCompile Include="WorktreeListDlg.cpp">
+      <Filter>Commands\worktree</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1765,9 +1783,6 @@
     <ClInclude Include="..\Git\GitRevRefBrowser.h">
       <Filter>Git</Filter>
     </ClInclude>
-    <ClInclude Include="..\Resources\LoglistCommonResource.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
     <ClInclude Include="FindBar.h">
       <Filter>Commands\Commit</Filter>
     </ClInclude>
@@ -1930,6 +1945,36 @@
     <ClInclude Include="..\Utils\Monitor.h">
       <Filter>Utils\General</Filter>
     </ClInclude>
+    <ClInclude Include="StagingOperations.h">
+      <Filter>Commands\Commit</Filter>
+    </ClInclude>
+    <ClInclude Include="EnableStagingTypes.h">
+      <Filter>Commands\Commit</Filter>
+    </ClInclude>
+    <ClInclude Include="DiffLinesForStaging.h">
+      <Filter>Commands\Commit</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings\SetWin11ContextMenu.h">
+      <Filter>Commands\setting</Filter>
+    </ClInclude>
+    <ClInclude Include="CreateWorktreeDlg.h">
+      <Filter>Commands\worktree</Filter>
+    </ClInclude>
+    <ClInclude Include="Commands\WorktreeCommand.h">
+      <Filter>Commands\worktree</Filter>
+    </ClInclude>
+    <ClInclude Include="WorktreeListDlg.h">
+      <Filter>Commands\worktree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Utils\URLFinder.h">
+      <Filter>Utils\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Resources\TGitHelpMapping.ini">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Resources\LoglistCommonResource.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\Resources\actionadded.ico">
@@ -2026,9 +2071,6 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\Resources\jumpup.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\Resources\Library.ico">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\Resources\lineadded.ico">
@@ -2265,6 +2307,15 @@
     <Image Include="..\Resources\UnlockBackground.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\Resources\indeterminate.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Resources\cherry-pick.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Resources\actionerror.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Resources\download.avi">
@@ -2277,6 +2328,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="..\Resources\TortoiseLoglistCommon.rc2">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\Resources\TortoiseGit_Logo.svgz">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

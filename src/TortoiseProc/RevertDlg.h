@@ -1,5 +1,6 @@
 // TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -38,11 +39,11 @@ public:
 	enum { IDD = IDD_REVERT };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
-	virtual void OnOK() override;
-	virtual void OnCancel() override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
+	void OnOK() override;
+	void OnCancel() override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void OnBnClickedSelectall();
 	afx_msg LRESULT	OnSVNStatusListCtrlNeedsRefresh(WPARAM, LPARAM);
 	afx_msg LRESULT OnFileDropped(WPARAM, LPARAM lParam);
@@ -57,13 +58,13 @@ private:
 public:
 	CTGitPathList 		m_pathList;
 	CTGitPathList 		m_selectedPathList;
-	BOOL				m_bRecursive;
+	bool				m_bRecursive = false;
 
 private:
 	BOOL				m_bSelectAll;
-	volatile LONG		m_bThreadRunning;
+	volatile LONG		m_bThreadRunning = FALSE;
 	CGitStatusListCtrl	m_RevertList;
 	CButton				m_SelectAll;
-	bool				m_bCancelled;
+	bool				m_bCancelled = false;
 };
 

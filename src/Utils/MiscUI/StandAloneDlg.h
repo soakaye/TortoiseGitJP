@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2016, 2020 - TortoiseGit
+// Copyright (C) 2015-2016, 2020-2024 - TortoiseGit
 // Copyright (C) 2003-2015, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -26,7 +26,8 @@
 #include "EditWordBreak.h"
 #include "Theme.h"
 #include "DarkModeHelper.h"
-#pragma comment(lib, "htmlhelp.lib")
+#include "CommonAppUtils.h"
+#include "DPIAware.h"
 
 #define DIALOG_BLOCKHORIZONTAL 1
 #define DIALOG_BLOCKVERTICAL 2
@@ -46,10 +47,9 @@ std::wstring GetMonitorSetupHash();
 template <typename BaseType> class CStandAloneDialogTmpl : public BaseType, protected CommonDialogFunctions<BaseType>
 {
 protected:
-	CStandAloneDialogTmpl(UINT nIDTemplate, CWnd* pParentWnd = nullptr) : BaseType(nIDTemplate, pParentWnd), CommonDialogFunctions(this)
-		, m_themeCallbackId(0)
+	CStandAloneDialogTmpl(UINT nIDTemplate, CWnd* pParentWnd = nullptr) : BaseType(nIDTemplate, pParentWnd), CommonDialogFunctions<BaseType>(this)
 	{
-		m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+		m_hIcon = AfxGetApp()->LoadIcon(1); // IDR_MAINFRAME; use the magic value here, because we cannot include resource.h here
 	}
 
 
@@ -58,7 +58,7 @@ protected:
 		CTheme::Instance().RemoveRegisteredCallback(m_themeCallbackId);
 	}
 
-	virtual BOOL OnInitDialog() override
+	BOOL OnInitDialog() override
 	{
 		m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme()); });
 
@@ -66,21 +66,23 @@ protected:
 
 		// Set the icon for this dialog.  The framework does this automatically
 		//  when the application's main window is not a dialog
-		SetIcon(m_hIcon, TRUE);			// Set big icon
-		SetIcon(m_hIcon, FALSE);		// Set small icon
+		BaseType::SetIcon(m_hIcon, TRUE); // Set big icon
+		BaseType::SetIcon(m_hIcon, FALSE); // Set small icon
 
-		EnableToolTips();
+		BaseType::EnableToolTips();
 		m_tooltips.Create(this);
 		SetTheme(CTheme::Instance().IsDarkTheme());
 
 		auto CustomBreak = static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\UseCustomWordBreak", 2));
 		if (CustomBreak)
-			SetUrlWordBreakProcToChildWindows(GetSafeHwnd(), CustomBreak == 2);
+			SetUrlWordBreakProcToChildWindows(BaseType::GetSafeHwnd(), CustomBreak == 2);
+
+		m_dpi = CDPIAware::Instance().GetDPI(BaseType::GetSafeHwnd());
 
 		return FALSE;
 	}
 
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override
+	BOOL PreTranslateMessage(MSG* pMsg) override
 	{
 		m_tooltips.RelayEvent(pMsg, this);
 		if (pMsg->message == WM_KEYDOWN)
@@ -89,7 +91,7 @@ protected:
 
 			if (nVirtKey == 'A' && (GetKeyState(VK_CONTROL) & 0x8000 ) )
 			{
-				TCHAR buffer[129];
+				wchar_t buffer[129];
 				::GetClassName(pMsg->hwnd, buffer, _countof(buffer) - 1);
 
 				if (_wcsnicmp(buffer, L"EDIT", _countof(buffer) - 1) == 0)
@@ -105,17 +107,17 @@ protected:
 	}
 	afx_msg void OnPaint()
 	{
-		if (IsIconic())
+		if (BaseType::IsIconic())
 		{
 			CPaintDC dc(this); // device context for painting
 
-			SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
+			BaseType::SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
 			// Center icon in client rectangle
 			int cxIcon = GetSystemMetrics(SM_CXICON);
 			int cyIcon = GetSystemMetrics(SM_CYICON);
 			CRect rect;
-			GetClientRect(&rect);
+			BaseType::GetClientRect(&rect);
 			int x = (rect.Width() - cxIcon + 1) / 2;
 			int y = (rect.Height() - cyIcon + 1) / 2;
 
@@ -132,14 +134,14 @@ protected:
 	 */
 	BOOL DialogEnableWindow(UINT nID, BOOL bEnable)
 	{
-		CWnd * pwndDlgItem = GetDlgItem(nID);
+		CWnd* pwndDlgItem = BaseType::GetDlgItem(nID);
 		if (!pwndDlgItem)
 			return FALSE;
 		if (bEnable)
 			return pwndDlgItem->EnableWindow(bEnable);
-		if (GetFocus() == pwndDlgItem)
+		if (BaseType::GetFocus() == pwndDlgItem)
 		{
-			SendMessage(WM_NEXTDLGCTL, 0, FALSE);
+			BaseType::SendMessage(WM_NEXTDLGCTL, 0, FALSE);
 		}
 		return pwndDlgItem->EnableWindow(bEnable);
 	}
@@ -156,7 +158,8 @@ protected:
 
 protected:
 	CToolTips	m_tooltips;
-	int m_themeCallbackId;
+	int m_themeCallbackId = 0;
+	int m_dpi = 0;
 	DECLARE_MESSAGE_MAP()
 
 private:
@@ -173,63 +176,100 @@ protected:
 		SetTheme(CTheme::Instance().IsDarkTheme());
 	}
 
+	LRESULT OnDPIChanged(WPARAM /*wParam*/, LPARAM lParam)
+	{
+		CDPIAware::Instance().Invalidate();
+
+		const auto newDPI = CDPIAware::Instance().GetDPI(BaseType::GetSafeHwnd());
+		if (m_dpi == 0)
+		{
+			m_dpi = newDPI;
+			return 0;
+		}
+
+		RECT* rect = reinterpret_cast<RECT*>(lParam);
+		RECT oldRect{};
+		GetWindowRect(BaseType::GetSafeHwnd(), &oldRect);
+
+		const double zoom = (static_cast<double>(newDPI) / (static_cast<double>(m_dpi) / 100.0)) / 100.0;
+		rect->right = static_cast<LONG>(rect->left + (oldRect.right - oldRect.left) * zoom);
+		rect->bottom = static_cast<LONG>(rect->top + (oldRect.bottom - oldRect.top) * zoom);
+
+		const CDPIAware::DPIAdjustData data{ BaseType::GetSafeHwnd(), zoom };
+		if constexpr (std::is_same_v<BaseType, CResizableDialog>)
+		{
+			auto anchors = BaseType::GetAllAnchors();
+			BaseType::RemoveAllAnchors();
+
+			auto minTrackSize = BaseType::GetMinTrackSize();
+			minTrackSize.cx = (LONG)(minTrackSize.cx * zoom);
+			minTrackSize.cy = (LONG)(minTrackSize.cy * zoom);
+			BaseType::SetMinTrackSize(minTrackSize);
+
+			BaseType::m_noNcCalcSizeAdjustments = true;
+			BaseType::SetWindowPos(nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
+			BaseType::m_noNcCalcSizeAdjustments = false;
+			::EnumChildWindows(BaseType::GetSafeHwnd(), CDPIAware::DPIAdjustChildren, reinterpret_cast<LPARAM>(&data));
+
+			BaseType::AddAllAnchors(anchors);
+		}
+		else
+		{
+			BaseType::SetWindowPos(nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
+			::EnumChildWindows(BaseType::GetSafeHwnd(), CDPIAware::DPIAdjustChildren, reinterpret_cast<LPARAM>(&data));
+		}
+
+		m_dpi = newDPI;
+
+		::RedrawWindow(BaseType::GetSafeHwnd(), nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
+		return 1; // let MFC handle this message as well
+	}
+
 	virtual void SetTheme(bool bDark)
 	{
 		if (bDark)
 		{
 			DarkModeHelper::Instance().AllowDarkModeForApp(TRUE);
-			DarkModeHelper::Instance().AllowDarkModeForWindow(GetSafeHwnd(), TRUE);
+			DarkModeHelper::Instance().AllowDarkModeForWindow(BaseType::GetSafeHwnd(), TRUE);
 			DarkModeHelper::Instance().AllowDarkModeForWindow(m_tooltips.GetSafeHwnd(), TRUE);
 			SetWindowTheme(m_tooltips.GetSafeHwnd(), L"Explorer", nullptr);
-			SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetStockObject(BLACK_BRUSH)));
+			SetClassLongPtr(BaseType::GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetStockObject(BLACK_BRUSH)));
 			BOOL darkFlag = TRUE;
 			DarkModeHelper::WINDOWCOMPOSITIONATTRIBDATA data = { DarkModeHelper::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkFlag, sizeof(darkFlag) };
-			DarkModeHelper::Instance().SetWindowCompositionAttribute(GetSafeHwnd(), &data);
+			DarkModeHelper::Instance().SetWindowCompositionAttribute(BaseType::GetSafeHwnd(), &data);
 			DarkModeHelper::Instance().FlushMenuThemes();
 			DarkModeHelper::Instance().RefreshImmersiveColorPolicyState();
 			BOOL dark = TRUE;
-			DwmSetWindowAttribute(GetSafeHwnd(), 19, &dark, sizeof(dark));
+			DwmSetWindowAttribute(BaseType::GetSafeHwnd(), 19, &dark, sizeof(dark));
 		}
 		else
 		{
-			DarkModeHelper::Instance().AllowDarkModeForWindow(GetSafeHwnd(), FALSE);
+			DarkModeHelper::Instance().AllowDarkModeForWindow(BaseType::GetSafeHwnd(), FALSE);
 			DarkModeHelper::Instance().AllowDarkModeForWindow(m_tooltips.GetSafeHwnd(), FALSE);
 			SetWindowTheme(m_tooltips.GetSafeHwnd(), L"Explorer", nullptr);
 			BOOL darkFlag = FALSE;
 			DarkModeHelper::WINDOWCOMPOSITIONATTRIBDATA data = { DarkModeHelper::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkFlag, sizeof(darkFlag) };
-			DarkModeHelper::Instance().SetWindowCompositionAttribute(GetSafeHwnd(), &data);
+			DarkModeHelper::Instance().SetWindowCompositionAttribute(BaseType::GetSafeHwnd(), &data);
 			DarkModeHelper::Instance().FlushMenuThemes();
 			DarkModeHelper::Instance().RefreshImmersiveColorPolicyState();
 			DarkModeHelper::Instance().AllowDarkModeForApp(FALSE);
-			SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetSysColorBrush(COLOR_3DFACE)));
+			SetClassLongPtr(BaseType::GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetSysColorBrush(COLOR_3DFACE)));
 		}
-		CTheme::Instance().SetThemeForDialog(GetSafeHwnd(), bDark);
-		::RedrawWindow(GetSafeHwnd(), nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
+		CTheme::Instance().SetThemeForDialog(BaseType::GetSafeHwnd(), bDark);
+		::RedrawWindow(BaseType::GetSafeHwnd(), nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
 	}
 
 protected:
-	virtual void HtmlHelp(DWORD_PTR dwData, UINT nCmd = 0x000F) override
+	void HtmlHelp(DWORD_PTR dwData, UINT nCmd = 0x000F) override
 	{
-		CWinApp* pApp = AfxGetApp();
-		ASSERT_VALID(pApp);
-		ASSERT(pApp->m_pszHelpFilePath);
-		// to call HtmlHelp the m_fUseHtmlHelp must be set in
-		// the application's constructor
-		ASSERT(pApp->m_eHelpType == afxHTMLHelp);
-
-		CWaitCursor wait;
-
-		PrepareForHelp();
-		// run the HTML Help engine
-		if (!::HtmlHelp(m_hWnd, pApp->m_pszHelpFilePath, nCmd, dwData))
-		{
+		UNREFERENCED_PARAMETER(nCmd);
+		if (!CCommonAppUtils::StartHtmlHelp(dwData))
 			AfxMessageBox(AFX_IDP_FAILED_TO_LAUNCH_HELP);
-		}
 	}
 
 	afx_msg LRESULT OnTaskbarButtonCreated(WPARAM /*wParam*/, LPARAM /*lParam*/)
 	{
-		SetUUIDOverlayIcon(m_hWnd);
+		SetUUIDOverlayIcon(BaseType::m_hWnd);
 		return 0;
 	}
 
@@ -241,25 +281,19 @@ class CStateDialog : public CDialog, public CResizableWndState
 public:
 	CStateDialog()
 	: CDialog()
-	, m_bEnableSaveRestore(false)
-	, m_bRectOnly(false)
 	{}
 	CStateDialog(UINT nIDTemplate, CWnd* pParentWnd = nullptr)
 	: CDialog(nIDTemplate, pParentWnd)
-	, m_bEnableSaveRestore(false)
-	, m_bRectOnly(false)
 	{}
-	CStateDialog(LPCTSTR lpszTemplateName, CWnd* pParentWnd = nullptr)
+	CStateDialog(LPCWSTR lpszTemplateName, CWnd* pParentWnd = nullptr)
 	: CDialog(lpszTemplateName, pParentWnd)
-	, m_bEnableSaveRestore(false)
-	, m_bRectOnly(false)
 	{}
 	virtual ~CStateDialog() {};
 
 private:
 	// flags
-	bool m_bEnableSaveRestore;
-	bool m_bRectOnly;
+	bool m_bEnableSaveRestore = false;
+	bool m_bRectOnly = false;
 
 	// internal status
 	CString m_sSection;			// section name (identifies a parent window)
@@ -268,7 +302,7 @@ protected:
 	// overloaded method, but since this dialog class is for non-resizable dialogs,
 	// the bHorzResize and bVertResize params are ignored and passed as false
 	// to the base method.
-	void EnableSaveRestore(LPCTSTR pszSection, bool bRectOnly = FALSE, BOOL bHorzResize = TRUE, BOOL bVertResize = TRUE)
+	void EnableSaveRestore(LPCWSTR pszSection, bool bRectOnly = FALSE, BOOL bHorzResize = TRUE, BOOL bVertResize = TRUE)
 	{
 		UNREFERENCED_PARAMETER(bHorzResize);
 		UNREFERENCED_PARAMETER(bVertResize);
@@ -306,7 +340,7 @@ private:
 	DECLARE_DYNAMIC(CResizableStandAloneDialog)
 
 protected:
-	virtual BOOL	OnInitDialog() override;
+	BOOL			OnInitDialog() override;
 	afx_msg void	OnSizing(UINT fwSide, LPRECT pRect);
 	afx_msg void	OnMoving(UINT fwSide, LPRECT pRect);
 	afx_msg void	OnNcMButtonUp(UINT nHitTest, CPoint point);
@@ -316,16 +350,16 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 protected:
-	int			m_nResizeBlock;
-	long		m_width;
-	long		m_height;
+	int			m_nResizeBlock = 0;
+	long		m_width = 0;
+	long		m_height = 0;
 
 	void BlockResize(int block)
 	{
 		m_nResizeBlock = block;
 	}
 
-	void EnableSaveRestore(LPCTSTR pszSection, bool bRectOnly = FALSE)
+	void EnableSaveRestore(LPCWSTR pszSection, bool bRectOnly = FALSE)
 	{
 		// call the base method with the bHorzResize and bVertResize parameters
 		// figured out from the resize block flags.
@@ -334,8 +368,8 @@ protected:
 	};
 
 private:
-	bool		m_bVertical;
-	bool		m_bHorizontal;
+	bool		m_bVertical = false;
+	bool		m_bHorizontal = false;
 	CRect		m_rcOrgWindowRect;
 };
 
@@ -366,5 +400,6 @@ BEGIN_TEMPLATE_MESSAGE_MAP(CStandAloneDialogTmpl, BaseType, BaseType)
 	ON_WM_QUERYDRAGICON()
 	ON_REGISTERED_MESSAGE(TaskBarButtonCreated, OnTaskbarButtonCreated)
 	ON_WM_SYSCOLORCHANGE()
+	ON_MESSAGE(WM_DPICHANGED, OnDPIChanged)
 END_MESSAGE_MAP()
 

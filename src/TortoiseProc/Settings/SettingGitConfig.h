@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,10 +16,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-#pragma once
 
+#pragma once
 #include "SettingsPropPage.h"
-#include "registry.h"
 #include "GitSettings.h"
 
 // CSettingGitConfig dialog
@@ -36,14 +35,14 @@ public:
 	enum { IDD = IDD_SETTINGIT_CONFIG };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL OnApply() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
+	BOOL OnApply() override;
 
-	virtual void LoadDataImpl(CAutoConfig& config) override;
-	virtual BOOL SafeDataImpl(CAutoConfig& config) override;
-	virtual void EnDisableControls() override;
-	virtual HWND GetDialogHwnd() const override { return GetSafeHwnd(); }
+	void LoadDataImpl(CAutoConfig& config) override;
+	BOOL SafeDataImpl(CAutoConfig& config) override;
+	void EnDisableControls() override;
+	HWND GetDialogHwnd() const override { return GetSafeHwnd(); }
 
 	DECLARE_MESSAGE_MAP()
 
@@ -57,7 +56,7 @@ protected:
 	afx_msg void OnBnClickedVieweffectivegitconfig();
 	GITSETTINGS_RADIO_EVENT_HANDLE;
 
-	bool	m_bNeedSave;
+	bool	m_bNeedSave = false;
 	CString	m_UserName;
 	BOOL	m_bInheritUserName;
 	CString	m_UserEmail;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2012-2017, 2019-2020, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,13 +18,11 @@
 //
 
 #include "stdafx.h"
-
 #include "Git.h"
 #include "AppUtils.h"
 #include "TortoiseProc.h"
 #include "DeleteRemoteTagDlg.h"
 #include "MessageBox.h"
-#include "MassiveGitTask.h"
 #include "SysProgressDlg.h"
 
 IMPLEMENT_DYNAMIC(CDeleteRemoteTagDlg, CResizableStandAloneDialog)
@@ -77,6 +75,7 @@ BOOL CDeleteRemoteTagDlg::OnInitDialog()
 	Refresh();
 
 	EnableSaveRestore(L"DeleteRemoteTagDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	return TRUE;
 }
@@ -136,15 +135,15 @@ void CDeleteRemoteTagDlg::OnBnClickedOk()
 	{
 		CString msg;
 		msg.Format(IDS_PROC_DELETENREFS, m_ctrlTags.GetSelectedCount());
-		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", 2, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+		if (CMessageBox::Show(GetSafeHwnd(), msg, IDS_APPNAME, 2, IDI_QUESTION, IDS_DELETEBUTTON, IDS_ABORTBUTTON) == 2)
 			return;
 	}
 	else // GetSelectedCount() is 1, otherwise the button is disabled
 	{
 		POSITION pos = m_ctrlTags.GetFirstSelectedItemPosition();
 		CString msg;
-		msg.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(m_ctrlTags.GetItemText(m_ctrlTags.GetNextSelectedItem(pos), 0)));
-		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", 2, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+		msg.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(m_ctrlTags.GetItemText(m_ctrlTags.GetNextSelectedItem(pos), 0)));
+		if (CMessageBox::Show(GetSafeHwnd(), msg, IDS_APPNAME, 2, IDI_QUESTION, IDS_DELETEBUTTON, IDS_ABORTBUTTON) == 2)
 			return;
 	}
 

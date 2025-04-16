@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2013, 2016-2020 - TortoiseGit
+// Copyright (C) 2009-2013, 2016-2021, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -31,8 +31,6 @@
 IMPLEMENT_DYNAMIC(CLFSLocksDlg, CResizableStandAloneDialog)
 CLFSLocksDlg::CLFSLocksDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CLFSLocksDlg::IDD, pParent)
-	, m_bThreadRunning(FALSE)
-	, m_bCancelled(false)
 {
 }
 
@@ -45,6 +43,7 @@ void CLFSLocksDlg::DoDataExchange(CDataExchange* pDX)
 	CResizableStandAloneDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LOCKSLIST, m_LocksList);
 	DDX_Control(pDX, IDC_SELECTALL, m_SelectAll);
+	DDX_Control(pDX, IDC_FORCE, m_Force);
 }
 
 BEGIN_MESSAGE_MAP(CLFSLocksDlg, CResizableStandAloneDialog)
@@ -66,20 +65,20 @@ BOOL CLFSLocksDlg::OnInitDialog()
 	m_LocksList.SetBackgroundImage(IDI_LOCK_BKG);
 	m_LocksList.m_bEnableDblClick = false;
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	AdjustControlSize(IDC_SELECTALL);
 
 	AddAnchor(IDC_LOCKSLIST, TOP_LEFT, BOTTOM_RIGHT);
-	AddAnchor(IDC_SELECTALL, BOTTOM_LEFT);
+	AddAnchor(IDC_SELECTALL, BOTTOM_LEFT, BOTTOM_CENTER);
+	AddAnchor(IDC_FORCE, BOTTOM_CENTER, BOTTOM_RIGHT);
 	AddAnchor(IDC_LFS_UNLOCK, BOTTOM_RIGHT);
 	AddAnchor(IDCANCEL, BOTTOM_RIGHT);
 	AddAnchor(IDHELP, BOTTOM_RIGHT);
 	if (GetExplorerHWND())
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"LFSLocksDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	// first start a thread to obtain the file list with the status without 
 	// blocking the dialog
@@ -97,6 +96,7 @@ UINT CLFSLocksDlg::LocksThreadEntry(LPVOID pVoid)
 
 UINT CLFSLocksDlg::LocksThread()
 {
+	DialogEnableWindow(IDC_FORCE, false);
 	DialogEnableWindow(IDC_LFS_UNLOCK, false);
 	DialogEnableWindow(IDC_SELECTALL, false);
 
@@ -111,6 +111,7 @@ UINT CLFSLocksDlg::LocksThread()
 	InterlockedExchange(&m_bThreadRunning, FALSE);
 	RefreshCursor();
 
+	DialogEnableWindow(IDC_FORCE, true);
 	DialogEnableWindow(IDC_SELECTALL, true);
 
 	return 0;
@@ -183,7 +184,7 @@ void CLFSLocksDlg::OnBnClickedUnLock()
 	}
 
 	CGitProgressDlg progDlg(this);
-	LFSSetLockedProgressCommand lfsLockCommand(false, false);
+	LFSSetLockedProgressCommand lfsLockCommand(false, m_Force.GetCheck());
 	progDlg.SetCommand(&lfsLockCommand);
 	progDlg.SetItemCount(selectedPathList.GetCount());
 	lfsLockCommand.SetPathList(selectedPathList);

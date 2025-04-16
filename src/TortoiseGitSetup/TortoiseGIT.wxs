@@ -32,8 +32,6 @@
 		<Property Id="FIRSTSTARTWIZARD" Secure="yes">1</Property>
 		<Property Id="ALLUSERS" Secure="yes">1</Property>
 
-		<Condition Message="[ProductName] requires Windows 7 or later."><![CDATA[(VersionNT >= 601)]]></Condition>
-
 		<?if $(var.Platform) = "x86" ?>
 		<Condition Message="You are attempting to run the 32-bit installer on a 64-bit version of Windows. Please install the 64-bit version of TortoiseGit instead.">NOT Msix64</Condition>
 		<?endif ?>
@@ -44,6 +42,13 @@
 		</Upgrade>
 		<Condition Message="Please uninstall all 32-bit versions of TortoiseGit before installing [ProductName].">NOT WIN32TGITFOUND</Condition>
 		<?endif ?>
+
+		<Property Id="WIN10FOUND">
+			<DirectorySearch Id="searchSystem10" Path="[SystemFolder]" Depth="0">
+				<FileSearch Id="searchFile10" Name="shell32.dll" MinVersion="6.3.10000.0"/>
+			</DirectorySearch>
+		</Property>
+		<Condition Message="[ProductName] requires Windows 10 or later."><![CDATA[(NOT WIN10FOUND="")]]></Condition>
 
 		<!-- Show/Don't-show changelog related properties and custom actions ..................................................... -->
 		<Property Id="TEXTEDITOR" Secure="yes">
@@ -58,17 +63,24 @@
 		<CustomAction Id="FirstStartWizardAction" Directory="D__Bin" ExeCommand="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /command:firststart" Return="asyncNoWait" />
 
 		<CustomAction Id="ShowDonatePage" BinaryKey="CustomActionsDLL" DllEntry="OpenDonatePage" />
+		<CustomAction Id="RemoveAllUserSettings" BinaryKey="CustomActionsDLL" DllEntry="RemoveAllUserSettings" />
 
 		<CustomAction Id="KillCache" BinaryKey="CustomActionsDLL" DllEntry="TerminateCache" />
 		<Binary Id="CustomActionsDLL" SourceFile="..\..\bin\$(var.ReleasePath)\bin\CustomActions.dll" />
 		<CustomAction Id="RestartExplorer" BinaryKey="CustomActionsDLL" DllEntry="RestartExplorer" />
+		<?if ($(var.Platform) = "x64" OR $(var.Platform) = "ARM64") AND $(var.BuildWindows11ContextmenuExtension) = "1" ?>
+		<!-- only needed for Windows 11; there is no x86 version -->
+		<Binary Id="CustomActionsDLL11" SourceFile="..\..\bin\$(var.ReleasePath)\bin\CustomActions11.dll" />
+		<CustomAction Id="RegisterSparsePackage" Impersonate="yes" BinaryKey="CustomActionsDLL11" DllEntry="RegisterSparsePackage"/>
+		<CustomAction Id="UnregisterSparsePackage" Impersonate="yes" BinaryKey="CustomActionsDLL11" DllEntry="UnregisterSparsePackage"/>
+		<?endif ?>
 
 		<!-- Unsafe-check properties and custom actions .......................................................................... -->
 		<Property Id="VSDUIANDADVERTISED" Secure="yes">This advertised application will not be installed because it might be unsafe. Contact your administrator to change the installation user interface option of the package to basic.</Property>
 		<CustomAction Id="ERRCA_UIANDADVERTISED" Error="[VSDUIANDADVERTISED]" />
 
 		<!-- Figure out where a previous installation was, if any ................................................................ -->
-		<?if $(var.Platform) = "x64" ?>
+		<?if $(var.Platform) = "x64" OR $(var.Platform) = "ARM64" ?>
 		<CustomAction Id="DefaultTargetDir" Property="INSTALLDIR" Value="[ProgramFiles64Folder]$(var.ProductName)" Execute="immediate" />
 		<Property Id="INSTALLDIR" Secure="yes">
 			<RegistrySearch Id="PreviousInstallLocationRegistrySearch" Root="HKLM" Key="Software\[Manufacturer]" Name="Directory" Type="raw" Win64="$(var.Win64YesNo)" />
@@ -84,12 +96,28 @@
 			<RegistrySearch Key="SOFTWARE\[Manufacturer]" Root="HKLM" Type="raw" Id="LANGUAGEFOLDER_REGSEARCH" Name="LanguageFolderPath" Win64="$(var.Win64YesNo)"/>
 		</Property>
 
+		<?if ($(var.Platform) = "x64" OR $(var.Platform) = "ARM64") AND $(var.BuildWindows11ContextmenuExtension) = "1" ?>
+		<!-- only needed for Windows 11; there is no x86 version -->
+		<!-- msiexec does not have a manifest, so it always reports the version of system dlls as
+			 for Win7 (6.3.x.x). So we check for 6.3 but use the build number to actually check
+			 for Win11 -->
+		<Property Id="WIN11FOUND" Secure="yes">
+			<DirectorySearch Id="searchSystem" Path="[System64Folder]" AssignToProperty="yes">
+				<FileSearch Id="searchFile" Name="shell32.dll" MinVersion="6.3.21999.0"/>
+			</DirectorySearch>
+		</Property>
+
+		<!-- properties for the custom actions to (un)register the sparse package -->
+		<Property Id="SPARSEPACKAGEFILE" Value="package.msix"  Secure="yes"/>
+		<Property Id="SPARSEPACKAGENAME" Value="0BF99681-825C-4B2A-A14F-2AC01DB9B70E"  Secure="yes"/>
+		<?endif ?>
+
 		<?include FeaturesFragment.wxi?>
 		<?include StructureFragment.wxi?>
 		<?include UIFragment.wxi?>
-		<?include Win7LibraryAndExplorerToolbarActions.wxi?>
 		<?include ProtocolSupport.wxi?>
 		<?include TortoiseUDiff.wxi?>
+		<?include HTMLHelpfiles.wxi?>
 
 		<!--
 		<FragmentRef Id="StructureFragment" />
@@ -105,6 +133,11 @@
 			<LaunchConditions After="AppSearch" />
 			<Custom Action="DefaultTargetDir" After="LaunchConditions">INSTALLDIR=""</Custom>
 			<Custom Action="KillCache" After="ValidateProductID">Installed OR REMOVE OR CLOSETGITCACHE</Custom>
+			<?if ($(var.Platform) = "x64" OR $(var.Platform) = "ARM64") AND $(var.BuildWindows11ContextmenuExtension) = "1" ?>
+			<!-- only needed for Windows 11; there is no x86 version -->
+			<Custom Action="RegisterSparsePackage" After="InstallFinalize">NOT (REMOVE~="ALL") AND (NOT WIN11FOUND="")</Custom>
+			<Custom Action="UnregisterSparsePackage" Before="RemoveFiles">(REMOVE~="ALL") AND (NOT WIN11FOUND="")</Custom>
+			<?endif ?>
 		</InstallExecuteSequence>
 
 		<!-- UI Sequencing ...................................................................................................... -->

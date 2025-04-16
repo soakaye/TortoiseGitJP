@@ -222,7 +222,7 @@ Don't touch these lines:
 								to clone to.
 								If <option>/exactpath</option> is not specified, the
 								repository name (without trailing .git) will be appended to
-								target directory. This is the default behaviour.
+								target directory. This is the default behavior.
 								If <option>/exactpath</option> is specified, the
 								exact <option>/path</option> is considered the target directory,
 								without appending repository name to it.
@@ -501,7 +501,8 @@ Don't touch these lines:
 							<entry condition="pot">:rebase</entry>
 							<entry>
 								Opens the <link linkend="tgit-dug-rebase">rebase dialog</link> for the working tree located in
-								<option>/path</option>.
+								<option>/path</option>. To select the upstream branch/commit use the <option>/upstream</option> option.
+								For activating the force option use <option>/force</option>. 
 							</entry>
 						</row>
 						<row>
@@ -637,6 +638,12 @@ Don't touch these lines:
 							<entry>
 								Opens the <link linkend="tgit-dug-lfslocking-locks">Show Locks dialog</link>.
 								More info in <link linkend="tgit-dug-lfslocking">LFS Locking</link>.
+							</entry>
+						</row>
+						<row>
+							<entry condition="pot">:worktreelist</entry>
+							<entry>
+								Opens the <link linkend="tgit-dug-worktrees">Worktree List dialog</link>.
 							</entry>
 						</row>
 					</tbody>

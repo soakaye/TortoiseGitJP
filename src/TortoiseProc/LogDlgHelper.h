@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2007 - TortoiseSVN
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -31,14 +31,14 @@ class CLogDlg;
  * Instances of CStoreSelection save the selection of the CLogDlg. When the instance
  * is deleted the destructor restores the selection.
  */
-typedef std::unordered_map<CGitHash, size_t> MAP_HASH_REV;
+using MAP_HASH_REV = std::unordered_map<CGitHash, size_t>;
 
 /**
  * \ingroup TortoiseProc
  * Helper class for the log dialog, handles all the log entries, including
  * sorting.
  */
-class CLogDataVector : 	public std::vector<CGitHash>
+class CLogDataVector : private std::vector<CGitHash>
 {
 public:
 	CLogCache *m_pLogCache;
@@ -72,12 +72,25 @@ public:
 
 	Lanes m_Lns;
 	int	 m_FirstFreeLane;
-	// Log order: LOG_ORDER_CHRONOLOGIALREVERSED, LOG_ORDER_TOPOORDER, LOG_ORDER_DATEORDER
+	// Log order: LOG_ORDER_CHRONOLOGIALREVERSED, LOG_ORDER_TOPOORDER, LOG_ORDER_DATEORDER, LOG_ORDER_AUTHORDATEORDER
 	int m_logOrderBy;
 	MAP_HASH_REV m_HashMap;
-	void updateLanes(GitRevLoglist& c, Lanes& lns, const CGitHash& sha);
-	void setLane(const CGitHash& sha);
-	void append(CGitHash& sha, bool storeInVector);
+	void updateLanes(GitRevLoglist& c, Lanes& lns, const CGitHash& sha, bool onlyFirstParent);
+	void setLane(const CGitHash& sha, bool onlyFirstParent);
+	void append(CGitHash& sha, bool storeInVector, bool onlyFirstParent);
+
+	using std::vector<CGitHash>::at;
+	using std::vector<CGitHash>::begin;
+	using std::vector<CGitHash>::end;
+	using std::vector<CGitHash>::cbegin;
+	using std::vector<CGitHash>::cend;
+	using std::vector<CGitHash>::clear;
+	using std::vector<CGitHash>::empty;
+	using std::vector<CGitHash>::erase;
+	using std::vector<CGitHash>::insert;
+	using std::vector<CGitHash>::push_back;
+	using std::vector<CGitHash>::size;
+	using std::vector<CGitHash>::operator[];
 
 #if 0
 	/// Ascending date sorting.

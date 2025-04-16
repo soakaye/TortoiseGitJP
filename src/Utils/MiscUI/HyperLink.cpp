@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2016, 2019 - TortoiseGit
+// Copyright (C) 2012-2016, 2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2006,2008, 2011, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "HyperLink.h"
-#include "SmartHandle.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -31,10 +31,8 @@ static char THIS_FILE[] = __FILE__;
 
 
 CHyperLink::CHyperLink()
-	: m_hLinkCursor(nullptr)
-	, m_crLinkColor(GetSysColor(COLOR_HOTLIGHT))
+	: m_crLinkColor(GetSysColor(COLOR_HOTLIGHT))
 	, m_crHoverColor(RGB(255, 0, 0)) // Red
-	, m_bOverControl(FALSE)
 	, m_nUnderline(ulHover)
 	, m_nTimerID(100)
 {
@@ -42,7 +40,6 @@ CHyperLink::CHyperLink()
 
 CHyperLink::~CHyperLink()
 {
-	m_UnderlineFont.DeleteObject();
 }
 
 BOOL CHyperLink::DestroyWindow()
@@ -257,32 +254,10 @@ int CHyperLink::GetUnderline() const
 void CHyperLink::SetDefaultCursor()
 {
 	if (!m_hLinkCursor)
-	{
-		// first try the windows hand cursor (not available on NT4)
-#ifndef OCR_HAND
-#	define OCR_HAND 32649
-#endif
-		auto hHandCursor = static_cast<HCURSOR>(::LoadImage(nullptr, MAKEINTRESOURCE(OCR_HAND), IMAGE_CURSOR, 0, 0, LR_DEFAULTSIZE | LR_SHARED));
-		if (hHandCursor)
-		{
-			m_hLinkCursor = hHandCursor;
-			return;
-		}
-		// windows cursor not available, so try to load it from winhlp32.exe
-		CString strWndDir;
-		GetWindowsDirectory(CStrBuf(strWndDir, MAX_PATH), MAX_PATH);	// Explorer can't handle paths longer than MAX_PATH.
-		strWndDir += L"\\winhlp32.exe";
-		// This retrieves cursor #106 from winhlp32.exe, which is a hand pointer
-		CAutoLibrary hModule = LoadLibrary(strWndDir);
-		if (hModule) {
-			auto hHandCursor2 = static_cast<HCURSOR>(::LoadImage(hModule, MAKEINTRESOURCE(106), IMAGE_CURSOR, 0, 0, LR_DEFAULTSIZE));
-			if (hHandCursor2)
-				m_hLinkCursor = CopyCursor(hHandCursor2);
-		}
-	}
+		m_hLinkCursor = ::LoadCursor(nullptr, IDC_HAND); // Load Windows' hand cursor
 }
 
-HINSTANCE CHyperLink::GotoURL(LPCTSTR url)
+HINSTANCE CHyperLink::GotoURL(LPCWSTR url)
 {
 	return ShellExecute(nullptr, L"open", url, nullptr, nullptr, SW_SHOW);
 }

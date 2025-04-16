@@ -1,6 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseSVN
+// Copyright (C) 2023 - TortoiseGit
+// Copyright (C) 2020-2021 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,15 +19,15 @@
 //
 #pragma once
 #include "registry.h"
-#include <string>
 #include <unordered_map>
 #include <functional>
+#include <optional>
 #pragma warning(push)
 #pragma warning(disable : 4458) // declaration of 'xxx' hides class member
 #include <gdiplus.h>
 #pragma warning(pop)
 
-using ThemeChangeCallback = std::function<void(void)>;
+using ThemeChangeCallback = std::function<void()>;
 
 /**
  * Singleton to handle Theme related methods.
@@ -44,6 +45,7 @@ public:
 
 	// cf. src/TortoiseUDiff/UDiffColors.h, src/SshAskPass/SshAskPass.cpp and src/TortoiseGitBlame/BlameIndexColors.h
 	static const COLORREF darkBkColor = 0x202020;
+	static const COLORREF darkBkHotColor = 0x404040;
 	static const COLORREF darkTextColor = 0xDDDDDD;
 	static const COLORREF darkDisabledTextColor = 0x808080;
 
@@ -80,6 +82,8 @@ public:
 	static void RGBtoHSL(COLORREF color, float& h, float& s, float& l);
 	static COLORREF HSLtoRGB(float h, float s, float l);
 
+	static std::optional<LRESULT> HandleMenuBar(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 private:
 	void Load();
 	static BOOL CALLBACK AdjustThemeForChildrenProc(HWND hwnd, LPARAM lParam);
@@ -90,13 +94,14 @@ private:
 	static LRESULT CALLBACK AutoSuggestSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
 private:
-	bool m_bLoaded;
-	bool m_dark;
-	bool m_isHighContrastMode;
-	bool m_isHighContrastModeDark;
-	bool m_bDarkModeIsAllowed;
+	bool m_bLoaded = false;
+	bool m_dark = false;
+	bool m_isHighContrastMode = false;
+	bool m_isHighContrastModeDark = false;
+	bool m_bDarkModeIsAllowed = false;
 	std::unordered_map<int, ThemeChangeCallback> m_themeChangeCallbacks;
-	int m_lastThemeChangeCallbackId;
+	int m_lastThemeChangeCallbackId = 0;
 	CRegStdDWORD m_regDarkTheme;
 	static HBRUSH s_backBrush;
+	static HBRUSH s_backHotBrush;
 };

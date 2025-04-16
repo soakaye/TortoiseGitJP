@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2020, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2008,2010 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -83,7 +83,7 @@ public:
 	static bool SetListCtrlBackgroundImage(HWND hListCtrl, UINT nID);
 	static bool SetListCtrlBackgroundImage(HWND hListCtrl, UINT nID, int width, int height);
 
-	static bool FileOpenSave(CString& path, int* filterindex, UINT title, UINT filterId, bool bOpen, HWND hwndOwner = nullptr, LPCTSTR defaultExt = nullptr, bool handleAsFile = false);
+	static bool FileOpenSave(CString& path, int* filterindex, UINT title, UINT filterId, bool bOpen, HWND hwndOwner = nullptr, LPCWSTR defaultExt = nullptr, bool handleAsFile = false);
 
 	// Wrapper for LoadImage(IMAGE_ICON)
 	static HICON LoadIconEx(UINT resourceId, UINT cx, UINT cy);
@@ -109,7 +109,13 @@ public:
 	/**
 	 * Create a font which can is used for log messages, etc
 	 */
-	static void CreateFontForLogs(CFont& fontToCreate);
+	static void CreateFontForLogs(HWND hWnd, CFont& fontToCreate);
+
+	static const char* GetResourceData(const wchar_t* resName, int id, DWORD& resLen);
+
+	static bool StartHtmlHelp(DWORD_PTR id, CString page = L"index.html");
+
+	static int ExploreTo(HWND hwnd, CString path);
 
 	CCommonAppUtils() = delete;
 };

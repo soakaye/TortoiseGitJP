@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2020 - TortoiseGit
+// Copyright (C) 2016-2020, 2022-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -113,7 +113,7 @@ TEST(libgit, Mailmap)
 	EXPECT_STREQ("Sven Strickroth", author1);
 
 	git_free_mailmap(mailmap);
-	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(mailmapFile, L"<sven@tortoisegit.org> <email@cs-ware.de>\nSven S. <sven@tortoisegit.org> Sven Strickroth <email@cs-ware.de>"));
+	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(mailmapFile, L"<sven@tortoisegit.org> <email@cs-ware.de>\nSven S. <sven@tortoisegit.org> Sven Strickroth <email@cs-ware.de>\n<another@example.com> S. Strickroth <email@cs-ware.de>\n"));
 	git_read_mailmap(&mailmap);
 	EXPECT_NE(nullptr, mailmap);
 	email1 = nullptr;
@@ -129,6 +129,11 @@ TEST(libgit, Mailmap)
 	EXPECT_EQ(0, git_lookup_mailmap(mailmap, &email1, &author1, "email@cs-ware.de", nullptr, [](void*) { return "Sven Strickroth"; }));
 	EXPECT_STREQ("sven@tortoisegit.org", email1);
 	EXPECT_STREQ("Sven S.", author1);
+	email1 = nullptr;
+	author1 = nullptr;
+	EXPECT_EQ(0, git_lookup_mailmap(mailmap, &email1, &author1, "email@cs-ware.de", nullptr, [](void*) { return "S. Strickroth"; }));
+	EXPECT_STREQ("another@example.com", email1);
+	EXPECT_STREQ(nullptr, author1);
 }
 
 TEST(libgit, MkDir)
@@ -169,9 +174,9 @@ TEST(libgit, RefreshIndex)
 	EXPECT_EQ(0, git_config_set_string(config, "filter.openssl.smudge", path + "/smudge_filter_openssl"));
 	EXPECT_EQ(0, git_config_set_bool(config, "filter.openssl.required", 1));
 	CString cleanFilterFilename = g_Git.m_CurrentDir + L"\\clean_filter_openssl";
-	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(cleanFilterFilename, L"#!/bin/bash\nopenssl version | grep -q 1\\\\.0\nif [[ $? = 0 ]]; then\n\topenssl enc -base64 -aes-256-ecb -S FEEDDEADBEEF -k PASS_FIXED\nelse\n\topenssl enc -base64 -pbkdf2 -aes-256-ecb -S FEEDDEADBEEFFEED -k PASS_FIXED\nfi\n"));
+	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(cleanFilterFilename, L"#!/bin/bash\nopenssl version | grep -q \" 1\\\\.0\\\\.\"\nif [[ $? = 0 ]]; then\n\topenssl enc -base64 -aes-256-ecb -S FEEDDEADBEEF -k PASS_FIXED\nelse\n\topenssl enc -base64 -pbkdf2 -aes-256-ecb -nosalt -k PASS_FIXED\nfi\n"));
 	CString smudgeFilterFilename = g_Git.m_CurrentDir + L"\\smudge_filter_openssl";
-	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(smudgeFilterFilename, L"#!/bin/bash\nopenssl version | grep -q 1\\\\.0\nif [[ $? = 0 ]]; then\n\topenssl enc -d -base64 -aes-256-ecb -k PASS_FIXED\nelse\n\topenssl enc -d -base64 -pbkdf2 -aes-256-ecb -k PASS_FIXED\nfi\n"));
+	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(smudgeFilterFilename, L"#!/bin/bash\nopenssl version | grep -q \" 1\\\\.0\\\\.\"\nif [[ $? = 0 ]]; then\n\topenssl enc -d -base64 -aes-256-ecb -k PASS_FIXED\nelse\n\topenssl enc -d -base64 -pbkdf2 -aes-256-ecb -nosalt -k PASS_FIXED\nfi\n"));
 	EXPECT_EQ(0, git_config_set_string(config, "filter.test.clean", path + "/clean_filter_openssl"));
 	EXPECT_EQ(0, git_config_set_string(config, "filter.test.smudge", path + "/smudge_filter_openssl"));
 	EXPECT_EQ(0, git_config_set_string(config, "filter.test.process", path + "/clean_filter_openssl"));
@@ -317,5 +322,5 @@ TEST(libgit, StoreUninitializedRepositoryConfig)
 	// clear any leftovers in caches
 	EXPECT_THROW(g_Git.CheckAndInitDll(), const char*);
 
-	EXPECT_THROW(get_set_config("something", "else", CONFIG_LOCAL), const char*);
+	EXPECT_THROW(git_set_config("something", "else", CONFIG_LOCAL), const char*);
 }

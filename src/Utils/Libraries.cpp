@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012, 2015-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2012, 2015-2016, 2018-2025 - TortoiseGit
 // Copyright (C) 2010-2012, 2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,14 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "Libraries.h"
 #include "PathUtils.h"
 #include "resource.h"
 #include <initguid.h>
-#include <propkeydef.h>
-#include "SmartHandle.h"
-#include "SysInfo.h"
 
 #ifdef _WIN64
 // {DC9E616B-7611-461c-9D37-730FDD4CE278}
@@ -52,7 +50,7 @@ void EnsureGitLibrary(bool bCreate /* = true*/)
 		return;
 
 	CComPtr<IShellLibrary> pLibrary;
-	if (FAILED(OpenShellLibrary(L"Git", &pLibrary)))
+	if (FAILED(OpenShellLibrary(const_cast<LPWSTR>(L"Git"), &pLibrary)))
 	{
 		if (!bCreate)
 			return;
@@ -65,19 +63,19 @@ void EnsureGitLibrary(bool bCreate /* = true*/)
 			return;
 	}
 
-	if (SUCCEEDED(pLibrary->SetFolderType(SysInfo::Instance().IsWin8OrLater() ? FOLDERTYPEID_Documents : FOLDERTYPEID_GITWC)))
+	if (SUCCEEDED(pLibrary->SetFolderType(FOLDERTYPEID_Documents)))
 	{
 		// create the path for the icon
 		CString path;
 		CString appDir = CPathUtils::GetAppDirectory();
 		if (appDir.GetLength() < MAX_PATH)
 		{
-			TCHAR buf[MAX_PATH] = {0};
-			PathCanonicalize(buf, static_cast<LPCTSTR>(appDir));
+			wchar_t buf[MAX_PATH] = { 0 };
+			PathCanonicalize(buf, static_cast<LPCWSTR>(appDir));
 			appDir = buf;
 		}
-		path.Format(L"%s%s,-%d", static_cast<LPCTSTR>(appDir), L"TortoiseGitProc.exe", SysInfo::Instance().IsWin10() ? IDI_LIBRARY_WIN10 : IDI_LIBRARY);
-		pLibrary->SetIcon(static_cast<LPCTSTR>(path));
+		path.Format(L"%s%s,-%d", static_cast<LPCWSTR>(appDir), L"TortoiseGitProc.exe", IDI_LIBRARY_WIN10);
+		pLibrary->SetIcon(static_cast<LPCWSTR>(path));
 		pLibrary->Commit();
 	}
 }

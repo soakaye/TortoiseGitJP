@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009, 2011-2020 - TortoiseGit
+// Copyright (C) 2009, 2011-2021, 2023 - TortoiseGit
 // Copyright (C) 2007-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -26,24 +26,6 @@
 #include "CleanTypeDlg.h"
 #include "../Utils/UnicodeUtils.h"
 #include "SysProgressDlg.h"
-
-static CString UnescapeQuotePath(CString s)
-{
-	CStringA t;
-	for (int i = 0; i < s.GetLength(); ++i)
-	{
-		if (s[i] == '\\' && i + 3 < s.GetLength())
-		{
-			char c = static_cast<char>((s[i + 1] - '0') * 64 + (s[i + 2] - '0') * 8 + (s[i + 3] - '0'));
-			t += c;
-			i += 3;
-		}
-		else
-			t += s[i];
-	}
-
-	return CUnicodeUtils::GetUnicode(t);
-}
 
 struct SubmodulePayload
 {
@@ -123,7 +105,7 @@ static bool GetFilesToCleanUp(CTGitPathList& delList, const CString& baseCmd, CG
 	if (pGit->Run(cmd, &cmdout, &cmdouterr, CP_UTF8))
 	{
 		if (cmdouterr.IsEmpty())
-			cmdouterr.Format(IDS_GITEXEERROR_NOMESSAGE, static_cast<LPCTSTR>(cmdout));
+			cmdouterr.Format(IDS_GITEXEERROR_NOMESSAGE, static_cast<LPCWSTR>(cmdout));
 		MessageBox(GetExplorerHWND(), cmdouterr, L"TortoiseGit", MB_ICONERROR);
 		return false;
 	}
@@ -142,7 +124,7 @@ static bool GetFilesToCleanUp(CTGitPathList& delList, const CString& baseCmd, CG
 		{
 			CString tempPath = token.Mid(static_cast<int>(wcslen(L"Would remove "))).TrimRight();
 			if (quotepath)
-				tempPath = UnescapeQuotePath(tempPath.Trim(L'"'));
+				tempPath = CStringUtils::UnescapeGitQuotePath(tempPath.Trim(L'"'));
 			delList.AddPath(pGit->CombinePath(tempPath));
 		}
 
@@ -222,7 +204,7 @@ static bool DoCleanUp(const CTGitPathList& pathList, int cleanType, bool bDir, b
 			}
 			else
 				progress.m_GitDirList.push_back(g_Git.m_CurrentDir);
-			progress.m_GitCmdList.push_back(cmd + (path.IsEmpty() ? L"" : (L" -- \"" + path + L'"')));
+			progress.m_GitCmdList.push_back(cmd + (path.IsEmpty() ? CString() : (L" -- \"" + path + L'"')));
 		}
 
 		for (CString dir : submoduleList)
@@ -263,7 +245,7 @@ static bool DoCleanUp(const CTGitPathList& pathList, int cleanType, bool bDir, b
 		sysProgressDlg.SetShowProgressBar(false);
 		sysProgressDlg.ShowModeless(static_cast<HWND>(nullptr), true);
 
-		bool quotepath = g_Git.GetConfigValueBool(L"core.quotepath");
+		bool quotepath = g_Git.GetConfigValueBool(L"core.quotepath", true);
 
 		CTGitPathList delList;
 		for (int i = 0; i < pathList.GetCount(); ++i)

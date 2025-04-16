@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2010-2011, 2014-2016, 2019-2020 - TortoiseGit
+// Copyright (C) 2010-2011, 2014-2016, 2019-2020, 2025 - TortoiseGit
 // Copyright (C) 2006-2010, 2012-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,21 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "registry.h"
 #include "AppUtils.h"
 #include "PathUtils.h"
-#include "UnicodeUtils.h"
 #include "SysProgressDlg.h"
-
-#pragma warning(push)
-#include "svn_pools.h"
-#include "svn_io.h"
-#include "svn_path.h"
-#include "svn_diff.h"
-#include "svn_string.h"
-#include "svn_utf.h"
-#pragma warning(pop)
 #include "Git.h"
 #include "CreateProcessHelper.h"
 #include "FormatMessageWrapper.h"
@@ -83,7 +74,7 @@ bool CAppUtils::CreateUnifiedDiff(const CString& orig, const CString& modified, 
 	if (contextsize >= 0)
 		diffContext.Format(L"--unified=%d", contextsize);
 	CString cmd, err;
-	cmd.Format(L"git.exe diff --no-index %s -- \"%s\" \"%s\"", static_cast<LPCTSTR>(diffContext), static_cast<LPCTSTR>(orig), static_cast<LPCTSTR>(modified));
+	cmd.Format(L"git.exe diff --no-index %s -- \"%s\" \"%s\"", static_cast<LPCWSTR>(diffContext), static_cast<LPCWSTR>(orig), static_cast<LPCWSTR>(modified));
 
 	int result = g_Git.RunLogFile(cmd, output, &err);
 	if (result != 0 && result != 1 && bShowError)

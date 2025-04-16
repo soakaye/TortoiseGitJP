@@ -1,6 +1,6 @@
 // TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009 - TortoiseGit
+// Copyright (C) 2009, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,20 +27,20 @@ class CSinglePropSheetDlg : public TreePropSheet::CTreePropSheet
 	DECLARE_DYNAMIC(CSinglePropSheetDlg)
 
 public:
-	CSinglePropSheetDlg(const TCHAR* szCaption, ISettingsPropPage* pThePropPage, CWnd* pParent = nullptr);   // standard constructor
+	CSinglePropSheetDlg(const wchar_t* szCaption, ISettingsPropPage* pThePropPage, CWnd* pParent = nullptr);   // standard constructor
 	virtual ~CSinglePropSheetDlg();
 
 	void AddPropPages();
 	void RemovePropPages();
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
 private:
-	ISettingsPropPage*	m_pThePropPage;
+	ISettingsPropPage*	m_pThePropPage = nullptr;
 
 public:
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 };

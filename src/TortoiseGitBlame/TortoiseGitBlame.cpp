@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -56,14 +56,12 @@ CTortoiseGitBlameApp::CTortoiseGitBlameApp()
 {
 	SetDllDirectory(L"");
 	SetTaskIDPerUUID();
-#if ENABLE_CRASHHANLDER
+#if ENABLE_CRASHHANLDER && !_M_ARM64
 	CCrashReportTGit crasher(L"TortoiseGitBlame " _T(APP_X64_STRING), TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD, TGIT_VERDATE);
 	CCrashReport::Instance().AddUserInfoToReport(L"CommandLine", GetCommandLine());
 #endif
 	EnableHtmlHelp();
 	git_libgit2_init();
-	m_gdiplusToken = NULL;
-	m_bHiColorIcons = TRUE;
 }
 
 CTortoiseGitBlameApp::~CTortoiseGitBlameApp()
@@ -86,7 +84,7 @@ BOOL CTortoiseGitBlameApp::InitInstance()
 		DWORD len = GetCurrentDirectory(0, nullptr);
 		if (len)
 		{
-			auto originalCurrentDirectory = std::make_unique<TCHAR[]>(len);
+			auto originalCurrentDirectory = std::make_unique<wchar_t[]>(len);
 			if (GetCurrentDirectory(len, originalCurrentDirectory.get()))
 			{
 				sOrigCWD = originalCurrentDirectory.get();
@@ -102,7 +100,7 @@ BOOL CTortoiseGitBlameApp::InitInstance()
 	HINSTANCE hInst = nullptr;
 	do
 	{
-		langDll.Format(L"%sLanguages\\TortoiseGitBlame%ld.dll", static_cast<LPCTSTR>(CPathUtils::GetAppParentDirectory()), langId);
+		langDll.Format(L"%sLanguages\\TortoiseGitBlame%ld.dll", static_cast<LPCWSTR>(CPathUtils::GetAppParentDirectory()), langId);
 
 		hInst = LoadLibrary(langDll);
 		if (!CI18NHelper::DoVersionStringsMatch(CPathUtils::GetVersionFromFile(langDll), _T(STRPRODUCTVER)))
@@ -228,7 +226,7 @@ BOOL CTortoiseGitBlameApp::LoadWindowPlacement(CRect& rectNormalPosition, int& n
 		return FALSE;
 	pwp->length = sizeof(WINDOWPLACEMENT);
 
-	CDPIAware::Instance().ScaleWindowPlacement(pwp);
+	CDPIAware::Instance().ScaleWindowPlacement(m_pMainWnd->GetSafeHwnd(), pwp);
 	rectNormalPosition = wp.rcNormalPosition;
 	nFlags = wp.flags;
 	nShowCmd = wp.showCmd;
@@ -246,9 +244,9 @@ BOOL CTortoiseGitBlameApp::StoreWindowPlacement(const CRect& rectNormalPosition,
 	wp.rcNormalPosition = rectNormalPosition;
 	wp.showCmd = nShowCmd;
 
-	CDPIAware::Instance().UnscaleWindowPlacement(&wp);
+	CDPIAware::Instance().UnscaleWindowPlacement(m_pMainWnd->GetSafeHwnd(), &wp);
 
-	TCHAR szBuffer[_countof("-32767") * 8 + sizeof("65535") * 2];
+	wchar_t szBuffer[_countof("-32767") * 8 + sizeof("65535") * 2];
 	swprintf_s(szBuffer, L"%u,%u,%d,%d,%d,%d,%d,%d,%d,%d",
 		wp.flags, wp.showCmd,
 		wp.ptMinPosition.x, wp.ptMinPosition.y,
@@ -270,7 +268,7 @@ public:
 	enum { IDD = IDD_ABOUTBOX };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 	BOOL OnInitDialog() override;
 
 // Implementation
@@ -293,8 +291,8 @@ BOOL CAboutDlg::OnInitDialog()
 {
 	CStandAloneDialog::OnInitDialog();
 
-	TCHAR verbuf[1024] = {0};
-	TCHAR maskbuf[1024] = {0};
+	wchar_t verbuf[1024] = { 0 };
+	wchar_t maskbuf[1024] = { 0 };
 	::LoadString(GetModuleHandle(nullptr), IDS_VERSION, maskbuf, _countof(maskbuf));
 	swprintf_s(verbuf, maskbuf, TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD);
 	SetDlgItemText(IDC_VERSION, verbuf);

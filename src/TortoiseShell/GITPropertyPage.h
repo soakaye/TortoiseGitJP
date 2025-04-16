@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2006, 2014 - TortoiseSVN
-// Copyright (C) 2008-2014, 2018 - TortoiseGit
+// Copyright (C) 2008-2014, 2018, 2021, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include "ShellUpdater.h"
 
 /**
  * \ingroup TortoiseShell
@@ -52,15 +52,15 @@ protected:
 	void DisplayCommit(const git_commit* commit, UINT hashLabel, UINT subjectLabel, UINT authorLabel, UINT dateLabel);
 	static void LogThreadEntry(void *param);
 	int LogThread();
-	void Time64ToTimeString(__time64_t time, TCHAR * buf, size_t buflen) const;
+	void Time64ToTimeString(__time64_t time, wchar_t* buf, size_t buflen) const;
 	void PageProcOnCommand(WPARAM wParam);
-	void RunCommand(const tstring& command);
+	void RunCommand(const std::wstring& command);
 
-	HWND m_hwnd;
+	HWND m_hwnd = nullptr;
 	std::vector<std::wstring> filenames;
 	CString	m_ProjectTopDir;
-	int		m_iStripLength;
-	bool	m_bIsSubmodule;
+	int		m_iStripLength = 0;
+	bool	m_bIsSubmodule = false;
 	struct
 	{
 		bool allAreVersionedItems = false;
@@ -73,7 +73,7 @@ protected:
 	/**
 	 * Were executable, assumeValid or skip-worktree flags changes
 	 */
-	bool m_bChanged;
+	bool m_bChanged = false;
 };
 
 

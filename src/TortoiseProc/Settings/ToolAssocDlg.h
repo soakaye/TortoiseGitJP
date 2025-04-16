@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseGit
+// Copyright (C) 2020, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "StandAloneDlg.h"
-#include "Tooltip.h"
 
 /**
  * \ingroup TortoiseProc
@@ -36,15 +36,13 @@ public:
 	enum { IDD = IDD_TOOLASSOC };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 	afx_msg void OnBnClickedToolbrowse();
 
 	DECLARE_MESSAGE_MAP()
 
-	bool		m_bAdd;
-	CToolTips	m_tooltips;
+	bool		m_bAdd = false;
 	CString		m_sType;
 
 public:

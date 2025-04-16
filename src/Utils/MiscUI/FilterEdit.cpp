@@ -1,6 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2007, 2009, 2011-2015, 2017-2020 - TortoiseSVN
+// Copyright (C) 2023-2025 - TortoiseGit
+// Copyright (C) 2007, 2009, 2011-2015, 2017-2020, 2022 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "FilterEdit.h"
-#include "DPIAware.h"
 #include "LoadIconEx.h"
 #include "Theme.h"
 #include "ClipboardHelper.h"
@@ -29,22 +30,8 @@ const UINT CFilterEdit::WM_FILTEREDIT_CANCELCLICKED = ::RegisterWindowMessage(L"
 IMPLEMENT_DYNAMIC(CFilterEdit, CEdit)
 
 CFilterEdit::CFilterEdit()
-	: m_hIconCancelNormal(nullptr)
-	, m_hIconCancelPressed(nullptr)
-	, m_hIconInfo(nullptr)
-	, m_bPressed(FALSE)
-	, m_bShowCancelButtonAlways(FALSE)
-	, m_iButtonClickedMessageId(WM_FILTEREDIT_INFOCLICKED)
-	, m_iCancelClickedMessageId(WM_FILTEREDIT_CANCELCLICKED)
-	, m_pValidator(nullptr)
-	, m_backColor(CTheme::Instance().IsDarkTheme() ? CTheme::darkBkColor : GetSysColor(COLOR_WINDOW))
-	, m_themeCallbackId(0)
+	: m_backColor(CTheme::Instance().IsDarkTheme() ? CTheme::darkBkColor : GetSysColor(COLOR_WINDOW))
 {
-	m_rcEditArea.SetRect(0, 0, 0, 0);
-	m_rcButtonArea.SetRect(0, 0, 0, 0);
-	m_rcInfoArea.SetRect(0, 0, 0, 0);
-	m_sizeInfoIcon.SetSize(0, 0);
-	m_sizeCancelIcon.SetSize(0, 0);
 	m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme()); });
 	SetTheme(CTheme::Instance().IsDarkTheme());
 }
@@ -193,6 +180,8 @@ CSize CFilterEdit::GetIconSize(HICON hIcon)
 			size.cx = bmp.bmWidth;
 			size.cy = bmp.bmHeight;
 		}
+		DeleteObject(iconinfo.hbmColor);
+		DeleteObject(iconinfo.hbmMask);
 	}
 	return size;
 }
@@ -426,9 +415,21 @@ LRESULT CFilterEdit::OnPaste(WPARAM, LPARAM)
 	CClipboardHelper clipboardHelper;
 	if (clipboardHelper.Open(nullptr))
 	{
-		HANDLE hData = GetClipboardData (CF_TEXT);
-		CString toInsert(static_cast<const char*>(GlobalLock(hData)));
-		GlobalUnlock(hData);
+		CString toInsert;
+		HGLOBAL hglb = GetClipboardData(CF_TEXT);
+		if (hglb)
+		{
+			LPCSTR lpstr = static_cast<LPCSTR>(GlobalLock(hglb));
+			toInsert = CString(lpstr);
+			GlobalUnlock(hglb);
+		}
+		hglb = GetClipboardData(CF_UNICODETEXT);
+		if (hglb)
+		{
+			LPCWSTR lpstr = static_cast<LPCWSTR>(GlobalLock(hglb));
+			toInsert = lpstr;
+			GlobalUnlock(hglb);
+		}
 
 		// elimate control chars, especially newlines
 		toInsert.Replace(L'\t', L' ');

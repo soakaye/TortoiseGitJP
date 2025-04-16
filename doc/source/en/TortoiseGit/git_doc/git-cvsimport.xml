@@ -15,9 +15,9 @@
 <blockquote>
 <literallayout><emphasis>git cvsimport</emphasis> [-o &lt;branch-for-HEAD&gt;] [-h] [-v] [-d &lt;CVSROOT&gt;]
               [-A &lt;author-conv-file&gt;] [-p &lt;options-for-cvsps&gt;] [-P &lt;file&gt;]
-              [-C &lt;git_repository&gt;] [-z &lt;fuzz&gt;] [-i] [-k] [-u] [-s &lt;subst&gt;]
-              [-a] [-m] [-M &lt;regex&gt;] [-S &lt;regex&gt;] [-L &lt;commitlimit&gt;]
-              [-r &lt;remote&gt;] [-R] [&lt;CVS_module&gt;]</literallayout>
+              [-C &lt;git-repository&gt;] [-z &lt;fuzz&gt;] [-i] [-k] [-u] [-s &lt;subst&gt;]
+              [-a] [-m] [-M &lt;regex&gt;] [-S &lt;regex&gt;] [-L &lt;commit-limit&gt;]
+              [-r &lt;remote&gt;] [-R] [&lt;CVS-module&gt;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-cvsimport(1)__description">
@@ -26,7 +26,7 @@
 deprecated; it does not work with cvsps version 3 and later.  If you are
 performing a one-shot import of a CVS repository consider using
 <ulink url="http://cvs2svn.tigris.org/cvs2git.html">cvs2git</ulink> or
-<ulink url="http://www.catb.org/esr/cvs-fast-export/">cvs-fast-export</ulink>.</simpara>
+<ulink url="https://gitlab.com/esr/cvs-fast-export">cvs-fast-export</ulink>.</simpara>
 <simpara>Imports a CVS repository into Git. It will either create a new
 repository, or incrementally import into an existing one.</simpara>
 <simpara>Splitting the CVS log into patch sets is done by <emphasis>cvsps</emphasis>.
@@ -74,7 +74,7 @@ See <xref linkend="gitcvs-migration(7)" />.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
-&lt;CVS_module&gt;
+&lt;CVS-module&gt;
 </term>
 <listitem>
 <simpara>
@@ -381,7 +381,7 @@ want to import, consider using cvs2git:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-cvs2git (part of cvs2svn), <emphasis>http://subversion.apache.org/</emphasis>
+cvs2git (part of cvs2svn), <emphasis>https://subversion.apache.org/</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>

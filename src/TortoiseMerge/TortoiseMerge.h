@@ -1,5 +1,6 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2021, 2023 - TortoiseGit
 // Copyright (C) 2006-2008, 2010-2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -37,15 +38,18 @@ public:
 
 // Overrides
 public:
-	virtual BOOL InitInstance();
-	virtual int ExitInstance();
+	BOOL InitInstance() override;
+	int ExitInstance() override;
+	void OnClosingMainFrame(CFrameImpl* pFrameImpl) override;
 
 protected:
+	BOOL LoadWindowPlacement(CRect& rectNormalPosition, int& nFflags, int& nShowCmd) override;
 	afx_msg void OnAppAbout();
 	DECLARE_MESSAGE_MAP()
 private:
 	bool HasClipboardPatch();
 	static bool TrySavePatchFromClipboard(std::wstring& resultFile);
+	bool m_hasConflicts = false;
 };
 
 extern CTortoiseMergeApp theApp;

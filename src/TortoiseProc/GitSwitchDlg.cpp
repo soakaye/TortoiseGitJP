@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2021 - TortoiseGit
+// Copyright (C) 2008-2021, 2023-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -101,9 +101,7 @@ BOOL CGitSwitchDlg::OnInitDialog()
 
 	EnableSaveRestore(L"SwitchDlg");
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	InitChooseVersion(true);
 
@@ -163,7 +161,7 @@ void CGitSwitchDlg::OnBnClickedOk()
 				return;
 		}
 	}
-	if (int radio = GetCheckedRadioButton(IDC_RADIO_BRANCH, IDC_RADIO_VERSION); radio == IDC_RADIO_VERSION)
+	if (const int radio = GetCheckedRadioButton(IDC_RADIO_BRANCH, IDC_RADIO_VERSION); radio == IDC_RADIO_VERSION)
 		m_regNewBranchForCommit = m_bBranch;
 	else if (radio == IDC_RADIO_TAGS)
 		m_regNewBranchForTag = m_bBranch;
@@ -177,7 +175,7 @@ void CGitSwitchDlg::SetDefaultName()
 	this->UpdateData(TRUE);
 	this->UpdateRevsionName();
 
-	int radio = GetCheckedRadioButton(IDC_RADIO_BRANCH, IDC_RADIO_VERSION);
+	const int radio = GetCheckedRadioButton(IDC_RADIO_BRANCH, IDC_RADIO_VERSION);
 	CString version = m_VersionName;
 
 	int start = -1;

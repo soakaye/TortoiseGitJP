@@ -36,11 +36,11 @@
 		</para>
 		<para>
 			Some version control systems are also software configuration
-			management (SCM) systems.  These systems are specifically
+			management (SCM) systems. These systems are specifically
 			tailored to manage trees of source code, and have many features
 			that are specific to software development - such as natively
 			understanding programming languages, or supplying tools for
-			building software.  Git, however, is not one of these
+			building software. Git, however, is not one of these
 			systems; it is a general system that can be used to manage
 			<emphasis>any</emphasis> collection of files, including
 			source code.
@@ -246,10 +246,10 @@
 		<sect2>
 			<title>System requirements</title>
 			<para>
-				TortoiseGit runs on Windows 7 or higher.
-				Windows 98, Windows ME, Windows NT4, Windows 2000, Windows XP and Windows Vista are no longer supported.
+				TortoiseGit runs on Windows 10 or higher.
+				Windows 98, Windows ME, Windows NT4, Windows 2000, Windows XP, Windows Vista, Windows 7, Windows 8 and Windows 8.1 are no longer supported.
 				If you are running such an old system, you can still use older, however unsupported, releases of TortoiseGit.
-				Those can be found on the <ulink url="https://download.tortoisegit.org/">download server</ulink> (TortoiseGit 1.7 dropped support for Windows 2000; TortoiseGit 1.9 dropped support for Windows XP, TortoiseGit 2.5 dropped support for Windows Vista).
+				Those can be found on the <ulink url="https://download.tortoisegit.org/">download server</ulink> (TortoiseGit 1.7 dropped support for Windows 2000; TortoiseGit 1.9 dropped support for Windows XP, TortoiseGit 2.5 dropped support for Windows Vista, TortoiseGit 2.18.0 dropped support for Windows 7, Windows 8, and Windows 8.1).
 			</para>
 			<para>
 				If you encounter any problems during or after installing
@@ -270,7 +270,7 @@
 			</para>
 			<para>
 				One prerequisite of TortoiseGit is that it requires an already installed (command line) Git client which provides a <filename>git.exe</filename>.
-				<ulink url="https://git-for-windows.github.io/">Git for Windows</ulink> is recommended (Cygwin and MSYS2 Git also work, see <xref linkend="tgit-dug-settings-main"/> for configuration. Please note that Cygwin and MSYS2 Git are not officially supported by TortoiseGit as the developers only use Git for Windows. Bug reports, however, are welcome).
+				<ulink url="https://gitforwindows.org/">Git for Windows</ulink> is recommended (Cygwin and MSYS2 Git also work, see <xref linkend="tgit-dug-settings-main"/> for configuration. Please note that Cygwin and MSYS2 Git are not officially supported by TortoiseGit as the developers only use Git for Windows. Bug reports, however, are welcome).
 				Installation of Git for Windows can be done with preselected options, however, no need to install the "Windows Explorer integration".
 				If you know about CRLF and LF line endings and you have editors coping with that, you should select "Checkout as-is, commit as-is" in order to prevent automatic translations.
 			</para>
@@ -347,11 +347,7 @@
 				Otherwise, you need to download the required dictionary files from
 				<ulink url="https://cgit.freedesktop.org/libreoffice/dictionaries/">
 					<citetitle>https://cgit.freedesktop.org/libreoffice/dictionaries/</citetitle>
-				</ulink>
-				or
-				<ulink url="https://wiki.openoffice.org/wiki/Dictionaries">
-					<citetitle>https://wiki.openoffice.org/wiki/Dictionaries</citetitle>
-				</ulink>
+				</ulink>.
 			</para>
 			<para>
 				Once you have got the dictionary files, you
@@ -385,7 +381,7 @@
 					<listitem>
 						<para>
 						Check the <literal>tgit.projectlanguage</literal> setting. This setting can be set using TortoiseGit Settings <guilabel>Dialogs 3</guilabel> page (<xref linkend="tgit-dug-settings-dialogs3"/>).
-						Refer to <xref linkend="git-config(1)"/> for information
+						Refer to <gitdoclink cmd="git-config" section="1"/> for information
 						about setting properties (use the <literal>LCID Dec</literal> value as <ulink url="https://docs.microsoft.com/openspecs/windows_protocols/ms-lcid/a9eac961-e77d-41a6-90a5-ce1a8b0cdb9c">assigned by Microsoft</ulink>).
 						</para>
 					</listitem>

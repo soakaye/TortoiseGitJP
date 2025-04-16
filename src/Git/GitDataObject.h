@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2017 - TortoiseGit
+// Copyright (C) 2016-2017, 2023, 2025 - TortoiseGit
 // Copyright (C) 2007-2008, 2010, 2012-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
 
 #pragma once
 #include "TGitPath.h"
-#include "DragDropImpl.h"
 #include <vector>
 #include <Shldisp.h>
 
@@ -51,29 +50,29 @@ public:
 	~GitDataObject();
 
 	//IUnknown
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) override;
-	virtual ULONG STDMETHODCALLTYPE AddRef(void) override;
-	virtual ULONG STDMETHODCALLTYPE Release(void) override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) override;
+	ULONG STDMETHODCALLTYPE AddRef() override;
+	ULONG STDMETHODCALLTYPE Release() override;
 
 	//IDataObject
-	virtual HRESULT STDMETHODCALLTYPE GetData(FORMATETC* pformatetcIn, STGMEDIUM* pmedium) override;
-	virtual HRESULT STDMETHODCALLTYPE GetDataHere(FORMATETC* pformatetc, STGMEDIUM* pmedium) override;
-	virtual HRESULT STDMETHODCALLTYPE QueryGetData(FORMATETC* pformatetc) override;
-	virtual HRESULT STDMETHODCALLTYPE GetCanonicalFormatEtc(FORMATETC* pformatectIn, FORMATETC* pformatetcOut) override;
-	virtual HRESULT STDMETHODCALLTYPE SetData(FORMATETC* pformatetc, STGMEDIUM* pmedium, BOOL fRelease) override;
-	virtual HRESULT STDMETHODCALLTYPE EnumFormatEtc(DWORD dwDirection, IEnumFORMATETC** ppenumFormatEtc) override;
-	virtual HRESULT STDMETHODCALLTYPE DAdvise(FORMATETC* pformatetc, DWORD advf, IAdviseSink* pAdvSink, DWORD* pdwConnection) override;
-	virtual HRESULT STDMETHODCALLTYPE DUnadvise(DWORD dwConnection) override;
-	virtual HRESULT STDMETHODCALLTYPE EnumDAdvise(IEnumSTATDATA** ppenumAdvise) override;
+	HRESULT STDMETHODCALLTYPE GetData(FORMATETC* pformatetcIn, STGMEDIUM* pmedium) override;
+	HRESULT STDMETHODCALLTYPE GetDataHere(FORMATETC* pformatetc, STGMEDIUM* pmedium) override;
+	HRESULT STDMETHODCALLTYPE QueryGetData(FORMATETC* pformatetc) override;
+	HRESULT STDMETHODCALLTYPE GetCanonicalFormatEtc(FORMATETC* pformatectIn, FORMATETC* pformatetcOut) override;
+	HRESULT STDMETHODCALLTYPE SetData(FORMATETC* pformatetc, STGMEDIUM* pmedium, BOOL fRelease) override;
+	HRESULT STDMETHODCALLTYPE EnumFormatEtc(DWORD dwDirection, IEnumFORMATETC** ppenumFormatEtc) override;
+	HRESULT STDMETHODCALLTYPE DAdvise(FORMATETC* pformatetc, DWORD advf, IAdviseSink* pAdvSink, DWORD* pdwConnection) override;
+	HRESULT STDMETHODCALLTYPE DUnadvise(DWORD dwConnection) override;
+	HRESULT STDMETHODCALLTYPE EnumDAdvise(IEnumSTATDATA** ppenumAdvise) override;
 
 	//IDataObjectAsyncCapability
-	virtual HRESULT STDMETHODCALLTYPE SetAsyncMode(BOOL fDoOpAsync) override;
-	virtual HRESULT STDMETHODCALLTYPE GetAsyncMode(BOOL* pfIsOpAsync) override;
-	virtual HRESULT STDMETHODCALLTYPE StartOperation(IBindCtx* pbcReserved) override;
-	virtual HRESULT STDMETHODCALLTYPE InOperation(BOOL* pfInAsyncOp) override;
-	virtual HRESULT STDMETHODCALLTYPE EndOperation(HRESULT hResult, IBindCtx* pbcReserved, DWORD dwEffects) override;
+	HRESULT STDMETHODCALLTYPE SetAsyncMode(BOOL fDoOpAsync) override;
+	HRESULT STDMETHODCALLTYPE GetAsyncMode(BOOL* pfIsOpAsync) override;
+	HRESULT STDMETHODCALLTYPE StartOperation(IBindCtx* pbcReserved) override;
+	HRESULT STDMETHODCALLTYPE InOperation(BOOL* pfInAsyncOp) override;
+	HRESULT STDMETHODCALLTYPE EndOperation(HRESULT hResult, IBindCtx* pbcReserved, DWORD dwEffects) override;
 
-	HRESULT SetDropDescription(DROPIMAGETYPE image, LPCTSTR format, LPCTSTR insert);
+	HRESULT SetDropDescription(DROPIMAGETYPE image, LPCWSTR format, LPCWSTR insert);
 
 private:
 	void CopyMedium(STGMEDIUM* pMedDest, STGMEDIUM* pMedSrc, FORMATETC* pFmtSrc);
@@ -82,11 +81,11 @@ private:
 	CTGitPathList				m_gitPaths;
 	CGitHash					m_revision;
 	std::vector<CTGitPath>		m_allPaths;
-	int							m_iStripLength;
-	long						m_cRefCount;
-	bool						m_containsExistingFiles;
-	BOOL						m_bInOperation;
-	BOOL						m_bIsAsync;
+	int							m_iStripLength = 0;
+	long						m_cRefCount = 0;
+	bool						m_containsExistingFiles = false;
+	BOOL						m_bInOperation = FALSE;
+	BOOL						m_bIsAsync = TRUE;
 	std::vector<FORMATETC*>		m_vecFormatEtc;
 	std::vector<STGMEDIUM*>		m_vecStgMedium;
 };
@@ -102,23 +101,24 @@ public:
 	CGitEnumFormatEtc(const std::vector<FORMATETC*>& vec, bool localonly, bool containsExistingFiles);
 	CGitEnumFormatEtc(const std::vector<FORMATETC>& vec, bool localonly, bool containsExistingFiles);
 	//IUnknown members
-	STDMETHOD(QueryInterface)(REFIID, void**) override;
-	STDMETHOD_(ULONG, AddRef)(void) override;
-	STDMETHOD_(ULONG, Release)(void) override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) override;
+	ULONG STDMETHODCALLTYPE AddRef() override;
+	ULONG STDMETHODCALLTYPE Release() override;
 
 	//IEnumFORMATETC members
-	STDMETHOD(Next)(ULONG, LPFORMATETC, ULONG*) override;
-	STDMETHOD(Skip)(ULONG) override;
-	STDMETHOD(Reset)(void) override;
-	STDMETHOD(Clone)(IEnumFORMATETC**) override;
+	STDMETHODIMP Next(ULONG, LPFORMATETC, ULONG*) override;
+	STDMETHODIMP Skip(ULONG) override;
+	STDMETHODIMP Reset() override;
+	STDMETHODIMP Clone(IEnumFORMATETC**) override;
+
 private:
 	void						Init(bool localonly, bool containsExistingFiles);
 private:
 	std::vector<FORMATETC>		m_vecFormatEtc;
 	FORMATETC					m_formats[GITDATAOBJECT_NUMFORMATS];
-	ULONG						m_cRefCount;
-	size_t						m_iCur;
-	bool						m_localonly;
-	bool						m_containsExistingFiles;
+	ULONG						m_cRefCount = 0;
+	size_t						m_iCur = 0;
+	bool						m_localonly = false;
+	bool						m_containsExistingFiles = false;
 };
 

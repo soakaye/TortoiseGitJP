@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009, 2013, 2018 - TortoiseGit
+// Copyright (C) 2009, 2013, 2018, 2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -23,17 +23,22 @@
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "SinglePropSheetDlg.h"
-
+#include "Git.h"
+#include "AppUtils.h"
+#include "DarkModeHelper.h"
+#include "DPIAware.h"
 
 // CSinglePropSheetDlg dialog
 using namespace TreePropSheet;
 
 IMPLEMENT_DYNAMIC(CSinglePropSheetDlg, CTreePropSheet)
 
-CSinglePropSheetDlg::CSinglePropSheetDlg(const TCHAR* szCaption, ISettingsPropPage* pThePropPage, CWnd* pParent /*=nullptr*/)
+CSinglePropSheetDlg::CSinglePropSheetDlg(const wchar_t* szCaption, ISettingsPropPage* pThePropPage, CWnd* pParent /*=nullptr*/)
 :	CTreePropSheet(szCaption,pParent),// CSinglePropSheetDlg::IDD, pParent),
 	m_pThePropPage(pThePropPage)
 {
+	SetTreeViewMode(TRUE, TRUE, TRUE);
+	SetTreeWidth(220 * CDPIAware::Instance().GetDPI(nullptr) / 96);
 	AddPropPages();
 }
 
@@ -69,14 +74,20 @@ BOOL CSinglePropSheetDlg::OnInitDialog()
 {
 	BOOL bReturn = CTreePropSheet::OnInitDialog();
 
-//	CRect clientRect;
-//	GetClientRect(&clientRect);
-//	clientRect.DeflateRect(10,10,10,10);
-//	m_pThePropPage->Create(m_pThePropPage->m_lpszTemplateName,this);
-//	m_pThePropPage->MoveWindow(clientRect);
-
+	if (GitAdminDir::IsWorkingTreeOrBareRepo(g_Git.m_CurrentDir))
+		CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
+	else
+	{
+		CString title;
+		GetWindowText(title);
+		SetWindowText(title + L" - " + CString(MAKEINTRESOURCE(IDS_APPNAME)));
+	}
 
 	CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
+
+	DarkModeHelper::Instance().AllowDarkModeForApp(CTheme::Instance().IsDarkTheme());
+	SetTheme(CTheme::Instance().IsDarkTheme());
+	CTheme::Instance().SetThemeForDialog(GetSafeHwnd(), CTheme::Instance().IsDarkTheme());
 
 	return bReturn;
 }

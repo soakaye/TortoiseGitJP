@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014-2020 - TortoiseGit
+// Copyright (C) 2014-2023, 2025 - TortoiseGit
 // based on SmartHandle of TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -28,10 +28,7 @@ template <typename HandleType, void FreeFunction(HandleType*)>
 class CSmartBuffer
 {
 public:
-	CSmartBuffer()
-		: m_Ref({0})
-	{
-	}
+	CSmartBuffer() = default;
 
 	operator HandleType*()
 	{
@@ -48,35 +45,30 @@ public:
 		FreeFunction(&m_Ref);
 	}
 
-private:
 	CSmartBuffer(const CSmartBuffer&) = delete;
 	CSmartBuffer& operator=(const CSmartBuffer&) = delete;
 
-	HandleType m_Ref;
+private:
+	HandleType m_Ref{};
 };
 
-typedef CSmartBuffer<git_buf,			git_buf_dispose>					CAutoBuf;
-typedef CSmartBuffer<git_strarray,		git_strarray_dispose>				CAutoStrArray;
+using CAutoBuf		= CSmartBuffer<git_buf,			git_buf_dispose>;
+using CAutoStrArray	= CSmartBuffer<git_strarray,	git_strarray_dispose>;
 
 template <typename ReferenceType, void FreeFunction(ReferenceType*)>
 class CSmartLibgit2Ref
 {
 public:
-	CSmartLibgit2Ref()
-		: m_Ref(nullptr)
-	{
-	}
-
+	CSmartLibgit2Ref() = default;
 	~CSmartLibgit2Ref()
 	{
 		Free();
 	}
 
-	void Swap(CSmartLibgit2Ref& tmp)
+	template <typename T, typename std::enable_if<std::is_base_of<CSmartLibgit2Ref<ReferenceType, FreeFunction>, T>::value, int>::type = 0>
+	void Swap(T& tmp) noexcept
 	{
-		ReferenceType* p;
-
-		p = m_Ref;
+		ReferenceType* p = m_Ref;
 		m_Ref = tmp.m_Ref;
 		tmp.m_Ref = p;
 	}
@@ -119,57 +111,56 @@ public:
 		return m_Ref != nullptr;
 	}
 
-private:
 	CSmartLibgit2Ref(const CSmartLibgit2Ref&) = delete;
 	CSmartLibgit2Ref& operator=(const CSmartLibgit2Ref&) = delete;
 
 protected:
-	ReferenceType* m_Ref;
+	ReferenceType* m_Ref = nullptr;
 };
 
-typedef CSmartLibgit2Ref<git_object,				git_object_free>				CAutoObject;
-typedef CSmartLibgit2Ref<git_submodule,				git_submodule_free>				CAutoSubmodule;
-typedef CSmartLibgit2Ref<git_blob,					git_blob_free>					CAutoBlob;
-typedef CSmartLibgit2Ref<git_reference,				git_reference_free>				CAutoReference;
-typedef CSmartLibgit2Ref<git_tag,					git_tag_free>					CAutoTag;
-typedef CSmartLibgit2Ref<git_tree_entry,			git_tree_entry_free>			CAutoTreeEntry;
-typedef CSmartLibgit2Ref<git_diff,					git_diff_free>					CAutoDiff;
-typedef CSmartLibgit2Ref<git_patch,					git_patch_free>					CAutoPatch;
-typedef CSmartLibgit2Ref<git_diff_stats,			git_diff_stats_free>			CAutoDiffStats;
-typedef CSmartLibgit2Ref<git_index,					git_index_free>					CAutoIndex;
-typedef CSmartLibgit2Ref<git_remote,				git_remote_free>				CAutoRemote;
-typedef CSmartLibgit2Ref<git_reflog,				git_reflog_free>				CAutoReflog;
-typedef CSmartLibgit2Ref<git_revwalk,				git_revwalk_free>				CAutoRevwalk;
-typedef CSmartLibgit2Ref<git_branch_iterator,		git_branch_iterator_free>		CAutoBranchIterator;
-typedef CSmartLibgit2Ref<git_reference_iterator,	git_reference_iterator_free>	CAutoReferenceIterator;
-typedef CSmartLibgit2Ref<git_describe_result,		git_describe_result_free>		CAutoDescribeResult;
-typedef CSmartLibgit2Ref<git_status_list,			git_status_list_free>			CAutoStatusList;
-typedef CSmartLibgit2Ref<git_note,					git_note_free>					CAutoNote;
-typedef CSmartLibgit2Ref<git_signature,				git_signature_free>				CAutoSignature;
-typedef CSmartLibgit2Ref<git_mailmap,				git_mailmap_free>				CAutoMailmap;
+using CAutoObject				= CSmartLibgit2Ref<git_object,				git_object_free>;
+using CAutoSubmodule			= CSmartLibgit2Ref<git_submodule,			git_submodule_free>;
+using CAutoBlob					= CSmartLibgit2Ref<git_blob,				git_blob_free>;
+using CAutoTag					= CSmartLibgit2Ref<git_tag,					git_tag_free>;
+using CAutoTreeEntry			= CSmartLibgit2Ref<git_tree_entry,			git_tree_entry_free>;
+using CAutoDiff					= CSmartLibgit2Ref<git_diff,				git_diff_free>;
+using CAutoPatch				= CSmartLibgit2Ref<git_patch,				git_patch_free>;
+using CAutoDiffStats			= CSmartLibgit2Ref<git_diff_stats,			git_diff_stats_free>;
+using CAutoIndex				= CSmartLibgit2Ref<git_index,				git_index_free>;
+using CAutoRemote				= CSmartLibgit2Ref<git_remote,				git_remote_free>;
+using CAutoReflog				= CSmartLibgit2Ref<git_reflog,				git_reflog_free>;
+using CAutoRevwalk				= CSmartLibgit2Ref<git_revwalk,				git_revwalk_free>;
+using CAutoBranchIterator		= CSmartLibgit2Ref<git_branch_iterator,		git_branch_iterator_free>;
+using CAutoReferenceIterator	= CSmartLibgit2Ref<git_reference_iterator,	git_reference_iterator_free>;
+using CAutoDescribeResult		= CSmartLibgit2Ref<git_describe_result,		git_describe_result_free>;
+using CAutoStatusList			= CSmartLibgit2Ref<git_status_list,			git_status_list_free>;
+using CAutoNote					= CSmartLibgit2Ref<git_note,				git_note_free>;
+using CAutoSignature			= CSmartLibgit2Ref<git_signature,			git_signature_free>;
+using CAutoMailmap				= CSmartLibgit2Ref<git_mailmap,				git_mailmap_free>;
+using CAutoWorktree				= CSmartLibgit2Ref<git_worktree,			git_worktree_free>;
 
-class CAutoRepository : public CSmartLibgit2Ref<git_repository, git_repository_free>
+class CAutoRepository : protected CSmartLibgit2Ref<git_repository, git_repository_free>
 {
 public:
-	CAutoRepository() {};
+	CAutoRepository() = default;
 
-	explicit CAutoRepository(git_repository*&& h)
+	explicit CAutoRepository(git_repository*&& h) noexcept
 	{
 		m_Ref = h;
 	}
 
-	CAutoRepository(CAutoRepository&& that)
+	explicit CAutoRepository(CAutoRepository&& that) noexcept
 	{
 		m_Ref = that.Detach();
 	}
 
 #if defined(_MFC_VER) || defined(CSTRING_AVAILABLE)
-	CAutoRepository(const CString& gitDir)
+	explicit CAutoRepository(const CString& gitDir)
 	{
 		Open(gitDir);
 	}
 
-	CAutoRepository(const CStringA& gitDirA)
+	explicit CAutoRepository(const CStringA& gitDirA)
 	{
 		Open(gitDirA);
 	}
@@ -180,36 +171,70 @@ public:
 	}
 #endif
 
-private:
-	CAutoRepository(const CAutoRepository&) = delete;
-	CAutoRepository& operator=(const CAutoRepository&) = delete;
-
-protected:
 	int Open(const char* gitDirA)
 	{
 		return git_repository_open(GetPointer(), gitDirA);
 	}
+
+	CAutoRepository(const CAutoRepository&) = delete;
+	CAutoRepository& operator=(const CAutoRepository&) = delete;
+
+	using CSmartLibgit2Ref<git_repository, git_repository_free>::GetPointer;
+	using CSmartLibgit2Ref<git_repository, git_repository_free>::Detach;
+	using CSmartLibgit2Ref<git_repository, git_repository_free>::Free;
+	using CSmartLibgit2Ref<git_repository, git_repository_free>::IsValid;
+	using CSmartLibgit2Ref<git_repository, git_repository_free>::operator git_repository*;
+	using CSmartLibgit2Ref<git_repository, git_repository_free>::operator bool;
 };
 
-class CAutoCommit : public CSmartLibgit2Ref<git_commit, git_commit_free>
+class CAutoCommit : protected CSmartLibgit2Ref<git_commit, git_commit_free>
 {
 public:
-	CAutoCommit() {}
+	CAutoCommit() = default;
 
-	explicit CAutoCommit(git_commit*&& h)
+	explicit CAutoCommit(git_commit*&& h) noexcept
 	{
 		m_Ref = h;
 	}
 
-private:
 	CAutoCommit(const CAutoCommit&) = delete;
 	CAutoCommit& operator=(const CAutoCommit&) = delete;
+
+	using CSmartLibgit2Ref<git_commit, git_commit_free>::GetPointer;
+	using CSmartLibgit2Ref<git_commit, git_commit_free>::Detach;
+	using CSmartLibgit2Ref<git_commit, git_commit_free>::Free;
+	using CSmartLibgit2Ref<git_commit, git_commit_free>::IsValid;
+	using CSmartLibgit2Ref<git_commit, git_commit_free>::operator git_commit*;
+	using CSmartLibgit2Ref<git_commit, git_commit_free>::operator bool;
 };
 
-class CAutoTree : public CSmartLibgit2Ref<git_tree, git_tree_free>
+class CAutoReference : protected CSmartLibgit2Ref<git_reference, git_reference_free>
 {
 public:
-	CAutoTree() {};
+	CAutoReference() = default;
+
+	explicit CAutoReference(git_reference*&& h) noexcept
+	{
+		m_Ref = h;
+	}
+
+	CAutoReference(const CAutoReference&) = delete;
+	CAutoReference& operator=(const CAutoReference&) = delete;
+
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::GetPointer;
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::Swap;
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::Detach;
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::Free;
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::IsValid;
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::operator git_reference*;
+	using CSmartLibgit2Ref<git_reference, git_reference_free>::operator bool;
+	friend CSmartLibgit2Ref<git_reference, git_reference_free>;
+};
+
+class CAutoTree : protected CSmartLibgit2Ref<git_tree, git_tree_free>
+{
+public:
+	CAutoTree() = default;
 
 	void ConvertFrom(CAutoObject&& h)
 	{
@@ -220,22 +245,28 @@ public:
 		}
 	}
 
-private:
 	CAutoTree(const CAutoTree&) = delete;
 	CAutoTree& operator=(const CAutoTree&) = delete;
+
+	using CSmartLibgit2Ref<git_tree, git_tree_free>::GetPointer;
+	using CSmartLibgit2Ref<git_tree, git_tree_free>::Detach;
+	using CSmartLibgit2Ref<git_tree, git_tree_free>::Free;
+	using CSmartLibgit2Ref<git_tree, git_tree_free>::IsValid;
+	using CSmartLibgit2Ref<git_tree, git_tree_free>::operator git_tree*;
+	using CSmartLibgit2Ref<git_tree, git_tree_free>::operator bool;
 };
 
-class CAutoConfig : public CSmartLibgit2Ref<git_config, git_config_free>
+class CAutoConfig : protected CSmartLibgit2Ref<git_config, git_config_free>
 {
 public:
-	CAutoConfig() {}
+	CAutoConfig() = default;
 
-	CAutoConfig(const CAutoRepository& repo)
+	explicit CAutoConfig(const CAutoRepository& repo)
 	{
 		git_repository_config(&m_Ref, repo);
 	}
 
-	CAutoConfig(bool init)
+	explicit CAutoConfig(bool init)
 	{
 		if (init)
 			New();
@@ -260,7 +291,7 @@ public:
 			return ret;
 		}
 
-		value = CUnicodeUtils::GetUnicode(buf->ptr);
+		value = CUnicodeUtils::GetUnicodeLengthSizeT(buf->ptr, buf->size);
 
 		return 0;
 	}
@@ -288,7 +319,13 @@ public:
 	}
 #endif
 
-private:
 	CAutoConfig(const CAutoConfig&) = delete;
 	CAutoConfig& operator=(const CAutoConfig&) = delete;
+
+	using CSmartLibgit2Ref<git_config, git_config_free>::GetPointer;
+	using CSmartLibgit2Ref<git_config, git_config_free>::Detach;
+	using CSmartLibgit2Ref<git_config, git_config_free>::Free;
+	using CSmartLibgit2Ref<git_config, git_config_free>::IsValid;
+	using CSmartLibgit2Ref<git_config, git_config_free>::operator git_config*;
+	using CSmartLibgit2Ref<git_config, git_config_free>::operator bool;
 };

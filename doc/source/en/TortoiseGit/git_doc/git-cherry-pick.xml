@@ -13,7 +13,7 @@
 <simplesect id="git-cherry-pick(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git cherry-pick</emphasis> [--edit] [-n] [-m parent-number] [-s] [-x] [--ff]
+<literallayout><emphasis>git cherry-pick</emphasis> [--edit] [-n] [-m &lt;parent-number&gt;] [-s] [-x] [--ff]
                   [-S[&lt;keyid&gt;]] &lt;commit&gt;&#8230;
 <emphasis>git cherry-pick</emphasis> (--continue | --skip | --abort | --quit)</literallayout>
 </blockquote>
@@ -145,10 +145,10 @@ conflicts.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
--m parent-number
+-m &lt;parent-number&gt;
 </term>
 <term>
---mainline parent-number
+--mainline &lt;parent-number&gt;
 </term>
 <listitem>
 <simpara>
@@ -242,8 +242,8 @@ effect to your index in a row.</simpara>
         even without this option.  Note also, that use of this option only
         keeps commits that were initially empty (i.e. the commit recorded the
         same tree as its parent).  Commits which are made empty due to a
-        previous commit are dropped.  To force the inclusion of those commits
-        use <emphasis>--keep-redundant-commits</emphasis>.
+        previous commit will cause the cherry-pick to fail.  To force the
+        inclusion of those commits, use <emphasis>--empty=keep</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -261,15 +261,59 @@ effect to your index in a row.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--empty=(drop|keep|stop)
+</term>
+<listitem>
+<simpara>
+        How to handle commits being cherry-picked that are redundant with
+        changes already in the current history.
+</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>drop</emphasis>
+</term>
+<listitem>
+<simpara>
+        The commit will be dropped.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>keep</emphasis>
+</term>
+<listitem>
+<simpara>
+        The commit will be kept. Implies <emphasis>--allow-empty</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>stop</emphasis>
+</term>
+<listitem>
+<simpara>
+        The cherry-pick will stop when the commit is applied, allowing
+        you to examine the commit. This is the default behavior.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+<simpara>Note that <emphasis>--empty=drop</emphasis> and <emphasis>--empty=stop</emphasis> only specify how to handle a
+commit that was not initially empty, but rather became empty due to a previous
+commit. Commits that were initially empty will still cause the cherry-pick to
+fail unless one of <emphasis>--empty=keep</emphasis> or <emphasis>--allow-empty</emphasis> are specified.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 --keep-redundant-commits
 </term>
 <listitem>
 <simpara>
-        If a commit being cherry picked duplicates a commit already in the
-        current history, it will become empty.  By default these
-        redundant commits cause <emphasis>cherry-pick</emphasis> to stop so the user can
-        examine the commit. This option overrides that behavior and
-        creates an empty commit object.  Implies <emphasis>--allow-empty</emphasis>.
+        Deprecated synonym for <emphasis>--empty=keep</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -308,8 +352,13 @@ effect to your index in a row.</simpara>
 </term>
 <listitem>
 <simpara>
-        Allow the rerere mechanism to update the index with the
-        result of auto-conflict resolution if possible.
+        After the rerere mechanism reuses a recorded resolution on
+        the current conflict to update the files in the working
+        tree, allow it to also update the index with the result of
+        resolution.  <emphasis>--no-rerere-autoupdate</emphasis> is a good way to
+        double-check what <emphasis>rerere</emphasis> did and catch potential
+        mismerges, before committing the result to the index with a
+        separate <emphasis>git add</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -468,7 +517,7 @@ the code the patch applies to has changed too much, and then tries
 again, this time exercising more care about matching up context lines.</simpara>
 <screen>$ git cherry-pick topic^             <co id="git-cherry-pick_CO1-1"/>
 $ git diff                           <co id="git-cherry-pick_CO1-2"/>
-$ git reset --merge ORIG_HEAD        <co id="git-cherry-pick_CO1-3"/>
+$ git cherry-pick --abort            <co id="git-cherry-pick_CO1-3"/>
 $ git cherry-pick -Xpatience topic^  <co id="git-cherry-pick_CO1-4"/></screen>
 <calloutlist>
 <callout arearefs="git-cherry-pick_CO1-1">

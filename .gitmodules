@@ -21,7 +21,7 @@
 	url = https://github.com/editorconfig/editorconfig-core-c.git
 [submodule "ext/pcre2"]
 	path = ext/pcre2
-	url = https://gitlab.com/tortoisegit/pcre2.git
+	url = https://github.com/PCRE2Project/pcre2.git
 [submodule "ext/simpleini"]
 	path = ext/simpleini
 	url = https://github.com/brofield/simpleini.git
@@ -37,3 +37,9 @@
 [submodule "ext/json"]
 	path = ext/json
 	url = https://github.com/nlohmann/json.git
+[submodule "ext/lexilla"]
+	path = ext/lexilla
+	url = https://github.com/ScintillaOrg/lexilla.git
+[submodule "ext/Detours"]
+	path = ext/Detours
+	url = https://github.com/microsoft/Detours.git

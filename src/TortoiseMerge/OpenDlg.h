@@ -1,5 +1,6 @@
 // TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2006, 2009-2010 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -34,7 +35,7 @@ public:
 	enum { IDD = IDD_OPENDLG };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 	void OnBrowseForFile(CString& filepath, UINT nFileFilter = IDS_COMMONFILEFILTER);
 	void GroupRadio(UINT nID);
 	bool CheckAndEnableClipboardChecker();
@@ -67,11 +68,11 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedPatchfromclipboard();
 
-	virtual BOOL OnInitDialog() override;
-	virtual void OnOK();
+	BOOL OnInitDialog() override;
+	void OnOK() override;
 	void AutoCompleteOn(int controlId);
 
-	BOOL	m_bFromClipboard;
-	UINT	m_cFormat;
-	HWND	m_nextViewer;
+	BOOL	m_bFromClipboard = FALSE;
+	UINT	m_cFormat = 0;
+	HWND	m_nextViewer = nullptr;
 };

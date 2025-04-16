@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2017, 2020 - TortoiseGit
+// Copyright (C) 2016-2017, 2020, 2023, 2025 - TortoiseGit
 // Copyright (C) 2007-2008, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include <memory>
 
 /**
  * \ingroup Utils
@@ -27,7 +27,7 @@
 class IFilterEditValidator
 {
 public:
-	virtual bool	Validate(LPCTSTR string) = 0;
+	virtual bool	Validate(LPCWSTR string) = 0;
 };
 
 /**
@@ -127,9 +127,9 @@ public:
 	void ValidateAndRedraw() { OnEnChange(); }
 
 protected:
-	virtual void	PreSubclassWindow() override;
-	virtual BOOL	PreTranslateMessage(MSG* pMsg) override;
-	virtual ULONG	GetGestureStatus(CPoint ptTouch) override;
+	void			PreSubclassWindow() override;
+	BOOL			PreTranslateMessage(MSG* pMsg) override;
+	ULONG			GetGestureStatus(CPoint ptTouch) override;
 
 	afx_msg BOOL	OnEraseBkgnd(CDC* pDC);
 	afx_msg void	OnLButtonUp(UINT nFlags, CPoint point);
@@ -165,14 +165,14 @@ protected:
 	CRect					m_rcEditArea;
 	CRect					m_rcButtonArea;
 	CRect					m_rcInfoArea;
-	BOOL					m_bShowCancelButtonAlways;
-	BOOL					m_bPressed;
-	UINT					m_iButtonClickedMessageId;
-	UINT					m_iCancelClickedMessageId;
+	BOOL					m_bShowCancelButtonAlways = FALSE;
+	BOOL					m_bPressed = FALSE;
+	UINT					m_iButtonClickedMessageId = WM_FILTEREDIT_INFOCLICKED;
+	UINT					m_iCancelClickedMessageId = WM_FILTEREDIT_CANCELCLICKED;
 	COLORREF				m_backColor;
 	CBrush					m_brBack;
-	int						m_themeCallbackId;
-	IFilterEditValidator *	m_pValidator;
+	int						m_themeCallbackId = 0;
+	IFilterEditValidator*	m_pValidator = nullptr;
 	CString					m_sCueBanner;
 };
 

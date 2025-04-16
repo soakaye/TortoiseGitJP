@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -21,14 +21,20 @@
 
 #include "stdafx.h"
 #include "TortoiseProc.h"
+#include "MessageBox.h"
 #include "PatchViewDlg.h"
 #include "CommonAppUtils.h"
 #include "StringUtils.h"
 #include "DPIAware.h"
+#include "StagingOperations.h"
+#include "Git.h"
+#include "EnableStagingTypes.h"
 
 #pragma comment(lib, "Dwmapi.lib")
 
 // CPatchViewDlg dialog
+
+UINT CPatchViewDlg::WM_PARTIALSTAGINGREFRESHPATCHVIEW = RegisterWindowMessage(L"TORTOISEGIT_COMMIT_PARTIALSTAGINGREFRESHPATCHVIEW"); // same string in CommitDlg.cpp!!!
 
 IMPLEMENT_DYNAMIC(CPatchViewDlg, CStandAloneDialog)
 
@@ -36,10 +42,6 @@ IMPLEMENT_DYNAMIC(CPatchViewDlg, CStandAloneDialog)
 
 CPatchViewDlg::CPatchViewDlg(CWnd* pParent /*=nullptr*/)
 	: CStandAloneDialog(CPatchViewDlg::IDD, pParent)
-	, m_ParentDlg(nullptr)
-	, m_hAccel(nullptr)
-	, m_bShowFindBar(false)
-	, m_nPopupSave(0)
 {
 }
 
@@ -62,6 +64,10 @@ BEGIN_MESSAGE_MAP(CPatchViewDlg, CStandAloneDialog)
 	ON_COMMAND(IDM_FINDEXIT, OnEscape)
 	ON_COMMAND(IDM_FINDNEXT, OnFindNext)
 	ON_COMMAND(IDM_FINDPREV, OnFindPrev)
+	ON_COMMAND(ID_STAGING_STAGESELECTEDLINES, OnStageLines)
+	ON_COMMAND(ID_STAGING_STAGESELECTEDHUNKS, OnStageHunks)
+	ON_COMMAND(ID_UNSTAGING_UNSTAGESELECTEDLINES, OnUnstageLines)
+	ON_COMMAND(ID_UNSTAGING_UNSTAGESELECTEDHUNKS, OnUnstageHunks)
 	ON_REGISTERED_MESSAGE(CFindBar::WM_FINDEXIT, OnFindExitMessage)
 	ON_REGISTERED_MESSAGE(CFindBar::WM_FINDNEXT, OnFindNextMessage)
 	ON_REGISTERED_MESSAGE(CFindBar::WM_FINDPREV, OnFindPrevMessage)
@@ -93,6 +99,35 @@ BOOL CPatchViewDlg::OnInitDialog()
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
+}
+
+// This is intended to be called by the commit window when staging support is enabled there and
+// we were invoked becaused the user clicked on "Partial Staging>>" or "Partial Unstaging>>".
+// We assume the commit window will later on pass us the output of "git diff" (for staging) or
+// "git diff --cached" (for unstaging), of one file only.
+// If we were invoked from somewhere else (e.g. the File Diff Dialog), this will never be called
+// and all staging menu items will stay disabled.
+void CPatchViewDlg::EnableStaging(EnableStagingTypes enableStagingType)
+{
+	EnableMenuItem(GetMenu()->GetSafeHmenu(), ID_STAGING_STAGESELECTEDHUNKS, enableStagingType == EnableStagingTypes::Staging ? MF_ENABLED : MF_DISABLED);
+	EnableMenuItem(GetMenu()->GetSafeHmenu(), ID_STAGING_STAGESELECTEDLINES, enableStagingType == EnableStagingTypes::Staging ? MF_ENABLED : MF_DISABLED);
+	EnableMenuItem(GetMenu()->GetSafeHmenu(), ID_UNSTAGING_UNSTAGESELECTEDHUNKS, enableStagingType == EnableStagingTypes::Unstaging ? MF_ENABLED : MF_DISABLED);
+	EnableMenuItem(GetMenu()->GetSafeHmenu(), ID_UNSTAGING_UNSTAGESELECTEDLINES, enableStagingType == EnableStagingTypes::Unstaging ? MF_ENABLED : MF_DISABLED);
+
+	switch (enableStagingType)
+	{
+	case EnableStagingTypes::None:
+		SetWindowText(CString(MAKEINTRESOURCE(IDS_VIEWPATCH)));
+		break;
+	case EnableStagingTypes::Staging:
+		SetWindowText(CString(MAKEINTRESOURCE(IDS_VIEWPATCH_INDEX_WORKTREE)));
+		break;
+	case EnableStagingTypes::Unstaging:
+		SetWindowText(CString(MAKEINTRESOURCE(IDS_VIEWPATCH_HEAD_INDEX)));
+		break;
+	}
+
+	m_nEnableStagingType = enableStagingType; // This will be used to determine which context menu items to show
 }
 
 void CPatchViewDlg::SetText(const CString& text)
@@ -132,8 +167,8 @@ void CPatchViewDlg::OnSize(UINT nType, int cx, int cy)
 
 		if (m_bShowFindBar)
 		{
-			::SetWindowPos(m_ctrlPatchView.GetSafeHwnd(), HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top - CDPIAware::Instance().ScaleX(SEARCHBARHEIGHT), SWP_SHOWWINDOW);
-			::SetWindowPos(m_FindBar.GetSafeHwnd(), HWND_TOP, rect.left, rect.bottom - CDPIAware::Instance().ScaleX(SEARCHBARHEIGHT + 2), rect.right - rect.left, CDPIAware::Instance().ScaleX(SEARCHBARHEIGHT), SWP_SHOWWINDOW);
+			::SetWindowPos(m_ctrlPatchView.GetSafeHwnd(), HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top - CDPIAware::Instance().ScaleX(GetSafeHwnd(), SEARCHBARHEIGHT), SWP_SHOWWINDOW);
+			::SetWindowPos(m_FindBar.GetSafeHwnd(), HWND_TOP, rect.left, rect.bottom - CDPIAware::Instance().ScaleX(GetSafeHwnd(), SEARCHBARHEIGHT + 2), rect.right - rect.left, CDPIAware::Instance().ScaleX(GetSafeHwnd(), SEARCHBARHEIGHT), SWP_SHOWWINDOW);
 		}
 		else
 		{
@@ -149,10 +184,10 @@ void CPatchViewDlg::OnMoving(UINT fwSide, LPRECT pRect)
 	RECT parentRect;
 	m_ParentDlg->GetPatchViewParentWnd()->GetWindowRect(&parentRect);
 
-	int adjust = GetBorderAjustment(m_ParentDlg->GetPatchViewParentWnd()->GetSafeHwnd(), parentRect);
+	const int adjust = GetBorderAjustment(m_ParentDlg->GetPatchViewParentWnd()->GetSafeHwnd(), parentRect);
 	if (abs(parentRect.right - pRect->left - adjust) < STICKYSIZE)
 	{
-		int width = pRect->right - pRect->left;
+		const int width = pRect->right - pRect->left;
 		pRect->left = parentRect.right - adjust;
 		pRect->right = pRect->left + width;
 	}
@@ -173,7 +208,7 @@ void CPatchViewDlg::ParentOnMoving(HWND parentHWND, LPRECT pRect)
 	RECT parentRect;
 	::GetWindowRect(parentHWND, &parentRect);
 
-	int adjust = GetBorderAjustment(parentHWND, parentRect);
+	const int adjust = GetBorderAjustment(parentHWND, parentRect);
 	if (patchrect.left == parentRect.right - adjust)
 		SetWindowPos(nullptr, patchrect.left - (parentRect.left - pRect->left), patchrect.top - (parentRect.top - pRect->top), 0, 0, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
 }
@@ -192,7 +227,7 @@ void CPatchViewDlg::ParentOnSizing(HWND parentHWND, LPRECT pRect)
 	RECT parentRect;
 	::GetWindowRect(parentHWND, &parentRect);
 
-	int adjust = GetBorderAjustment(parentHWND, parentRect);
+	const int adjust = GetBorderAjustment(parentHWND, parentRect);
 	if (patchrect.left != parentRect.right - adjust)
 		return;
 
@@ -211,7 +246,7 @@ void CPatchViewDlg::ShowAndAlignToParent()
 	int adjust = GetBorderAjustment(m_ParentDlg->GetPatchViewParentWnd()->GetSafeHwnd(), rect);
 	rect.left = rect.right - adjust;
 	rect.right = rect.left;
-	int xPos = CDPIAware::Instance().ScaleX(static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\PatchDlgWidth")));
+	int xPos = CDPIAware::Instance().ScaleX(GetSafeHwnd(), static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\PatchDlgWidth")));
 	if (xPos)
 		rect.right += xPos;
 	else
@@ -267,14 +302,15 @@ void CPatchViewDlg::OnShowFindBar()
 	m_bShowFindBar = true;
 	RECT rect;
 	GetClientRect(&rect);
-	::SetWindowPos(m_ctrlPatchView.GetSafeHwnd(), HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top - CDPIAware::Instance().ScaleX(SEARCHBARHEIGHT), SWP_SHOWWINDOW);
-	::SetWindowPos(m_FindBar, HWND_TOP, rect.left, rect.bottom - CDPIAware::Instance().ScaleX(SEARCHBARHEIGHT + 2), rect.right - rect.left, CDPIAware::Instance().ScaleX(SEARCHBARHEIGHT), SWP_SHOWWINDOW);
-	if (auto selstart = m_ctrlPatchView.Call(SCI_GETSELECTIONSTART), selend = m_ctrlPatchView.Call(SCI_GETSELECTIONEND); selstart != selend)
+	::SetWindowPos(m_ctrlPatchView.GetSafeHwnd(), HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top - CDPIAware::Instance().ScaleX(GetSafeHwnd(), SEARCHBARHEIGHT), SWP_SHOWWINDOW);
+	::SetWindowPos(m_FindBar, HWND_TOP, rect.left, rect.bottom - CDPIAware::Instance().ScaleX(GetSafeHwnd(), SEARCHBARHEIGHT + 2), rect.right - rect.left, CDPIAware::Instance().ScaleX(GetSafeHwnd(), SEARCHBARHEIGHT), SWP_SHOWWINDOW);
+	if (auto selstart = static_cast<Sci_Position>(m_ctrlPatchView.Call(SCI_GETSELECTIONSTART)), selend = static_cast<Sci_Position>(m_ctrlPatchView.Call(SCI_GETSELECTIONEND)); selstart != selend && selend - selstart < INT_MAX)
 	{
-		auto linebuf = std::make_unique<char[]>(selend - selstart + 1);
-		Sci_TextRange range = { static_cast<Sci_PositionCR>(selstart), static_cast<Sci_PositionCR>(selend), linebuf.get() };
-		if (m_ctrlPatchView.Call(SCI_GETTEXTRANGE, 0, reinterpret_cast<LPARAM>(&range)) > 0)
-			m_FindBar.SetFindText(m_ctrlPatchView.StringFromControl(linebuf.get()));
+		CStringA selText;
+		Sci_TextRangeFull range = { selstart, selend, selText.GetBuffer(SafeSizeToInt(selend - selstart)) };
+		selText.ReleaseBufferSetLength(SafeSizeToInt(m_ctrlPatchView.Call(SCI_GETTEXTRANGEFULL, 0, reinterpret_cast<LPARAM>(&range))));
+		if (!selText.IsEmpty())
+			m_FindBar.SetFindText(m_ctrlPatchView.StringFromControl(selText));
 	}
 	m_FindBar.SetFocusTextBox();
 }
@@ -367,12 +403,98 @@ LRESULT CPatchViewDlg::OnFindResetMessage(WPARAM, LPARAM)
 	return 0;
 }
 
+void CPatchViewDlg::OnStageHunks()
+{
+	StageOrUnstageSelectedLinesOrHunks(StagingType::StageHunks);
+}
+
+void CPatchViewDlg::OnStageLines()
+{
+	StageOrUnstageSelectedLinesOrHunks(StagingType::StageLines);
+}
+
+void CPatchViewDlg::OnUnstageHunks()
+{
+	StageOrUnstageSelectedLinesOrHunks(StagingType::UnstageHunks);
+}
+
+void CPatchViewDlg::OnUnstageLines()
+{
+	StageOrUnstageSelectedLinesOrHunks(StagingType::UnstageLines);
+}
+
+int CPatchViewDlg::GetFirstLineNumberSelected()
+{
+	auto selstart = m_ctrlPatchView.Call(SCI_GETSELECTIONSTART);
+	return static_cast<int>(m_ctrlPatchView.Call(SCI_LINEFROMPOSITION, selstart));
+}
+
+int CPatchViewDlg::GetLastLineNumberSelected()
+{
+	auto selend = m_ctrlPatchView.Call(SCI_GETSELECTIONEND);
+	return static_cast<int>(m_ctrlPatchView.Call(SCI_LINEFROMPOSITION, selend));
+}
+
+void CPatchViewDlg::StageOrUnstageSelectedLinesOrHunks(StagingType stagingType)
+{
+	auto documentLength = static_cast<Sci_Position>(m_ctrlPatchView.Call(SCI_GETLENGTH));
+	auto wholePatchBuf = std::make_unique<char[]>(documentLength + 1);
+	m_ctrlPatchView.Call(SCI_GETTEXT, documentLength + 1, reinterpret_cast<LPARAM>(wholePatchBuf.get()));
+
+	int lineCount = static_cast<int>(m_ctrlPatchView.Call(SCI_GETLINECOUNT));
+
+	CDiffLinesForStaging lines(wholePatchBuf.get(), lineCount, GetFirstLineNumberSelected(), GetLastLineNumberSelected());
+	auto op = StagingOperations(&lines);
+	std::string strPatch;
+	if (stagingType == StagingType::StageLines || stagingType == StagingType::UnstageLines)
+		strPatch = op.CreatePatchBufferToStageOrUnstageSelectedLines(stagingType);
+	else if (stagingType == StagingType::StageHunks || stagingType == StagingType::UnstageHunks)
+		strPatch = op.CreatePatchBufferToStageOrUnstageSelectedHunks();
+	else
+		return; // this should never happen
+	if (strPatch.empty())
+	{
+		CMessageBox::Show(GetSafeHwnd(), IDS_ERROR_PARTIALSTAGING, IDS_APPNAME, MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	CTGitPath::StagingStatus newStatus; // this will be sent to the commit dialog so that it can update the file checkbox/status
+	if (strcmp(wholePatchBuf.get(), strPatch.c_str()) == 0)
+	{
+		if (stagingType == StagingType::StageLines || stagingType == StagingType::StageHunks)
+			newStatus = CTGitPath::StagingStatus::TotallyStaged;
+		else // stagingType == StagingType::UnstageLines || stagingType == StagingType::UnstageHunks
+			newStatus = CTGitPath::StagingStatus::TotallyUnstaged;
+	}
+	else // if the patch to be applied is different than the whole diff, the file is still partially staged or became partially staged
+		newStatus = CTGitPath::StagingStatus::PartiallyStaged;
+
+	CString tempPatch = StagingOperations::WritePatchBufferToTemporaryFile(strPatch);
+	if (tempPatch.IsEmpty())
+		return;
+
+	CString out;
+	int ret;
+	if (stagingType == StagingType::StageHunks || stagingType == StagingType::StageLines)
+		ret = g_Git.ApplyPatchToIndex(tempPatch, &out);
+	else //if (stagingType == StagingType::UnstageHunks || stagingType == StagingType::UnstageLines)
+		ret = g_Git.ApplyPatchToIndexReverse(tempPatch, &out);
+	if (ret != 0)
+	{
+		MessageBox(out, L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	// Tell the commit window we partially staged a file and ask it to update ourselves with the updated diff
+	m_ParentDlg->GetPatchViewParentWnd()->SendMessage(WM_PARTIALSTAGINGREFRESHPATCHVIEW, static_cast<WPARAM>(newStatus));
+}
+
 void CPatchViewDlg::OnDestroy()
 {
 	__super::OnDestroy();
 	CRect rect;
 	GetWindowRect(&rect);
-	CRegStdDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\PatchDlgWidth") = CDPIAware::Instance().UnscaleX(rect.Width());
+	CRegStdDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\PatchDlgWidth") = CDPIAware::Instance().UnscaleX(GetSafeHwnd(), rect.Width());
 	m_ctrlPatchView.ClearContextMenuHandlers();
 }
 
@@ -383,6 +505,33 @@ void CPatchViewDlg::InsertMenuItems(CMenu& mPopup, int& nCmd)
 	sMenuItemText.LoadString(IDS_REPOBROWSE_SAVEAS);
 	m_nPopupSave = nCmd++;
 	mPopup.AppendMenu(MF_STRING | MF_ENABLED, m_nPopupSave, sMenuItemText);
+	// We need to reset those to 0:
+	m_nStageHunks = 0;
+	m_nStageLines = 0;
+	m_nUnstageHunks = 0;
+	m_nUnstageLines = 0;
+	if (m_nEnableStagingType == EnableStagingTypes::Staging || m_nEnableStagingType == EnableStagingTypes::Unstaging)
+		mPopup.AppendMenu(MF_SEPARATOR);
+	if (m_nEnableStagingType == EnableStagingTypes::Staging)
+	{
+		sMenuItemText.LoadString(IDS_PROC_STAGE_SELECTED_HUNKS);
+		m_nStageHunks = nCmd++;
+		mPopup.AppendMenu(MF_STRING | MF_ENABLED, m_nStageHunks, sMenuItemText);
+
+		sMenuItemText.LoadString(IDS_PROC_STAGE_SELECTED_LINES);
+		m_nStageLines = nCmd++;
+		mPopup.AppendMenu(MF_STRING | MF_ENABLED, m_nStageLines, sMenuItemText);
+	}
+	if (m_nEnableStagingType == EnableStagingTypes::Unstaging)
+	{
+		sMenuItemText.LoadString(IDS_PROC_UNSTAGE_SELECTED_HUNKS);
+		m_nUnstageHunks = nCmd++;
+		mPopup.AppendMenu(MF_STRING | MF_ENABLED, m_nUnstageHunks, sMenuItemText);
+
+		sMenuItemText.LoadString(IDS_PROC_UNSTAGE_SELECTED_LINES);
+		m_nUnstageLines = nCmd++;
+		mPopup.AppendMenu(MF_STRING | MF_ENABLED, m_nUnstageLines, sMenuItemText);
+	}
 }
 
 bool CPatchViewDlg::HandleMenuItemClick(int cmd, CSciEdit*)
@@ -392,6 +541,26 @@ bool CPatchViewDlg::HandleMenuItemClick(int cmd, CSciEdit*)
 		CString filename;
 		if (CCommonAppUtils::FileOpenSave(filename, nullptr, 0, IDS_PATCHFILEFILTER, false, GetSafeHwnd(), L"diff"))
 			CStringUtils::WriteStringToTextFile(filename, m_ctrlPatchView.GetText());
+		return true;
+	}
+	else if (cmd == m_nStageHunks)
+	{
+		OnStageHunks();
+		return true;
+	}
+	else if (cmd == m_nStageLines)
+	{
+		OnStageLines();
+		return true;
+	}
+	else if (cmd == m_nUnstageHunks)
+	{
+		OnUnstageHunks();
+		return true;
+	}
+	else if (cmd == m_nUnstageLines)
+	{
+		OnUnstageLines();
 		return true;
 	}
 	return false;

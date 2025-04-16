@@ -13,7 +13,7 @@
 <simplesect id="git-rev-list(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git rev-list</emphasis> [&lt;options&gt;] &lt;commit&gt;&#8230; [[--] &lt;path&gt;&#8230;]</literallayout>
+<literallayout><emphasis>git rev-list</emphasis> [&lt;options&gt;] &lt;commit&gt;&#8230; [--] [&lt;path&gt;&#8230;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-rev-list(1)__description">
@@ -42,9 +42,9 @@ for merges.  The resulting set of commits is the symmetric difference
 between the two operands.  The following two commands are equivalent:</simpara>
 <screen>$ git rev-list A B --not $(git merge-base --all A B)
 $ git rev-list A...B</screen>
-<simpara><emphasis>rev-list</emphasis> is a very essential Git command, since it
+<simpara><emphasis>rev-list</emphasis> is an essential Git command, since it
 provides the ability to build and traverse commit ancestry graphs. For
-this reason, it has a lot of different options that enables it to be
+this reason, it has a lot of different options that enable it to be
 used by commands as different as <emphasis>git bisect</emphasis> and
 <emphasis>git repack</emphasis>.</simpara>
 </simplesect>
@@ -98,6 +98,18 @@ ordering and formatting options, such as <emphasis>--reverse</emphasis>.</simpar
 <listitem>
 <simpara>
         Show commits more recent than a specific date.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--since-as-filter=&lt;date&gt;
+</term>
+<listitem>
+<simpara>
+        Show all commits more recent than a specific date. This visits
+        all commits in the range, rather than stopping at the first commit which
+        is older than a specific date.
 </simpara>
 </listitem>
 </varlistentry>
@@ -164,7 +176,7 @@ ordering and formatting options, such as <emphasis>--reverse</emphasis>.</simpar
 </term>
 <listitem>
 <simpara>
-        Limit the commits output to ones with log message that
+        Limit the commits output to ones with a log message that
         matches the specified pattern (regular expression).  With
         more than one <emphasis>--grep=&lt;pattern&gt;</emphasis>, commits whose message
         matches any of the given patterns are chosen (but see
@@ -189,7 +201,7 @@ ordering and formatting options, such as <emphasis>--reverse</emphasis>.</simpar
 </term>
 <listitem>
 <simpara>
-        Limit the commits output to ones with log message that do not
+        Limit the commits output to ones with a log message that do not
         match the pattern specified with <emphasis>--grep=&lt;pattern&gt;</emphasis>.
 </simpara>
 </listitem>
@@ -326,13 +338,28 @@ parents) and <emphasis>--max-parents=-1</emphasis> (negative numbers denote no u
 </term>
 <listitem>
 <simpara>
-        Follow only the first parent commit upon seeing a merge
-        commit.  This option can give a better overview when
-        viewing the evolution of a particular topic branch,
-        because merges into a topic branch tend to be only about
-        adjusting to updated upstream from time to time, and
-        this option allows you to ignore the individual commits
-        brought in to your history by such a merge.
+        When finding commits to include, follow only the first
+        parent commit upon seeing a merge commit.  This option
+        can give a better overview when viewing the evolution of
+        a particular topic branch, because merges into a topic
+        branch tend to be only about adjusting to updated upstream
+        from time to time, and this option allows you to ignore
+        the individual commits brought in to your history by such
+        a merge.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--exclude-first-parent-only
+</term>
+<listitem>
+<simpara>
+        When finding commits to exclude (with a <emphasis>&#94;</emphasis>), follow only
+        the first parent commit upon seeing a merge commit.
+        This can be used to find the set of changes in a topic branch
+        from the point where it diverged from the remote branch, given
+        that arbitrary merges can be valid topic branch changes.
 </simpara>
 </listitem>
 </varlistentry>
@@ -344,6 +371,10 @@ parents) and <emphasis>--max-parents=-1</emphasis> (negative numbers denote no u
 <simpara>
         Reverses the meaning of the <emphasis>&#94;</emphasis> prefix (or lack thereof)
         for all following revision specifiers, up to the next <emphasis>--not</emphasis>.
+        When used on the command line before --stdin, the revisions passed
+        through stdin will not be affected by it. Conversely, when passed
+        via standard input, the revisions passed on the command line will
+        not be affected by it.
 </simpara>
 </listitem>
 </varlistentry>
@@ -432,6 +463,21 @@ explicitly.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--exclude-hidden=[fetch|receive|uploadpack]
+</term>
+<listitem>
+<simpara>
+        Do not include refs that would be hidden by <emphasis>git-fetch</emphasis>,
+        <emphasis>git-receive-pack</emphasis> or <emphasis>git-upload-pack</emphasis> by consulting the appropriate
+        <emphasis>fetch.hideRefs</emphasis>, <emphasis>receive.hideRefs</emphasis> or <emphasis>uploadpack.hideRefs</emphasis>
+        configuration along with <emphasis>transfer.hideRefs</emphasis> (see
+        <xref linkend="git-config(1)" />). This option affects the next pseudo-ref option
+        <emphasis>--all</emphasis> or <emphasis>--glob</emphasis> and is cleared after processing them.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 --reflog
 </term>
 <listitem>
@@ -488,10 +534,13 @@ explicitly.</simpara>
 </term>
 <listitem>
 <simpara>
-        In addition to the <emphasis>&lt;commit&gt;</emphasis> listed on the command
-        line, read them from the standard input. If a <emphasis>--</emphasis> separator is
-        seen, stop reading commits and start reading paths to limit the
-        result.
+        In addition to getting arguments from the command line, read
+        them from standard input as well. This accepts commits and
+        pseudo-options like <emphasis>--all</emphasis> and <emphasis>--glob=</emphasis>. When a <emphasis>--</emphasis> separator
+        is seen, the following input is treated as paths and used to
+        limit the result. Flags like <emphasis>--not</emphasis> which are read via standard input
+        are only respected for arguments passed in the same way and will not
+        influence any subsequent command line arguments.
 </simpara>
 </listitem>
 </varlistentry>
@@ -506,6 +555,27 @@ explicitly.</simpara>
         test the exit status to see if a range of objects is fully
         connected (or not).  It is faster than redirecting stdout
         to <emphasis>/dev/null</emphasis> as the output does not have to be formatted.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--disk-usage
+</term>
+<term>
+--disk-usage=human
+</term>
+<listitem>
+<simpara>
+        Suppress normal output; instead, print the sum of the bytes used
+        for on-disk storage by the selected commits or objects. This is
+        equivalent to piping the output into <emphasis>git cat-file
+        --batch-check='%(objectsize:disk)'</emphasis>, except that it runs much
+        faster (especially with <emphasis>--use-bitmap-index</emphasis>). See the <emphasis>CAVEATS</emphasis>
+        section in <xref linkend="git-cat-file(1)" /> for the limitations of what
+        "on-disk storage" means.
+        With the optional value <emphasis>human</emphasis>, on-disk storage size is shown
+        in human-readable string(e.g. 12.24 Kib, 3.50 Mib).
 </simpara>
 </listitem>
 </varlistentry>
@@ -591,13 +661,13 @@ list.</simpara>
 <simpara>With <emphasis>--pretty</emphasis> format other than <emphasis>oneline</emphasis> and <emphasis>reference</emphasis> (for obvious reasons),
 this causes the output to have two extra lines of information
 taken from the reflog.  The reflog designator in the output may be shown
-as <emphasis>ref@{Nth}</emphasis> (where <emphasis>Nth</emphasis> is the reverse-chronological index in the
-reflog) or as <emphasis>ref@{timestamp}</emphasis> (with the timestamp for that entry),
+as <emphasis>ref@{&lt;Nth&gt;}</emphasis> (where <emphasis>&lt;Nth&gt;</emphasis> is the reverse-chronological index in the
+reflog) or as <emphasis>ref@{&lt;timestamp&gt;}</emphasis> (with the <emphasis>&lt;timestamp&gt;</emphasis> for that entry),
 depending on a few rules:</simpara>
 <orderedlist numeration="arabic">
 <listitem>
 <simpara>
-If the starting point is specified as <emphasis>ref@{Nth}</emphasis>, show the index
+If the starting point is specified as <emphasis>ref@{&lt;Nth&gt;}</emphasis>, show the index
    format.
 </simpara>
 </listitem>
@@ -632,8 +702,11 @@ See also <xref linkend="git-reflog(1)" />.</simpara>
 </term>
 <listitem>
 <simpara>
-        After a failed merge, show refs that touch files having a
-        conflict and don't exist on all heads to merge.
+        Show commits touching conflicted paths in the range <emphasis>HEAD...&lt;other&gt;</emphasis>,
+        where <emphasis>&lt;other&gt;</emphasis> is the first existing pseudoref in <emphasis>MERGE_HEAD</emphasis>,
+        <emphasis>CHERRY_PICK_HEAD</emphasis>, <emphasis>REVERT_HEAD</emphasis> or <emphasis>REBASE_HEAD</emphasis>. Only works
+        when the index has unmerged entries. This option can be used to show
+        relevant commits when resolving conflicts from a 3-way merge.
 </simpara>
 </listitem>
 </varlistentry>
@@ -776,15 +849,18 @@ Default mode
 </varlistentry>
 <varlistentry>
 <term>
---ancestry-path
+--ancestry-path[=&lt;commit&gt;]
 </term>
 <listitem>
 <simpara>
         When given a range of commits to display (e.g. <emphasis>commit1..commit2</emphasis>
-        or <emphasis>commit2 &#94;commit1</emphasis>), only display commits that exist
-        directly on the ancestry chain between the <emphasis>commit1</emphasis> and
-        <emphasis>commit2</emphasis>, i.e. commits that are both descendants of <emphasis>commit1</emphasis>,
-        and ancestors of <emphasis>commit2</emphasis>.
+        or <emphasis>commit2 &#94;commit1</emphasis>), and a commit &lt;commit&gt; in that range,
+        only display commits in that range
+        that are ancestors of &lt;commit&gt;, descendants of &lt;commit&gt;, or
+        &lt;commit&gt; itself.  If no commit is specified, use <emphasis>commit1</emphasis> (the
+        excluded part of the range) as &lt;commit&gt;.  Can be passed multiple
+        times; if so, a commit is included if it is any of the commits
+        given or if it is an ancestor or descendant of one of them.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1020,14 +1096,13 @@ If after this parent rewriting, <emphasis>C'</emphasis> is a root or merge commi
 <variablelist>
 <varlistentry>
 <term>
---ancestry-path
+--ancestry-path[=&lt;commit&gt;]
 </term>
 <listitem>
 <simpara>
-        Limit the displayed commits to those directly on the ancestry
-        chain between the from and to commits in the given commit
-        range. I.e. only display commits that are ancestor of the to
-        commit and descendants of the from commit.
+        Limit the displayed commits to those which are an ancestor of
+        &lt;commit&gt;, or which are a descendant of &lt;commit&gt;, or are &lt;commit&gt;
+        itself.
 </simpara>
 <simpara>As an example use case, consider the following commit history:</simpara>
 <screen>            D---E-------F
@@ -1051,6 +1126,20 @@ option does. Applied to the <emphasis>D..M</emphasis> range, it results in:</sim
                   G---H---I---J
                                \
                                 L--M</screen>
+<simpara>We can also use <emphasis>--ancestry-path=D</emphasis> instead of <emphasis>--ancestry-path</emphasis> which
+means the same thing when applied to the <emphasis>D..M</emphasis> range but is just more
+explicit.</simpara>
+<simpara>If we instead are interested in a given topic within this range, and all
+commits affected by that topic, we may only want to view the subset of
+<emphasis>D..M</emphasis> which contain that topic in their ancestry path.  So, using
+<emphasis>--ancestry-path=H D..M</emphasis> for example would result in:</simpara>
+<screen>                E
+                 \
+                  G---H---I---J
+                               \
+                                L--M</screen>
+<simpara>Whereas <emphasis>--ancestry-path=K D..M</emphasis> would result in</simpara>
+<screen>                K---------------L--M</screen>
 </listitem>
 </varlistentry>
 </variablelist>
@@ -1094,7 +1183,7 @@ merge commits <emphasis>O</emphasis> and <emphasis>P</emphasis>. With parent rew
 not actually contribute a change to <emphasis>file.txt</emphasis>. They only merged a topic
 that was based on an older version of <emphasis>file.txt</emphasis>. This is a common
 issue in repositories using a workflow where many contributors work in
-parallel and merge their topic branches along a single trunk: manu
+parallel and merge their topic branches along a single trunk: many
 unrelated merges appear in the <emphasis>--full-history</emphasis> results.</simpara>
 <simpara>When using the <emphasis>--simplify-merges</emphasis> option, the commits <emphasis>O</emphasis> and <emphasis>P</emphasis>
 disappear from the results. This is because the rewritten second parents
@@ -1311,7 +1400,7 @@ together.</simpara>
         Print the object IDs of any object referenced by the listed
         commits.  <emphasis>--objects foo ^bar</emphasis> thus means send me
         all object IDs which I need to download if I have the commit
-        object <emphasis>bar</emphasis> but not <emphasis>foo</emphasis>.
+        object <emphasis>bar</emphasis> but not <emphasis>foo</emphasis>. See also <emphasis>--object-names</emphasis> below.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1383,7 +1472,12 @@ together.</simpara>
 <listitem>
 <simpara>
         Only useful with <emphasis>--objects</emphasis>; print the names of the object IDs
-        that are found. This is the default behavior.
+        that are found. This is the default behavior. Note that the
+        "name" of each object is ambiguous, and mostly intended as a
+        hint for packing objects. In particular: no distinction is made between
+        the names of tags, trees, and blobs; path names may be modified
+        to remove newlines; and if an object would appear multiple times
+        with different names, only one name is shown.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1411,13 +1505,15 @@ together.</simpara>
         may be one of the following:
 </simpara>
 <simpara>The form <emphasis>--filter=blob:none</emphasis> omits all blobs.</simpara>
-<simpara>The form <emphasis>--filter=blob:limit=&lt;n&gt;[kmg]</emphasis> omits blobs larger than n bytes
-or units.  n may be zero.  The suffixes k, m, and g can be used to name
-units in KiB, MiB, or GiB.  For example, <emphasis>blob:limit=1k</emphasis> is the same
-as <emphasis>blob:limit=1024</emphasis>.</simpara>
+<simpara>The form <emphasis>--filter=blob:limit=&lt;n&gt;[kmg]</emphasis> omits blobs of size at least n
+bytes or units.  n may be zero.  The suffixes k, m, and g can be used
+to name units in KiB, MiB, or GiB.  For example, <emphasis>blob:limit=1k</emphasis>
+is the same as <emphasis>blob:limit=1024</emphasis>.</simpara>
+<simpara>The form <emphasis>--filter=object:type=(tag|commit|tree|blob)</emphasis> omits all objects
+which are not of the requested type.</simpara>
 <simpara>The form <emphasis>--filter=sparse:oid=&lt;blob-ish&gt;</emphasis> uses a sparse-checkout
 specification contained in the blob (or blob-expression) <emphasis>&lt;blob-ish&gt;</emphasis>
-to omit blobs that would not be not required for a sparse checkout on
+to omit blobs that would not be required for a sparse checkout on
 the requested refs.</simpara>
 <simpara>The form <emphasis>--filter=tree:&lt;depth&gt;</emphasis> omits all blobs and trees whose depth
 from the root tree is &gt;= &lt;depth&gt; (minimum depth if an object is located
@@ -1458,6 +1554,18 @@ equivalent.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--filter-provided-objects
+</term>
+<listitem>
+<simpara>
+        Filter the list of explicitly provided objects, which would otherwise
+        always be printed even if they did not match any of the filters. Only
+        useful with <emphasis>--filter=</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 --filter-print-omitted
 </term>
 <listitem>
@@ -1486,6 +1594,33 @@ allow object traversal to continue for EXPECTED promisor missing objects.
 Unexpected missing objects will raise an error.</simpara>
 <simpara>The form <emphasis>--missing=print</emphasis> is like <emphasis>allow-any</emphasis>, but will also print a
 list of the missing objects.  Object IDs are prefixed with a ? character.</simpara>
+<simpara>The form <emphasis>--missing=print-info</emphasis> is like <emphasis>print</emphasis>, but will also print additional
+information about the missing object inferred from its containing object. The
+information is all printed on the same line with the missing object ID in the
+form: <emphasis>?&lt;oid&gt; [&lt;token&gt;=&lt;value&gt;]...</emphasis>. The <emphasis>&lt;token&gt;=&lt;value&gt;</emphasis> pairs containing
+additional information are separated from each other by a SP. The value is
+encoded in a token specific fashion, but SP or LF contained in value are always
+expected to be represented in such a way that the resulting encoded value does
+not have either of these two problematic bytes. Each <emphasis>&lt;token&gt;=&lt;value&gt;</emphasis> may be
+one of the following:</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+The <emphasis>path=&lt;path&gt;</emphasis> shows the path of the missing object inferred from a
+  containing object. A path containing SP or special characters is enclosed in
+  double-quotes in the C style as needed.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+The <emphasis>type=&lt;type&gt;</emphasis> shows the type of the missing object inferred from a
+  containing object.
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>If some tips passed to the traversal are missing, they will be
+considered as missing too, and the traversal will ignore them. In case
+we cannot get their Object ID though, an error will be raised.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -1602,14 +1737,16 @@ people using 80-column terminals.</simpara>
 </term>
 <listitem>
 <simpara>
-        The commit objects record the encoding used for the log message
+        Commit objects record the character encoding used for the log message
         in their encoding header; this option can be used to tell the
         command to re-code the commit log message in the encoding
         preferred by the user.  For non plumbing commands this
         defaults to UTF-8. Note that if an object claims to be encoded
         in <emphasis>X</emphasis> and we are outputting in <emphasis>X</emphasis>, we will output the object
         verbatim; this means that invalid sequences in the original
-        commit may be copied to the output.
+        commit may be copied to the output. Likewise, if iconv(3) fails
+        to convert the commit, we will quietly output the original
+        object verbatim.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1626,7 +1763,7 @@ people using 80-column terminals.</simpara>
 <listitem>
 <simpara>
         Perform a tab expansion (replace each tab with enough spaces
-        to fill to the next display column that is multiple of <emphasis>&lt;n&gt;</emphasis>)
+        to fill to the next display column that is a multiple of <emphasis>&lt;n&gt;</emphasis>)
         in the log message before showing it in the output.
         <emphasis>--expand-tabs</emphasis> is a short-hand for <emphasis>--expand-tabs=8</emphasis>, and
         <emphasis>--no-expand-tabs</emphasis> is a short-hand for <emphasis>--expand-tabs=0</emphasis>,
@@ -1717,25 +1854,16 @@ omitted.</simpara>
 1970).  As with <emphasis>--raw</emphasis>, this is always in UTC and therefore <emphasis>-local</emphasis>
 has no effect.</simpara>
 <simpara><emphasis>--date=format:...</emphasis> feeds the format <emphasis>...</emphasis> to your system <emphasis>strftime</emphasis>,
-except for %z and %Z, which are handled internally.
+except for %s, %z, and %Z, which are handled internally.
 Use <emphasis>--date=format:%c</emphasis> to show the date in your system locale's
 preferred format.  See the <emphasis>strftime</emphasis> manual for a complete list of
 format placeholders. When using <emphasis>-local</emphasis>, the correct syntax is
 <emphasis>--date=format-local:...</emphasis>.</simpara>
-<simpara><emphasis>--date=default</emphasis> is the default format, and is similar to
-<emphasis>--date=rfc2822</emphasis>, with a few exceptions:</simpara>
-<itemizedlist>
-<listitem>
-<simpara>
-there is no comma after the day-of-week
-</simpara>
-</listitem>
-<listitem>
-<simpara>
-the time zone is omitted when the local time zone is used
-</simpara>
-</listitem>
-</itemizedlist>
+<simpara><emphasis>--date=default</emphasis> is the default format, and is based on ctime(3)
+output.  It shows a single line with three-letter day of the week,
+three-letter month, day-of-month, hour-minute-seconds in "HH:MM:SS"
+format, followed by 4-digit year, plus timezone information, unless
+the local time zone is used, e.g. <emphasis>Thu Jan 1 00:00:00 1970 +0000</emphasis>.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -1746,6 +1874,28 @@ the time zone is omitted when the local time zone is used
 <simpara>
         Print the contents of the commit in raw-format; each record is
         separated with a NUL character.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--no-commit-header
+</term>
+<listitem>
+<simpara>
+        Suppress the header line containing "commit" and the object ID printed before
+        the specified format.  This has no effect on the built-in formats; only custom
+        formats are affected.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--commit-header
+</term>
+<listitem>
+<simpara>
+        Overrides a previous <emphasis>--no-commit-header</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1881,7 +2031,7 @@ built-in formats:</simpara>
 <simpara>
 <emphasis>oneline</emphasis>
 </simpara>
-<literallayout class="monospaced">&lt;hash&gt; &lt;title line&gt;</literallayout>
+<literallayout class="monospaced">&lt;hash&gt; &lt;title-line&gt;</literallayout>
 <simpara>This is designed to be as compact as possible.</simpara>
 </listitem>
 <listitem>
@@ -1890,7 +2040,7 @@ built-in formats:</simpara>
 </simpara>
 <literallayout class="monospaced">commit &lt;hash&gt;
 Author: &lt;author&gt;</literallayout>
-<literallayout class="monospaced">&lt;title line&gt;</literallayout>
+<literallayout class="monospaced">&lt;title-line&gt;</literallayout>
 </listitem>
 <listitem>
 <simpara>
@@ -1898,9 +2048,9 @@ Author: &lt;author&gt;</literallayout>
 </simpara>
 <literallayout class="monospaced">commit &lt;hash&gt;
 Author: &lt;author&gt;
-Date:   &lt;author date&gt;</literallayout>
-<literallayout class="monospaced">&lt;title line&gt;</literallayout>
-<literallayout class="monospaced">&lt;full commit message&gt;</literallayout>
+Date:   &lt;author-date&gt;</literallayout>
+<literallayout class="monospaced">&lt;title-line&gt;</literallayout>
+<literallayout class="monospaced">&lt;full-commit-message&gt;</literallayout>
 </listitem>
 <listitem>
 <simpara>
@@ -1909,8 +2059,8 @@ Date:   &lt;author date&gt;</literallayout>
 <literallayout class="monospaced">commit &lt;hash&gt;
 Author: &lt;author&gt;
 Commit: &lt;committer&gt;</literallayout>
-<literallayout class="monospaced">&lt;title line&gt;</literallayout>
-<literallayout class="monospaced">&lt;full commit message&gt;</literallayout>
+<literallayout class="monospaced">&lt;title-line&gt;</literallayout>
+<literallayout class="monospaced">&lt;full-commit-message&gt;</literallayout>
 </listitem>
 <listitem>
 <simpara>
@@ -1918,17 +2068,17 @@ Commit: &lt;committer&gt;</literallayout>
 </simpara>
 <literallayout class="monospaced">commit &lt;hash&gt;
 Author:     &lt;author&gt;
-AuthorDate: &lt;author date&gt;
+AuthorDate: &lt;author-date&gt;
 Commit:     &lt;committer&gt;
-CommitDate: &lt;committer date&gt;</literallayout>
-<literallayout class="monospaced">&lt;title line&gt;</literallayout>
-<literallayout class="monospaced">&lt;full commit message&gt;</literallayout>
+CommitDate: &lt;committer-date&gt;</literallayout>
+<literallayout class="monospaced">&lt;title-line&gt;</literallayout>
+<literallayout class="monospaced">&lt;full-commit-message&gt;</literallayout>
 </listitem>
 <listitem>
 <simpara>
 <emphasis>reference</emphasis>
 </simpara>
-<literallayout class="monospaced">&lt;abbrev hash&gt; (&lt;title line&gt;, &lt;short author date&gt;)</literallayout>
+<literallayout class="monospaced">&lt;abbrev-hash&gt; (&lt;title-line&gt;, &lt;short-author-date&gt;)</literallayout>
 <simpara>This format is used to refer to another commit in a commit message and
 is the same as <emphasis>--pretty='format:%C(auto)%h (%s, %ad)'</emphasis>.  By default,
 the date is formatted with <emphasis>--date=short</emphasis> unless another <emphasis>--date</emphasis> option
@@ -1942,9 +2092,9 @@ placeholders, its output is not affected by other options like
 </simpara>
 <literallayout class="monospaced">From &lt;hash&gt; &lt;date&gt;
 From: &lt;author&gt;
-Date: &lt;author date&gt;
-Subject: [PATCH] &lt;title line&gt;</literallayout>
-<literallayout class="monospaced">&lt;full commit message&gt;</literallayout>
+Date: &lt;author-date&gt;
+Subject: [PATCH] &lt;title-line&gt;</literallayout>
+<literallayout class="monospaced">&lt;full-commit-message&gt;</literallayout>
 </listitem>
 <listitem>
 <simpara>
@@ -1970,9 +2120,9 @@ use <emphasis>--no-abbrev</emphasis>.</simpara>
 </listitem>
 <listitem>
 <simpara>
-<emphasis>format:&lt;string&gt;</emphasis>
+<emphasis>format:&lt;format-string&gt;</emphasis>
 </simpara>
-<simpara>The <emphasis>format:&lt;string&gt;</emphasis> format allows you to specify which information
+<simpara>The <emphasis>format:&lt;format-string&gt;</emphasis> format allows you to specify which information
 you want to show. It works a little bit like printf format,
 with the notable exception that you get a newline with <emphasis>%n</emphasis>
 instead of <emphasis>\n</emphasis>.</simpara>
@@ -2013,7 +2163,9 @@ a raw <emphasis>%</emphasis>
 </term>
 <listitem>
 <simpara>
-print a byte from a hex code
+<emphasis>%x</emphasis> followed by two hexadecimal digits is replaced with a
+         byte with the hexadecimal digits' value (we will call this
+         "literal formatting code" in the rest of this document).
 </simpara>
 </listitem>
 </varlistentry>
@@ -2110,50 +2262,60 @@ switch line wrapping, like the -w option of
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>%&lt;(&lt;N&gt;[,trunc|ltrunc|mtrunc])</emphasis>
+<emphasis>%&lt;( &lt;N&gt; [,trunc|ltrunc|mtrunc])</emphasis>
 </term>
 <listitem>
 <simpara>
 make the next placeholder take at
-                                  least N columns, padding spaces on
+                                  least N column widths, padding spaces on
                                   the right if necessary.  Optionally
-                                  truncate at the beginning (ltrunc),
-                                  the middle (mtrunc) or the end
-                                  (trunc) if the output is longer than
-                                  N columns.  Note that truncating
+                                  truncate (with ellipsis <emphasis>..</emphasis>) at the left (ltrunc) <emphasis>..ft</emphasis>,
+                                  the middle (mtrunc) <emphasis>mi..le</emphasis>, or the end
+                                  (trunc) <emphasis>rig..</emphasis>, if the output is longer than
+                                  N columns.
+                                  Note 1: that truncating
                                   only works correctly with N &gt;= 2.
+                                  Note 2: spaces around the N and M (see below)
+                                  values are optional.
+                                  Note 3: Emojis and other wide characters
+                                  will take two display columns, which may
+                                  over-run column boundaries.
+                                  Note 4: decomposed character combining marks
+                                  may be misplaced at padding boundaries.
 </simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>%&lt;|(&lt;N&gt;)</emphasis>
+<emphasis>%&lt;|( &lt;M&gt; )</emphasis>
 </term>
 <listitem>
 <simpara>
-make the next placeholder take at least until Nth
-             columns, padding spaces on the right if necessary
+make the next placeholder take at least until Mth
+             display column, padding spaces on the right if necessary.
+             Use negative M values for column positions measured
+             from the right hand edge of the terminal window.
 </simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>%&gt;(&lt;N&gt;)</emphasis>, <emphasis>%&gt;|(&lt;N&gt;)</emphasis>
+<emphasis>%&gt;( &lt;N&gt; )</emphasis>, <emphasis>%&gt;|( &lt;M&gt; )</emphasis>
 </term>
 <listitem>
 <simpara>
-similar to <emphasis>%&lt;(&lt;N&gt;)</emphasis>, <emphasis>%&lt;|(&lt;N&gt;)</emphasis> respectively,
+similar to <emphasis>%&lt;( &lt;N&gt; )</emphasis>, <emphasis>%&lt;|( &lt;M&gt; )</emphasis> respectively,
                         but padding spaces on the left
 </simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>%&gt;&gt;(&lt;N&gt;)</emphasis>, <emphasis>%&gt;&gt;|(&lt;N&gt;)</emphasis>
+<emphasis>%&gt;&gt;( &lt;N&gt; )</emphasis>, <emphasis>%&gt;&gt;|( &lt;M&gt; )</emphasis>
 </term>
 <listitem>
 <simpara>
-similar to <emphasis>%&gt;(&lt;N&gt;)</emphasis>, <emphasis>%&gt;|(&lt;N&gt;)</emphasis>
+similar to <emphasis>%&gt;( &lt;N&gt; )</emphasis>, <emphasis>%&gt;|( &lt;M&gt; )</emphasis>
                           respectively, except that if the next
                           placeholder takes more spaces than given and
                           there are spaces on its left, use those
@@ -2163,11 +2325,11 @@ similar to <emphasis>%&gt;(&lt;N&gt;)</emphasis>, <emphasis>%&gt;|(&lt;N&gt;)</e
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>%&gt;&lt;(&lt;N&gt;)</emphasis>, <emphasis>%&gt;&lt;|(&lt;N&gt;)</emphasis>
+<emphasis>%&gt;&lt;( &lt;N&gt; )</emphasis>, <emphasis>%&gt;&lt;|( &lt;M&gt; )</emphasis>
 </term>
 <listitem>
 <simpara>
-similar to <emphasis>%&lt;(&lt;N&gt;)</emphasis>, <emphasis>%&lt;|(&lt;N&gt;)</emphasis>
+similar to <emphasis>%&lt;( &lt;N&gt; )</emphasis>, <emphasis>%&lt;|( &lt;M&gt; )</emphasis>
                           respectively, but padding both sides
                           (i.e. the text is centered)
 </simpara>
@@ -2375,6 +2537,17 @@ author date, short format (<emphasis>YYYY-MM-DD</emphasis>)
 </varlistentry>
 <varlistentry>
 <term>
+<emphasis>%ah</emphasis>
+</term>
+<listitem>
+<simpara>
+author date, human style (like the <emphasis>--date=human</emphasis> option of
+        <xref linkend="git-rev-list(1)" />)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <emphasis>%cn</emphasis>
 </term>
 <listitem>
@@ -2508,6 +2681,17 @@ committer date, short format (<emphasis>YYYY-MM-DD</emphasis>)
 </varlistentry>
 <varlistentry>
 <term>
+<emphasis>%ch</emphasis>
+</term>
+<listitem>
+<simpara>
+committer date, human style (like the <emphasis>--date=human</emphasis> option of
+        <xref linkend="git-rev-list(1)" />)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <emphasis>%d</emphasis>
 </term>
 <listitem>
@@ -2524,6 +2708,91 @@ ref names, like the --decorate option of <xref linkend="git-log(1)" />
 <simpara>
 ref names without the " (", ")" wrapping.
 </simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>%(decorate[:&lt;options&gt;])</emphasis>
+</term>
+<listitem>
+<simpara>
+ref names with custom decorations. The <emphasis>decorate</emphasis> string may be followed by a
+colon and zero or more comma-separated options. Option values may contain
+literal formatting codes. These must be used for commas (<emphasis>%x2C</emphasis>) and closing
+parentheses (<emphasis>%x29</emphasis>), due to their role in the option syntax.
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>prefix=&lt;value&gt;</emphasis>: Shown before the list of ref names.  Defaults to "&#160;<emphasis>(</emphasis>".
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>suffix=&lt;value&gt;</emphasis>: Shown after the list of ref names.  Defaults to "<emphasis>)</emphasis>".
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>separator=&lt;value&gt;</emphasis>: Shown between ref names.  Defaults to "<emphasis>,</emphasis>&#160;".
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>pointer=&lt;value&gt;</emphasis>: Shown between HEAD and the branch it points to, if any.
+                      Defaults to "&#160;<emphasis>-&gt;</emphasis>&#160;".
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>tag=&lt;value&gt;</emphasis>: Shown before tag names. Defaults to "<emphasis>tag:</emphasis>&#160;".
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>For example, to produce decorations with no wrapping
+or tag annotations, and spaces as separators:</simpara>
+<simpara><emphasis>%(decorate:prefix=,suffix=,tag=,separator= )</emphasis></simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>%(describe[:&lt;options&gt;])</emphasis>
+</term>
+<listitem>
+<simpara>
+human-readable name, like <xref linkend="git-describe(1)" />; empty string for
+undescribable commits.  The <emphasis>describe</emphasis> string may be followed by a colon and
+zero or more comma-separated options.  Descriptions can be inconsistent when
+tags are added or removed at the same time.
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>tags[=&lt;bool-value&gt;]</emphasis>: Instead of only considering annotated tags,
+   consider lightweight tags as well.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>abbrev=&lt;number&gt;</emphasis>: Instead of using the default number of hexadecimal digits
+   (which will vary according to the number of objects in the repository with a
+   default of 7) of the abbreviated object name, use &lt;number&gt; digits, or as many
+   digits as needed to form a unique object name.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>match=&lt;pattern&gt;</emphasis>: Only consider tags matching the given
+   <emphasis>glob(7)</emphasis> pattern, excluding the "refs/tags/" prefix.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>exclude=&lt;pattern&gt;</emphasis>: Do not consider tags matching the given
+   <emphasis>glob(7)</emphasis> pattern, excluding the "refs/tags/" prefix.
+</simpara>
+</listitem>
+</itemizedlist>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -2745,20 +3014,19 @@ reflog subject
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>%(trailers[:options])</emphasis>
+<emphasis>%(trailers[:&lt;options&gt;])</emphasis>
 </term>
 <listitem>
 <simpara>
-display the trailers of the body as
-                          interpreted by
-                          <xref linkend="git-interpret-trailers(1)" />. The
-                          <emphasis>trailers</emphasis> string may be followed by a colon
-                          and zero or more comma-separated options:
+display the trailers of the body as interpreted by
+<xref linkend="git-interpret-trailers(1)" />. The <emphasis>trailers</emphasis> string may be followed by
+a colon and zero or more comma-separated options. If any option is provided
+multiple times, the last occurrence wins.
 </simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-<emphasis>key=&lt;K&gt;</emphasis>: only show trailers with specified key. Matching is done
+<emphasis>key=&lt;key&gt;</emphasis>: only show trailers with specified &lt;key&gt;. Matching is done
    case-insensitively and trailing colon is optional. If option is
    given multiple times trailer lines matching any of the keys are
    shown. This option automatically enables the <emphasis>only</emphasis> option so that
@@ -2770,39 +3038,43 @@ display the trailers of the body as
 </listitem>
 <listitem>
 <simpara>
-<emphasis>only[=val]</emphasis>: select whether non-trailer lines from the trailer
-   block should be included. The <emphasis>only</emphasis> keyword may optionally be
-   followed by an equal sign and one of <emphasis>true</emphasis>, <emphasis>on</emphasis>, <emphasis>yes</emphasis> to omit or
-   <emphasis>false</emphasis>, <emphasis>off</emphasis>, <emphasis>no</emphasis> to show the non-trailer lines. If option is
-   given without value it is enabled. If given multiple times the last
-   value is used.
+<emphasis>only[=&lt;bool&gt;]</emphasis>: select whether non-trailer lines from the trailer
+   block should be included.
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-<emphasis>separator=&lt;SEP&gt;</emphasis>: specify a separator inserted between trailer
-   lines. When this option is not given each trailer line is
-   terminated with a line feed character. The string SEP may contain
+<emphasis>separator=&lt;sep&gt;</emphasis>: specify the separator inserted between trailer
+   lines. Defaults to a line feed character. The string &lt;sep&gt; may contain
    the literal formatting codes described above. To use comma as
    separator one must use <emphasis>%x2C</emphasis> as it would otherwise be parsed as
-   next option. If separator option is given multiple times only the
-   last one is used. E.g., <emphasis>%(trailers:key=Ticket,separator=%x2C )</emphasis>
+   next option. E.g., <emphasis>%(trailers:key=Ticket,separator=%x2C )</emphasis>
    shows all trailer lines whose key is "Ticket" separated by a comma
    and a space.
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-<emphasis>unfold[=val]</emphasis>: make it behave as if interpret-trailer's <emphasis>--unfold</emphasis>
-   option was given. In same way as to for <emphasis>only</emphasis> it can be followed
-   by an equal sign and explicit value. E.g.,
+<emphasis>unfold[=&lt;bool&gt;]</emphasis>: make it behave as if interpret-trailer's <emphasis>--unfold</emphasis>
+   option was given. E.g.,
    <emphasis>%(trailers:only,unfold=true)</emphasis> unfolds and shows all trailer lines.
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-<emphasis>valueonly[=val]</emphasis>: skip over the key part of the trailer line and only
-   show the value part. Also this optionally allows explicit value.
+<emphasis>keyonly[=&lt;bool&gt;]</emphasis>: only show the key part of the trailer.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>valueonly[=&lt;bool&gt;]</emphasis>: only show the value part of the trailer.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>key_value_separator=&lt;sep&gt;</emphasis>: specify the separator inserted between
+   the key and value of each trailer. Defaults to ": ". Otherwise it
+   shares the same semantics as <emphasis>separator=&lt;sep&gt;</emphasis> above.
 </simpara>
 </listitem>
 </itemizedlist>
@@ -2819,6 +3091,10 @@ insert an empty string unless we are traversing reflog entries (e.g., by
 <emphasis>git log -g</emphasis>). The <emphasis>%d</emphasis> and <emphasis>%D</emphasis> placeholders will use the "short"
 decoration format if <emphasis>--decorate</emphasis> was not already provided on the command
 line.</simpara></note>
+<simpara>The boolean options accept an optional value <emphasis>[=&lt;bool-value&gt;]</emphasis>. The
+values taken by <emphasis>--type=bool</emphasis> git-config[1], like <emphasis>yes</emphasis> and <emphasis>off</emphasis>,
+are all accepted.  Giving a boolean option without <emphasis>=&lt;value&gt;</emphasis> is
+equivalent to giving it with <emphasis>=true</emphasis>.</simpara>
 <simpara>If you add a <emphasis>+</emphasis> (plus sign) after <emphasis>%</emphasis> of a placeholder, a line-feed
 is inserted immediately before the expansion if and only if the
 placeholder expands to a non-empty string.</simpara>
@@ -2854,6 +3130,101 @@ as if it has <emphasis>tformat:</emphasis> in front of it.  For example, these t
 equivalent:</simpara>
 <screen>$ git log -2 --pretty=tformat:%h 4da45bef
 $ git log -2 --pretty=%h 4da45bef</screen>
+</listitem>
+</itemizedlist>
+</simplesect>
+<simplesect id="git-rev-list(1)__examples">
+<title>EXAMPLES</title>
+<itemizedlist>
+<listitem>
+<simpara>
+Print the list of commits reachable from the current branch.
+</simpara>
+<screen>git rev-list HEAD</screen>
+</listitem>
+<listitem>
+<simpara>
+Print the list of commits on this branch, but not present in the
+  upstream branch.
+</simpara>
+<screen>git rev-list @{upstream}..HEAD</screen>
+</listitem>
+<listitem>
+<simpara>
+Format commits with their author and commit message (see also the
+  porcelain <xref linkend="git-log(1)" />).
+</simpara>
+<screen>git rev-list --format=medium HEAD</screen>
+</listitem>
+<listitem>
+<simpara>
+Format commits along with their diffs (see also the porcelain
+  <xref linkend="git-log(1)" />, which can do this in a single process).
+</simpara>
+<screen>git rev-list HEAD |
+git diff-tree --stdin --format=medium -p</screen>
+</listitem>
+<listitem>
+<simpara>
+Print the list of commits on the current branch that touched any
+  file in the <emphasis>Documentation</emphasis> directory.
+</simpara>
+<screen>git rev-list HEAD -- Documentation/</screen>
+</listitem>
+<listitem>
+<simpara>
+Print the list of commits authored by you in the past year, on
+  any branch, tag, or other ref.
+</simpara>
+<screen>git rev-list --author=you@example.com --since=1.year.ago --all</screen>
+</listitem>
+<listitem>
+<simpara>
+Print the list of objects reachable from the current branch (i.e., all
+  commits and the blobs and trees they contain).
+</simpara>
+<screen>git rev-list --objects HEAD</screen>
+</listitem>
+<listitem>
+<simpara>
+Compare the disk size of all reachable objects, versus those
+  reachable from reflogs, versus the total packed size. This can tell
+  you whether running <emphasis>git repack -ad</emphasis> might reduce the repository size
+  (by dropping unreachable objects), and whether expiring reflogs might
+  help.
+</simpara>
+<screen># reachable objects
+git rev-list --disk-usage --objects --all
+# plus reflogs
+git rev-list --disk-usage --objects --all --reflog
+# total disk size used
+du -c .git/objects/pack/*.pack .git/objects/??/*
+# alternative to du: add up "size" and "size-pack" fields
+git count-objects -v</screen>
+</listitem>
+<listitem>
+<simpara>
+Report the disk size of each branch, not including objects used by the
+  current branch. This can find outliers that are contributing to a
+  bloated repository size (e.g., because somebody accidentally committed
+  large build artifacts).
+</simpara>
+<screen>git for-each-ref --format='%(refname)' |
+while read branch
+do
+        size=$(git rev-list --disk-usage --objects HEAD..$branch)
+        echo "$size $branch"
+done |
+sort -n</screen>
+</listitem>
+<listitem>
+<simpara>
+Compare the on-disk size of branches in one group of refs, excluding
+  another. If you co-mingle objects from multiple remotes in a single
+  repository, this can show which remotes are contributing to the
+  repository size (taking the size of <emphasis>origin</emphasis> as a baseline).
+</simpara>
+<screen>git rev-list --disk-usage --objects --remotes=$suspect --not --remotes=origin</screen>
 </listitem>
 </itemizedlist>
 </simplesect>

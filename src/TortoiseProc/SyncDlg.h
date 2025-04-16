@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2009, 2012-2020 - TortoiseGit
+// Copyright (C) 2008-2009, 2012-2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include "GitTagCompareList.h"
 #include "SyncTabCtrl.h"
 #include "GestureEnabledControl.h"
+#include "GitStatusListCtrl.h"
 
 // CSyncDlg dialog
 #define IDC_SYNC_TAB 0x1000000
@@ -65,12 +66,12 @@ public:
 			GIT_COMMAND_STASH
 		};
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 	BRANCH_COMBOX_EVENT_HANDLE();
 
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 	afx_msg void OnBnClickedButtonManage();
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void OnCbnEditchangeComboboxex();
 	afx_msg void OnBnClickedButtonPull();
 	afx_msg void OnBnClickedButtonPush();
@@ -83,7 +84,7 @@ protected:
 	afx_msg LRESULT	OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam);
 	CComPtr<ITaskbarList3>	m_pTaskbarList;
 
-	int					m_CurrentCmd;
+	int					m_CurrentCmd = 0;
 
 	CRegDWORD			m_regPullButton;
 	CRegDWORD			m_regPushButton;
@@ -92,7 +93,7 @@ protected:
 
 	CSyncTabCtrl		m_ctrlTabCtrl;
 
-	BOOL				m_bInited;
+	bool				m_bInited = false;
 
 	CGitLogList			m_OutLogList;
 	CGitLogList			m_InLogList;
@@ -111,13 +112,13 @@ protected:
 	CTGitPathList		m_arOutChangeList;
 	CTGitPathList		m_arInChangeList;
 
-	int					m_CmdOutCurrentPos;
+	int					m_CmdOutCurrentPos = 0;
 
-	CWinThread*			m_pThread;
+	CWinThread*			m_pThread = nullptr;
 
-	volatile LONG		m_bBlock;
+	volatile LONG		m_bBlock = 0;
 	CGitGuardedByteArray	m_Databuf;
-	int					m_BufStart;
+	int					m_BufStart = 0;
 
 	void				ParserCmdOutput(char ch);
 
@@ -151,12 +152,12 @@ protected:
 	std::vector<CString> m_GitCmdList;
 	STRING_VECTOR	m_remotelist;
 
-	volatile bool	m_bAbort;
-	bool			m_bDone;
+	volatile bool	m_bAbort = false;
+	bool			m_bDone = false;
 	ULONGLONG		m_startTick;
-	bool			m_bWantToExit;
+	bool			m_bWantToExit = false;
 
-	int				m_GitCmdStatus;
+	int				m_GitCmdStatus = -1;
 
 	CStringA		m_LogText;
 	CString			m_OutLocalBranch;
@@ -206,7 +207,7 @@ public:
 	BOOL			m_bAutoLoadPuttyKey;
 	BOOL			m_bForce;
 	CString			m_strURL;
-	int				m_seq;
+	int				m_seq = 0;
 
 protected:
 	static UINT		ProgressThreadEntry(LPVOID pVoid) { return static_cast<CSyncDlg*>(pVoid)->ProgressThread(); };
@@ -224,13 +225,13 @@ protected:
 	CProgressCtrl	m_ctrlProgress;
 	CAnimateCtrl	m_ctrlAnimate;
 	CStatic			m_ctrlProgLabel;
-	int				m_iPullRebase;
+	int				m_iPullRebase = 0;
 
 	void EnableControlButton(bool bEnabled=true);
 	afx_msg void OnBnClickedButtonCommit();
 
-	virtual void	OnOK() override;
-	virtual void	OnCancel() override;
+	void	OnOK() override;
+	void	OnCancel() override;
 	void	Refresh();
 	bool	AskSetTrackedBranch();
 

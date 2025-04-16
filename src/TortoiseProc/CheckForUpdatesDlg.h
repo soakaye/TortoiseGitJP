@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2014, 2016-2017, 2020 - TortoiseGit
+// Copyright (C) 2012-2014, 2016-2017, 2020, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2008 - Stefan Kueng
 
 // This program is free software; you can redistribute it and/or
@@ -52,11 +52,11 @@ protected:
 	afx_msg LRESULT OnEndDownload(WPARAM, LPARAM lParam);
 	afx_msg LRESULT OnFillChangelog(WPARAM, LPARAM lParam);
 	afx_msg LRESULT OnTaskbarBtnCreated(WPARAM, LPARAM);
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 	afx_msg void OnDestroy();
-	virtual void OnOK() override;
-	virtual void OnCancel() override;
+	void OnOK() override;
+	void OnCancel() override;
 
 	DECLARE_MESSAGE_MAP()
 
@@ -64,27 +64,29 @@ private:
 	static UINT CheckThreadEntry(LPVOID pVoid);
 	UINT		CheckThread();
 
-	BOOL		m_bThreadRunning;
+	BOOL		m_bThreadRunning = FALSE;
 
 public:
-	BOOL		m_bShowInfo;
-	BOOL		m_bForce;
+	bool		m_bShowInfo = false;
+	bool		m_bForce = false;
 
 private:
-	BOOL		m_bVisible;
+	bool		m_bVisible = false;
 	CProgressCtrl	m_progress;
 	CComPtr<ITaskbarList3>	m_pTaskbarList;
 	CEvent		m_eventStop;
-	CWinThread	*m_pDownloadThread;
+	CWinThread*	m_pDownloadThread = nullptr;
 	CString		m_sFilesURL;
 
 	static UINT	DownloadThreadEntry(LPVOID pParam);
 	UINT		DownloadThread();
-	bool		Download(CString filename);
-	CUpdateDownloader* m_updateDownloader;
-	bool		VerifyUpdateFile(const CString& filename, const CString& filenameSignature, const CString& reportingFilename);
+	bool		Download(const CString& filename, const CString& versionnumber);
+	CUpdateDownloader* m_updateDownloader = nullptr;
+	bool		VerifyUpdateFile(const CString& filename, const CString& filenameSignature, const CString& reportingFilename, const CString& versionnumber);
 
 	CUpdateListCtrl	m_ctrlFiles;
+
+	void		AdjustSize(bool changelog, bool downloads, bool handleAnchors = true);
 
 	CVersioncheckParser::Version m_myVersion;
 	CString		m_sUpdateDownloadLink;			///< Where to send a user looking to download a update
@@ -98,4 +100,5 @@ private:
 	static CString GetWinINetError(DWORD err);
 	CString		m_sErrors;
 	CString		m_sNewVersionNumber;
+	CString		m_sNewVersionNumberLanguagepacks;
 };

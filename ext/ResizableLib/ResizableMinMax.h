@@ -40,14 +40,14 @@ class CResizableMinMax
 // Attributes
 private:
 	// flags
-	BOOL m_bUseMaxTrack;
-	BOOL m_bUseMinTrack;
-	BOOL m_bUseMaxRect;
+	BOOL m_bUseMaxTrack = FALSE;
+	BOOL m_bUseMinTrack = FALSE;
+	BOOL m_bUseMaxRect = FALSE;
 
-	POINT m_ptMinTrackSize;		// min tracking size
-	POINT m_ptMaxTrackSize;		// max tracking size
-	POINT m_ptMaxPos;			// maximized position
-	POINT m_ptMaxSize;			// maximized size
+	POINT m_ptMinTrackSize{};	// min tracking size
+	POINT m_ptMaxTrackSize{};	// max tracking size
+	POINT m_ptMaxPos{};			// maximized position
+	POINT m_ptMaxSize{};		// maximized size
 
 public:
 	CResizableMinMax();
@@ -70,6 +70,7 @@ protected:
 
 	void SetMaximizedRect(const CRect& rc);		// set window rect when maximized
 	void ResetMaximizedRect();					// reset to default maximized rect
+	CSize GetMinTrackSize() const { return m_ptMinTrackSize; }
 	void SetMinTrackSize(const CSize& size);	// set minimum tracking size
 	void ResetMinTrackSize();					// reset to default minimum tracking size
 	void SetMaxTrackSize(const CSize& size);	// set maximum tracking size

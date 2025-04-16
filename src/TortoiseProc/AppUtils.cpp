@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2021 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2003-2011, 2013-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,6 +17,7 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "PathUtils.h"
@@ -26,13 +27,16 @@
 #include "TGitPath.h"
 #include "Git.h"
 #include "UnicodeUtils.h"
+#include "URLFinder.h"
+#include "git2/sys/errors.h"
+#ifndef TGIT_TESTS_ONLY
 #include "ExportDlg.h"
 #include "ProgressDlg.h"
 #include "GitAdminDir.h"
-#include "ProgressDlg.h"
 #include "BrowseFolder.h"
 #include "DirFileEnum.h"
 #include "CreateBranchTagDlg.h"
+#include "CreateWorktreeDlg.h"
 #include "GitSwitchDlg.h"
 #include "ResetDlg.h"
 #include "DeleteConflictDlg.h"
@@ -43,7 +47,7 @@
 #include "MergeDlg.h"
 #include "MergeAbortDlg.h"
 #include "Hooks.h"
-#include "../Settings/Settings.h"
+#include "Settings/Settings.h"
 #include "InputDlg.h"
 #include "SVNDCommitDlg.h"
 #include "requestpulldlg.h"
@@ -67,38 +71,32 @@
 #include "SubmoduleResolveConflictDlg.h"
 #include "GitDiff.h"
 #include "../TGitCache/CacheInterface.h"
-#include "DPIAware.h"
 #include "IconExtractor.h"
 #include "ClipboardHelper.h"
+#endif
 
+#ifndef TGIT_TESTS_ONLY
 static struct last_accepted_cert {
-	BYTE*		data;
-	size_t		len;
+	std::unique_ptr<char[]> data;
+	size_t len = 0;
 
-	last_accepted_cert()
-		: data(nullptr)
-		, len(0)
-	{
-	}
-	~last_accepted_cert()
-	{
-		free(data);
-	};
+	last_accepted_cert() = default;
+	~last_accepted_cert() = default;
+
 	boolean cmp(git_cert_x509* cert)
 	{
-		return len > 0 && len == cert->len && memcmp(data, cert->data, len) == 0;
+		return len > 0 && len == cert->len && memcmp(data.get(), cert->data, len) == 0;
 	}
 	void set(git_cert_x509* cert)
 	{
-		free(data);
 		len = cert->len;
 		if (len == 0)
 		{
 			data = nullptr;
 			return;
 		}
-		data = new BYTE[len];
-		memcpy(data, cert->data, len);
+		data = std::make_unique<char[]>(len);
+		memcpy(data.get(), cert->data, len);
 	}
 } last_accepted_cert;
 
@@ -113,9 +111,10 @@ bool CAppUtils::StashSave(HWND hWnd, const CString& msg, bool showPull, bool pul
 	dlg.m_sMessage = msg;
 	if (dlg.DoModal() == IDOK)
 	{
+		CGitHash oldStash;
+		g_Git.GetHash(oldStash, L"refs/stash");
+
 		CString cmd = L"git.exe stash push";
-		if (!CAppUtils::IsGitVersionNewerOrEqual(hWnd, 2, 14))
-			cmd = L"git.exe stash save";
 
 		if (dlg.m_bIncludeUntracked)
 			cmd += L" --include-untracked";
@@ -126,10 +125,7 @@ bool CAppUtils::StashSave(HWND hWnd, const CString& msg, bool showPull, bool pul
 		{
 			CString message = dlg.m_sMessage;
 			message.Replace(L"\"", L"\"\"");
-			if (CAppUtils::IsGitVersionNewerOrEqual(hWnd, 2, 14))
-				cmd += L" -m \"" + message + L'"';
-			else
-				cmd += L" -- \"" + message + L'"';
+			cmd += L" -m \"" + message + L'"';
 		}
 
 		CProgressDlg progress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
@@ -143,6 +139,10 @@ bool CAppUtils::StashSave(HWND hWnd, const CString& msg, bool showPull, bool pul
 				postCmdList.emplace_back(IDI_PULL, IDS_MENUPULL, [&]{ CAppUtils::Pull(hWnd, pullShowPush, true); });
 			if (showMerge)
 				postCmdList.emplace_back(IDI_MERGE, IDS_MENUMERGE, [&]{ CAppUtils::Merge(hWnd, &mergeRev, true); });
+			CGitHash newStash;
+			g_Git.GetHash(newStash, L"refs/stash");
+			if (newStash == oldStash)
+				return;
 			postCmdList.emplace_back(IDI_UNSHELVE, IDS_MENUSTASHPOP, [&hWnd] { CAppUtils::StashPop(hWnd); });
 			postCmdList.emplace_back(IDI_UNSHELVE, IDS_MENUSTASHAPPLY, [&hWnd] { CAppUtils::StashApply(hWnd, L""); });
 		};
@@ -169,11 +169,11 @@ bool CAppUtils::StashApply(HWND hWnd, CString ref, bool showChanges /* true */)
 	sysProgressDlg.ShowModeless(hWnd, true);
 
 	CString out;
-	int ret = g_Git.Run(cmd, &out, CP_UTF8);
+	const int ret = g_Git.Run(cmd, &out, CP_UTF8);
 
 	sysProgressDlg.Stop();
 
-	bool hasConflicts = (out.Find(L"CONFLICT") >= 0);
+	const bool hasConflicts = (out.Find(L"CONFLICT") >= 0);
 	if (ret && !(ret == 1 && hasConflicts))
 		CMessageBox::Show(hWnd, CString(MAKEINTRESOURCE(IDS_PROC_STASHAPPLYFAILED)) + L'\n' + out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 	else
@@ -186,7 +186,7 @@ bool CAppUtils::StashApply(HWND hWnd, CString ref, bool showChanges /* true */)
 		{
 			if (CMessageBox::Show(hWnd, message + L'\n' + CString(MAKEINTRESOURCE(IDS_SEECHANGES)), L"TortoiseGit", MB_YESNO | MB_ICONINFORMATION) == IDYES)
 			{
-				cmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				cmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(cmd);
 			}
 			return true;
@@ -213,11 +213,11 @@ bool CAppUtils::StashPop(HWND hWnd, int showChanges /* = 1 */)
 	sysProgressDlg.ShowModeless(hWnd, true);
 
 	CString out;
-	int ret = g_Git.Run(cmd, &out, CP_UTF8);
+	const int ret = g_Git.Run(cmd, &out, CP_UTF8);
 
 	sysProgressDlg.Stop();
 
-	bool hasConflicts = (out.Find(L"CONFLICT") >= 0);
+	const bool hasConflicts = (out.Find(L"CONFLICT") >= 0);
 	if (ret && !(ret == 1 && hasConflicts))
 		CMessageBox::Show(hWnd, CString(MAKEINTRESOURCE(IDS_PROC_STASHPOPFAILED)) + L'\n' + out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 	else
@@ -230,7 +230,7 @@ bool CAppUtils::StashPop(HWND hWnd, int showChanges /* = 1 */)
 		{
 			if (CMessageBox::ShowCheck(hWnd, message + L'\n' + CString(MAKEINTRESOURCE(IDS_SEECHANGES)), L"TortoiseGit", MB_YESNO | (hasConflicts ? MB_ICONEXCLAMATION : MB_ICONINFORMATION), hasConflicts ? L"StashPopShowConflictChanges" : L"StashPopShowChanges") == IDYES)
 			{
-				cmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				cmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(cmd);
 			}
 			return true;
@@ -284,7 +284,8 @@ BOOL CAppUtils::StartExtMerge(bool bAlternative,
 			(ext == L".png") || (ext == L".ico")  ||
 			(ext == L".tif") || (ext == L".tiff") ||
 			(ext == L".dib") || (ext == L".emf")  ||
-			(ext == L".cur"))
+			(ext == L".cur") || (ext == L".webp") ||
+			(ext == L".svg") || (ext == L".svgz"))
 		{
 			bInternal = true;
 			com = CPathUtils::GetAppDirectory() + L"TortoiseGitIDiff.exe";
@@ -407,8 +408,8 @@ BOOL CAppUtils::StartExtMerge(bool bAlternative,
 	if ((bReadOnly)&&(bInternal))
 		com += L" /readonly";
 
-	DWORD blocktrust = CRegDWORD(L"Software\\TortoiseGit\\MergeBlockTrustBehavior");
-	bool bWaitForExit = !bInternal && blocktrust >= 1;
+	const DWORD blocktrust = CRegDWORD(L"Software\\TortoiseGit\\MergeBlockTrustBehavior");
+	const bool bWaitForExit = !bInternal && blocktrust >= 1;
 	DWORD exitCode = DWORD_MAX;
 	if (!LaunchApplication(com, CAppUtils::LaunchApplicationFlags().UseSpecificErrorMessage(IDS_ERR_EXTMERGESTART).WaitForExit(bWaitForExit, nullptr, &exitCode)))
 		return FALSE;
@@ -419,11 +420,11 @@ BOOL CAppUtils::StartExtMerge(bool bAlternative,
 	RemoveTempMergeFile(mergedfile, false);
 
 	CString str;
-	str.Format(IDS_MERGESUCCESSFUL, static_cast<LPCTSTR>(mergedfile.GetGitPathString()));
-	if ((blocktrust == 2 && exitCode == 0) || (blocktrust == 1 && CMessageBox::Show(GetExplorerHWND(), str, L"TortoiseGit", 2, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_RESOLVEDBUTTON)), CString(MAKEINTRESOURCE(IDS_MSGBOX_NO))) == 1))
+	str.Format(IDS_MERGESUCCESSFUL, static_cast<LPCWSTR>(mergedfile.GetGitPathString()));
+	if ((blocktrust == 2 && exitCode == 0) || (blocktrust == 1 && CMessageBox::Show(GetExplorerHWND(), str, IDS_APPNAME, 2, IDI_QUESTION, IDS_RESOLVEDBUTTON, IDS_MSGBOX_NO) == 1))
 	{
 		CString cmd, out;
-		cmd.Format(L"git.exe add -f -- \"%s\"", static_cast<LPCTSTR>(mergedfile.GetGitPathString()));
+		cmd.Format(L"git.exe add -f -- \"%s\"", static_cast<LPCWSTR>(mergedfile.GetGitPathString()));
 		if (g_Git.Run(cmd, &out, CP_UTF8))
 		{
 			MessageBox(GetExplorerHWND(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -491,7 +492,8 @@ CString CAppUtils::PickDiffTool(const CTGitPath& file1, const CTGitPath& file2)
 			(ext == L".png") || (ext == L".ico")  ||
 			(ext == L".tif") || (ext == L".tiff") ||
 			(ext == L".dib") || (ext == L".emf")  ||
-			(ext == L".cur"))
+			(ext == L".cur") || (ext == L".webp") ||
+			(ext == L".svg") || (ext == L".svgz"))
 		{
 			return
 				L'"' + CPathUtils::GetAppDirectory() + L"TortoiseGitIDiff.exe" + L'"' +
@@ -516,7 +518,7 @@ bool CAppUtils::StartExtDiff(
 
 	viewer = PickDiffTool(file1, file2);
 	// If registry entry for a diff program is commented out, use TortoiseGitMerge.
-	bool bCommentedOut = CStringUtils::StartsWith(viewer, L"#");
+	const bool bCommentedOut = CStringUtils::StartsWith(viewer, L"#");
 	if (flags.bAlternativeTool)
 	{
 		// Invert external vs. internal diff tool selection.
@@ -528,7 +530,7 @@ bool CAppUtils::StartExtDiff(
 	else if (bCommentedOut)
 		viewer.Empty();
 
-	bool bInternal = viewer.IsEmpty();
+	const bool bInternal = viewer.IsEmpty();
 	if (bInternal)
 	{
 		viewer =
@@ -587,7 +589,7 @@ BOOL CAppUtils::StartUnifiedDiffViewer(const CString& patchfile, const CString& 
 	viewer = v;
 
 	// If registry entry for a diff program is commented out, use TortoiseGitMerge.
-	bool bCommentedOut = CStringUtils::StartsWith(viewer, L"#");
+	const bool bCommentedOut = CStringUtils::StartsWith(viewer, L"#");
 	if (bAlternativeTool)
 	{
 		// Invert external vs. internal diff tool selection.
@@ -647,11 +649,11 @@ BOOL CAppUtils::StartTextViewer(CString file)
 	viewer = txtexe;
 
 	DWORD len = ExpandEnvironmentStrings(viewer, nullptr, 0);
-	auto buf = std::make_unique<TCHAR[]>(len + 1);
+	auto buf = std::make_unique<wchar_t[]>(len + 1);
 	ExpandEnvironmentStrings(viewer, buf.get(), len);
 	viewer = buf.get();
 	len = ExpandEnvironmentStrings(file, nullptr, 0);
-	auto buf2 = std::make_unique<TCHAR[]>(len + 1);
+	auto buf2 = std::make_unique<wchar_t[]>(len + 1);
 	ExpandEnvironmentStrings(file, buf2.get(), len);
 	file = buf2.get();
 	file = L'"' + file + L'"';
@@ -670,18 +672,6 @@ BOOL CAppUtils::StartTextViewer(CString file)
 	return TRUE;
 }
 
-BOOL CAppUtils::CheckForEmptyDiff(const CTGitPath& sDiffPath)
-{
-	DWORD length = 0;
-	CAutoFile hFile = ::CreateFile(sDiffPath.GetWinPath(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-	if (!hFile)
-		return TRUE;
-	length = ::GetFileSize(hFile, nullptr);
-	if (length < 4)
-		return TRUE;
-	return FALSE;
-}
-
 bool CAppUtils::LaunchPAgent(HWND hWnd, const CString* keyfile, const CString* pRemote)
 {
 	CString key,remote;
@@ -693,7 +683,7 @@ bool CAppUtils::LaunchPAgent(HWND hWnd, const CString* keyfile, const CString* p
 
 	if (!keyfile)
 	{
-		cmd.Format(L"remote.%s.puttykeyfile", static_cast<LPCTSTR>(remote));
+		cmd.Format(L"remote.%s.puttykeyfile", static_cast<LPCWSTR>(remote));
 		key = g_Git.GetConfigValue(cmd);
 	}
 	else
@@ -708,6 +698,8 @@ bool CAppUtils::LaunchPAgent(HWND hWnd, const CString* keyfile, const CString* p
 	proc += L'"';
 
 	CString tempfile = GetTempFile();
+	if (tempfile.IsEmpty())
+		return false;
 	::DeleteFile(tempfile);
 
 	proc += L" -c \"";
@@ -740,13 +732,17 @@ bool CAppUtils::LaunchAlternativeEditor(const CString& filename, bool uac)
 {
 	CString editTool = CRegString(L"Software\\TortoiseGit\\AlternativeEditor");
 	if (editTool.IsEmpty() || CStringUtils::StartsWith(editTool, L"#"))
-		editTool = CPathUtils::GetAppDirectory() + L"notepad2.exe";
+	{
+		CComHeapPtr<WCHAR> pszPath;
+		if (SHGetKnownFolderPath(FOLDERID_System, KF_FLAG_DEFAULT, nullptr, &pszPath) != S_OK)
+			return false;
+		editTool = CString(pszPath) + L"\\notepad.exe";
+	}
 
 	CString sCmd;
-	sCmd.Format(L"\"%s\" \"%s\"", static_cast<LPCTSTR>(editTool), static_cast<LPCTSTR>(filename));
+	sCmd.Format(L"\"%s\" \"%s\"", static_cast<LPCWSTR>(editTool), static_cast<LPCWSTR>(filename));
 
-	LaunchApplication(sCmd, CAppUtils::LaunchApplicationFlags().UAC(uac));
-	return true;
+	return LaunchApplication(sCmd, CAppUtils::LaunchApplicationFlags().UAC(uac).UseSpecificErrorMessage(IDS_ERR_TEXTVIEWSTART));
 }
 
 bool CAppUtils::LaunchRemoteSetting()
@@ -772,7 +768,7 @@ bool CAppUtils::LaunchTortoiseBlame(const CString& sBlameFile, const CString& Re
 	viewer += L"\" \"" + sBlameFile + L'"';
 	//viewer += L" \"" + sLogFile + L'"';
 	//viewer += L" \"" + sOriginalFile + L'"';
-	if(!Rev.IsEmpty() && Rev != GIT_REV_ZERO)
+	if (!Rev.IsEmpty() && Rev != GitRev::GetWorkingCopyRef())
 		viewer += L" /rev:" + Rev;
 	if (!g_sGroupingUUID.IsEmpty())
 	{
@@ -838,19 +834,20 @@ bool CAppUtils::FormatTextInRichEditControl(CWnd * pWnd)
 	} while(nNewlinePos>=0);
 	return bStyled;
 }
+#endif
 
-bool CAppUtils::FindStyleChars(const CString& sText, TCHAR stylechar, int& start, int& end)
+bool CAppUtils::FindStyleChars(const CString& sText, wchar_t stylechar, int& start, int& end)
 {
 	int i=start;
-	int last = sText.GetLength() - 1;
+	const int last = sText.GetLength() - 1;
 	bool bFoundMarker = false;
-	TCHAR c = i == 0 ? L'\0' : sText[i - 1];
-	TCHAR nextChar = i >= last ? L'\0' : sText[i + 1];
+	wchar_t c = i == 0 ? L'\0' : sText[i - 1];
+	wchar_t nextChar = i >= last ? L'\0' : sText[i + 1];
 
 	// find a starting marker
 	while (i < last)
 	{
-		TCHAR prevChar = c;
+		wchar_t prevChar = c;
 		c = nextChar;
 		nextChar = sText[i + 1];
 
@@ -878,7 +875,7 @@ bool CAppUtils::FindStyleChars(const CString& sText, TCHAR stylechar, int& start
 	bFoundMarker = false;
 	while (i <= last)
 	{
-		TCHAR prevChar = c;
+		wchar_t prevChar = c;
 		c = sText[i];
 		if (c == stylechar)
 		{
@@ -895,36 +892,51 @@ bool CAppUtils::FindStyleChars(const CString& sText, TCHAR stylechar, int& start
 	return bFoundMarker;
 }
 
-// from CSciEdit
-namespace {
-	bool IsValidURLChar(wchar_t ch)
-	{
-		return iswalnum(ch) ||
-			ch == L'_' || ch == L'/' || ch == L';' || ch == L'?' || ch == L'&' || ch == L'=' ||
-			ch == L'%' || ch == L':' || ch == L'.' || ch == L'#' || ch == L'-' || ch == L'+' ||
-			ch == L'|' || ch == L'>' || ch == L'<' || ch == L'!' || ch == L'@' || ch == L'~';
-	}
+bool CAppUtils::FindWarningsErrors(const CString& text, std::vector<CHARRANGE>& rangeErrors, std::vector<CHARRANGE>& rangeWarnings)
+{
+	if (text.IsEmpty())
+		return FALSE;
+	const auto fnFindMatchAtLineStart = [&](const wchar_t* const needle, int idxStart, std::vector<CHARRANGE>& vRange) -> void {
+		const int idxEnd{ idxStart + static_cast<int>(wcslen(needle)) };
+		if (idxEnd > text.GetLength())
+			return;
 
-	bool IsUrlOrEmail(const CString& sText)
+		if (CStringUtils::StartsWith(static_cast<LPCWSTR>(text) + idxStart, needle))
+		{
+			const CHARRANGE range{ idxStart, idxEnd };
+			vRange.push_back(range);
+		}
+	};
+
+	int idxStart = 0;
+	do
 	{
-		if (!PathIsURLW(sText))
-		{
-			auto atpos = sText.Find(L'@');
-			if (atpos <= 0)
-				return false;
-			if (sText.Find(L'.', atpos) <= atpos + 1) // a dot must follow after the @, but not directly after it
-				return false;
-			if (sText.Find(L':', atpos) < 0) // do not detect git@example.com:something as an email address
-				return true;
-			return false;
-		}
-		for (const CString& prefix : { L"http://", L"https://", L"git://", L"ftp://", L"file://", L"mailto:" })
-		{
-			if (CStringUtils::StartsWith(sText, prefix) && sText.GetLength() != prefix.GetLength())
-				return true;
-		}
-		return false;
-	}
+		fnFindMatchAtLineStart(L"fatal: ", idxStart, rangeErrors);
+		fnFindMatchAtLineStart(L"error: ", idxStart, rangeErrors);
+		fnFindMatchAtLineStart(L"warning: ", idxStart, rangeWarnings);
+	} while ((idxStart = text.Find('\n', idxStart) + 1) > 0 && idxStart < text.GetLength());
+
+	return !rangeErrors.empty() || !rangeWarnings.empty();
+}
+
+#ifndef TGIT_TESTS_ONLY
+BOOL CAppUtils::StyleWarningsErrors(const CString& text, CRichEditCtrl* edit)
+{
+	ASSERT(edit);
+
+	std::vector<CHARRANGE> rangeErrors;
+	std::vector<CHARRANGE> rangeWarnings;
+	if (!FindWarningsErrors(text, rangeErrors, rangeWarnings))
+		return FALSE;
+
+	const COLORREF colorError{ CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0) };
+	CAppUtils::SetCharFormat(edit, CFM_BOLD, CFE_BOLD, rangeErrors);
+	CAppUtils::SetCharFormat(edit, CFM_COLOR, colorError, rangeErrors);
+	const COLORREF colorWarning{ CTheme::Instance().IsDarkTheme() ? RGB(185, 185, 0) : RGB(160, 160, 0) };
+	CAppUtils::SetCharFormat(edit, CFM_BOLD, CFE_BOLD, rangeWarnings);
+	CAppUtils::SetCharFormat(edit, CFM_COLOR, colorWarning, rangeWarnings);
+
+	return TRUE;
 }
 
 BOOL CAppUtils::StyleURLs(const CString& msg, CWnd* pWnd)
@@ -934,6 +946,7 @@ BOOL CAppUtils::StyleURLs(const CString& msg, CWnd* pWnd)
 
 	return positions.empty() ? FALSE : TRUE;
 }
+#endif
 
 /**
 * implements URL searching with the same logic as CSciEdit::StyleURLs
@@ -942,51 +955,14 @@ std::vector<CHARRANGE> CAppUtils::FindURLMatches(const CString& msg)
 {
 	std::vector<CHARRANGE> result;
 
-	int len = msg.GetLength();
-	int starturl = -1;
-
-	for (int i = 0; i <= msg.GetLength(); ++i)
-	{
-		if ((i < len) && IsValidURLChar(msg[i]))
-		{
-			if (starturl < 0)
-				starturl = i;
-		}
-		else
-		{
-			if (starturl >= 0)
-			{
-				bool strip = true;
-				if (msg[starturl] == '<' && i < len) // try to detect and do not strip URLs put within <>
-				{
-					while (starturl <= i && msg[starturl] == '<') // strip leading '<'
-						++starturl;
-					strip = false;
-					i = starturl;
-					while (i < len && msg[i] != '\r' && msg[i] != '\n' && msg[i] != '>') // find first '>' or new line after resetting i to start position
-						++i;
-				}
-
-				int skipTrailing = 0;
-				while (strip && i - skipTrailing - 1 > starturl && (msg[i - skipTrailing - 1] == '.' || msg[i - skipTrailing - 1] == '-' || msg[i - skipTrailing - 1] == '?' || msg[i - skipTrailing - 1] == ';' || msg[i - skipTrailing - 1] == ':' || msg[i - skipTrailing - 1] == '>' || msg[i - skipTrailing - 1] == '<' || msg[i - skipTrailing - 1] == '!'))
-					++skipTrailing;
-
-				if (!IsUrlOrEmail(msg.Mid(starturl, i - starturl - skipTrailing)))
-				{
-					starturl = -1;
-					continue;
-				}
-
-				CHARRANGE range = { starturl, i - skipTrailing };
-				result.push_back(range);
-			}
-			starturl = -1;
-		}
-	}
+	::FindURLMatches(msg, [](const CString&, int& i) { ++i; }, [&result](int start, int end) {
+		CHARRANGE range = { start, end };
+		result.push_back(range); });
 
 	return result;
 }
 
+#ifndef TGIT_TESTS_ONLY
 bool CAppUtils::StartShowUnifiedDiff(HWND hWnd, const CTGitPath& url1, const CString& rev1,
 												const CTGitPath& /*url2*/, const CString& rev2,
 												//const GitRev& peg /* = GitRev */, const GitRev& headpeg /* = GitRev */,
@@ -996,8 +972,13 @@ bool CAppUtils::StartShowUnifiedDiff(HWND hWnd, const CTGitPath& url1, const CSt
 												bool bCombine,
 												bool bNoPrefix)
 {
-	int diffContext = g_Git.GetConfigValueInt32(L"diff.context", -1);
+	const int diffContext = g_Git.GetConfigValueInt32(L"diff.context", -1);
 	CString tempfile=GetTempFile();
+	if (tempfile.IsEmpty())
+	{
+		::MessageBox(hWnd, L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return false;
+	}
 	if (g_Git.GetUnifiedDiff(url1, rev1, rev2, tempfile, bMerge, bCombine, diffContext, bNoPrefix))
 	{
 		MessageBox(hWnd, g_Git.GetGitLastErr(L"Could not get unified diff.", CGit::GIT_CMD_DIFF), L"TortoiseGit", MB_OK);
@@ -1009,7 +990,7 @@ bool CAppUtils::StartShowUnifiedDiff(HWND hWnd, const CTGitPath& url1, const CSt
 #if 0
 	CString sCmd;
 	sCmd.Format(L"%s /command:showcompare /unified",
-		static_cast<LPCTSTR>(CPathUtils::GetAppDirectory() + L"TortoiseGitProc.exe"));
+		static_cast<LPCWSTR>(CPathUtils::GetAppDirectory() + L"TortoiseGitProc.exe"));
 	sCmd += L" /url1:\"" + url1.GetGitPathString() + L'"';
 	if (rev1.IsValid())
 		sCmd += L" /revision1:" + rev1.ToString();
@@ -1030,7 +1011,7 @@ bool CAppUtils::StartShowUnifiedDiff(HWND hWnd, const CTGitPath& url1, const CSt
 	if (hWnd)
 	{
 		sCmd += L" /hwnd:";
-		TCHAR buf[30];
+		wchar_t buf[30];
 		swprintf_s(buf, L"%p", static_cast<void*>(hWnd));
 		sCmd += buf;
 	}
@@ -1141,8 +1122,8 @@ bool CAppUtils::Export(HWND hWnd, const CString* BashHash, const CTGitPath* orgP
 	if (dlg.DoModal() == IDOK)
 	{
 		CString cmd;
-		cmd.Format(L"git.exe archive --output=\"%s\" --verbose %s --",
-					static_cast<LPCTSTR>(dlg.m_strFile), static_cast<LPCTSTR>(g_Git.FixBranchName(dlg.m_VersionName)));
+		cmd.Format(L"git.exe archive --output=\"%s\" --verbose --end-of-options %s",
+					static_cast<LPCWSTR>(dlg.m_strFile), static_cast<LPCWSTR>(g_Git.FixBranchName(dlg.m_VersionName)));
 
 		CProgressDlg pro(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 		if (GetExplorerHWND() == hWnd)
@@ -1173,7 +1154,7 @@ bool CAppUtils::UpdateBranchDescription(const CString& branch, CString descripti
 		return false;
 
 	CString key;
-	key.Format(L"branch.%s.description", static_cast<LPCTSTR>(branch));
+	key.Format(L"branch.%s.description", static_cast<LPCWSTR>(branch));
 	description.Remove(L'\r');
 	description.Trim();
 	if (description.IsEmpty())
@@ -1184,7 +1165,7 @@ bool CAppUtils::UpdateBranchDescription(const CString& branch, CString descripti
 	return true;
 }
 
-bool CAppUtils::CreateBranchTag(HWND hWnd, bool isTag /*true*/, const CString* ref /*nullptr*/, bool switchNewBranch /*false*/, LPCTSTR name /*nullptr*/)
+bool CAppUtils::CreateBranchTag(HWND hWnd, bool isTag /*true*/, const CString* ref /*nullptr*/, bool switchNewBranch /*false*/, LPCWSTR name /*nullptr*/)
 {
 	CCreateBranchTagDlg dlg(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 	dlg.m_bIsTag = isTag;
@@ -1199,47 +1180,43 @@ bool CAppUtils::CreateBranchTag(HWND hWnd, bool isTag /*true*/, const CString* r
 	if(dlg.DoModal()==IDOK)
 	{
 		CString cmd;
-		CString force;
-		CString track;
-		if(dlg.m_bTrack == TRUE)
-			track = L"--track";
-		else if(dlg.m_bTrack == FALSE)
-			track = L"--no-track";
-
+		CString args;
 		if(dlg.m_bForce)
-			force = L"-f";
+			args += L" -f";
 
 		if (isTag)
 		{
-			CString sign;
 			if(dlg.m_bSign)
-				sign = L"-s";
+				args += L" -s";
 
-			cmd.Format(L"git.exe tag %s %s %s %s",
-				static_cast<LPCTSTR>(force),
-				static_cast<LPCTSTR>(sign),
-				static_cast<LPCTSTR>(dlg.m_BranchTagName),
-				static_cast<LPCTSTR>(g_Git.FixBranchName(dlg.m_VersionName))
-				);
-
-			if(!dlg.m_Message.Trim().IsEmpty())
+			if (!dlg.m_Message.Trim().IsEmpty())
 			{
 				CString tempfile = ::GetTempFile();
-				if (CAppUtils::SaveCommitUnicodeFile(tempfile, dlg.m_Message))
+				if (tempfile.IsEmpty() || CAppUtils::SaveCommitUnicodeFile(tempfile, dlg.m_Message))
 				{
 					MessageBox(hWnd, L"Could not save tag message", L"TortoiseGit", MB_OK | MB_ICONERROR);
 					return FALSE;
 				}
-				cmd.AppendFormat(L" -F \"%s\"", static_cast<LPCTSTR>(tempfile));
+				args.AppendFormat(L" -F \"%s\"", static_cast<LPCWSTR>(tempfile));
 			}
+
+			cmd.Format(L"git.exe tag%s -- %s %s",
+				static_cast<LPCWSTR>(args),
+				static_cast<LPCWSTR>(dlg.m_BranchTagName),
+				static_cast<LPCWSTR>(g_Git.FixBranchName(dlg.m_VersionName))
+				);
 		}
 		else
 		{
-			cmd.Format(L"git.exe branch %s %s %s %s",
-				static_cast<LPCTSTR>(track),
-				static_cast<LPCTSTR>(force),
-				static_cast<LPCTSTR>(dlg.m_BranchTagName),
-				static_cast<LPCTSTR>(g_Git.FixBranchName(dlg.m_VersionName))
+			if (dlg.m_bTrack == TRUE)
+				args += L" --track";
+			else if (dlg.m_bTrack == FALSE)
+				args += L" --no-track";
+
+			cmd.Format(L"git.exe branch%s -- %s %s",
+				static_cast<LPCWSTR>(args),
+				static_cast<LPCWSTR>(dlg.m_BranchTagName),
+				static_cast<LPCWSTR>(g_Git.FixBranchName(dlg.m_VersionName))
 				);
 		}
 		CString out;
@@ -1259,6 +1236,38 @@ bool CAppUtils::CreateBranchTag(HWND hWnd, bool isTag /*true*/, const CString* r
 		return TRUE;
 	}
 	return FALSE;
+}
+
+bool CAppUtils::CreateWorktree(HWND hWnd, const CString& target /* CString() */)
+{
+	CCreateWorktreeDlg dlg(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
+	if (!target.IsEmpty())
+		dlg.m_sWorktreePath = target;
+	if (dlg.DoModal() != IDOK)
+		return FALSE;
+
+	CString params;
+	if (!dlg.m_bCheckout)
+		params += L" --no-checkout"; // git defaults to --checkout
+	if (dlg.m_bForce)
+		params += L" --force";
+	if (dlg.m_bDetach)
+		params += L" --detach";
+	else if (dlg.m_bBranch)
+		params += L" -b " + dlg.m_sNewBranch;
+	if (dlg.m_VersionName == L"HEAD")
+		dlg.m_VersionName.Empty();
+
+	CString cmd;
+	cmd.Format(L"git.exe worktree add%s -- \"%s\" %s",
+				static_cast<LPCWSTR>(params),
+				static_cast<LPCWSTR>(dlg.m_sWorktreePath),
+				static_cast<LPCWSTR>(g_Git.FixBranchName(dlg.m_VersionName)));
+
+	CProgressDlg progress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
+	progress.m_GitCmd = cmd;
+
+	return progress.DoModal() == IDOK;
 }
 
 bool CAppUtils::Switch(HWND hWnd, const CString& initialRefName)
@@ -1285,39 +1294,30 @@ bool CAppUtils::Switch(HWND hWnd, const CString& initialRefName)
 
 bool CAppUtils::PerformSwitch(HWND hWnd, const CString& ref, bool bForce /* false */, const CString& sNewBranch /* CString() */, bool bBranchOverride /* false */, BOOL bTrack /* 2 */, bool bMerge /* false */)
 {
-	CString cmd;
-	CString track;
-	CString force;
-	CString branch;
-	CString merge;
-
-	if(!sNewBranch.IsEmpty()){
-		if (bBranchOverride)
-			branch.Format(L"-B %s ", static_cast<LPCTSTR>(sNewBranch));
-		else
-			branch.Format(L"-b %s ", static_cast<LPCTSTR>(sNewBranch));
-		if (bTrack == TRUE)
-			track = L"--track ";
-		else if (bTrack == FALSE)
-			track = L"--no-track ";
-	}
+	CString params;
 	if (bForce)
-		force = L"-f ";
+		params += L" -f";
+	if(!sNewBranch.IsEmpty()){
+		if (bTrack == TRUE)
+			params += L" --track";
+		else if (bTrack == FALSE)
+			params += L" --no-track";
+		if (bBranchOverride)
+			params.AppendFormat(L" -B %s", static_cast<LPCWSTR>(sNewBranch));
+		else
+			params.AppendFormat(L" -b %s", static_cast<LPCWSTR>(sNewBranch));
+	}
 	if (bMerge)
-		merge = L"--merge ";
+		params += L" --merge";
 
-	cmd.Format(L"git.exe checkout %s%s%s%s%s --",
-			static_cast<LPCTSTR>(force),
-			static_cast<LPCTSTR>(track),
-			static_cast<LPCTSTR>(merge),
-			static_cast<LPCTSTR>(branch),
-			static_cast<LPCTSTR>(g_Git.FixBranchName(ref)));
+	if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+		params += L" --end-of-options";
 
 	CProgressDlg progress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
-	progress.m_GitCmd = cmd;
+	progress.m_GitCmd.Format(L"git.exe checkout%s %s --", static_cast<LPCWSTR>(params), static_cast<LPCWSTR>(g_Git.FixBranchName(ref)));
 
 	CString currentBranch;
-	bool hasBranch = CGit::GetCurrentBranchFromFile(g_Git.m_CurrentDir, currentBranch) == 0;
+	const bool hasBranch = CGit::GetCurrentBranchFromFile(g_Git.m_CurrentDir, currentBranch) == 0;
 	progress.m_PostCmdCallback = [&](DWORD status, PostCmdList& postCmdList)
 	{
 		if (!status)
@@ -1328,7 +1328,7 @@ bool CAppUtils::PerformSwitch(HWND hWnd, const CString& ref, bool bForce /* fals
 				postCmdList.emplace_back(IDI_UPDATE, IDS_PROC_SUBMODULESUPDATE, [&]
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					RunTortoiseGitProc(sCmd);
 				});
 			}
@@ -1355,16 +1355,18 @@ bool CAppUtils::PerformSwitch(HWND hWnd, const CString& ref, bool bForce /* fals
 				postCmdList.emplace_back(IDI_RESOLVE, IDS_PROGRS_CMD_RESOLVE, []
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 			}
+			if (!bMerge)
+				postCmdList.emplace_back(IDI_SHELVE, IDS_MENUSTASHSAVE, [&hWnd] { CAppUtils::StashSave(hWnd, L"", true); });
 			postCmdList.emplace_back(IDI_REFRESH, IDS_MSGBOX_RETRY, [&]{ PerformSwitch(hWnd, ref, bForce, sNewBranch, bBranchOverride, bTrack, bMerge); });
 			if (!bMerge)
 				postCmdList.emplace_back(IDI_SWITCH, IDS_SWITCH_WITH_MERGE, [&]{ PerformSwitch(hWnd, ref, bForce, sNewBranch, bBranchOverride, bTrack, true); });
 		}
 	};
-	progress.m_PostExecCallback = [&](DWORD& exitCode, CString& extraMsg)
+	progress.m_PostExecCallback = [&](HWND /* hWnd */, DWORD& exitCode, CString& extraMsg)
 	{
 		if (bMerge && !exitCode && g_Git.HasWorkingTreeConflicts() > 0)
 		{
@@ -1373,22 +1375,20 @@ bool CAppUtils::PerformSwitch(HWND hWnd, const CString& ref, bool bForce /* fals
 		}
 	};
 
-	INT_PTR ret = progress.DoModal();
-
-	return ret == IDOK;
+	return progress.DoModal() == IDOK;
 }
 
 class CIgnoreFile : public CStdioFile
 {
 public:
 	STRING_VECTOR m_Items;
-	CString m_eol;
+	std::string m_eol{ "\n" };
 
-	virtual BOOL ReadString(CString& rString)
+	BOOL ReadString(CString& rString) override
 	{
 		if (GetPosition() == 0)
 		{
-			unsigned char utf8bom[] = { 0xEF, 0xBB, 0xBF };
+			const unsigned char utf8bom[] = { 0xEF, 0xBB, 0xBF };
 			char buf[3] = { 0, 0, 0 };
 			Read(buf, 3);
 			if (memcpy(buf, utf8bom, sizeof(utf8bom)))
@@ -1403,7 +1403,7 @@ public:
 				continue;
 			if (c == '\n')
 			{
-				m_eol = lastChar == L'\r' ? L"\r\n" : L"\n";
+				m_eol = lastChar == L'\r' ? "\r\n" : "\n";
 				break;
 			}
 			strA.AppendChar(c);
@@ -1418,7 +1418,7 @@ public:
 	void ResetState()
 	{
 		m_Items.clear();
-		m_eol.Empty();
+		m_eol = { "\n" };
 	}
 };
 
@@ -1441,10 +1441,7 @@ bool CAppUtils::OpenIgnoreFile(HWND hWnd, CIgnoreFile &file, const CString& file
 		file.Read(lastchar, 1);
 		file.SeekToEnd();
 		if (lastchar[0] != '\n')
-		{
-			CStringA eol = CStringA(file.m_eol.IsEmpty() ? L"\n" : file.m_eol);
-			file.Write(eol, eol.GetLength());
-		}
+			file.Write(file.m_eol.c_str(), static_cast<UINT>(file.m_eol.size()));
 	}
 	else
 		file.SeekToEnd();
@@ -1522,8 +1519,8 @@ bool CAppUtils::IgnoreFile(HWND hWnd, const CTGitPathList& path,bool IsMask)
 				if (!found)
 				{
 					file.m_Items.push_back(ignorePattern);
-					ignorePattern += file.m_eol.IsEmpty() ? L"\n" : file.m_eol;
 					CStringA ignorePatternA = CUnicodeUtils::GetUTF8(ignorePattern);
+					ignorePatternA += file.m_eol.c_str();
 					file.Write(ignorePatternA, ignorePatternA.GetLength());
 				}
 
@@ -1547,7 +1544,6 @@ bool CAppUtils::IgnoreFile(HWND hWnd, const CTGitPathList& path,bool IsMask)
 
 static bool Reset(HWND hWnd, const CString& resetTo, int resetType)
 {
-	CString cmd;
 	CString type;
 	switch (resetType)
 	{
@@ -1578,7 +1574,7 @@ static bool Reset(HWND hWnd, const CString& resetTo, int resetType)
 				postCmdList.emplace_back(IDI_UPDATE, IDS_PROC_SUBMODULESUPDATE, [&]
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 			}
@@ -1591,10 +1587,13 @@ static bool Reset(HWND hWnd, const CString& resetTo, int resetType)
 		type = L"--mixed";
 		break;
 	}
-	cmd.Format(L"git.exe reset %s %s --", static_cast<LPCTSTR>(type), static_cast<LPCTSTR>(resetTo));
+
+	CString endOfOptions;
+	if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+		endOfOptions = L" --end-of-options";
 
 	CProgressDlg progress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
-	progress.m_GitCmd = cmd;
+	progress.m_GitCmd.Format(L"git.exe reset %s%s %s --", static_cast<LPCWSTR>(type), static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(resetTo));
 
 	progress.m_PostCmdCallback = [&](DWORD status, PostCmdList& postCmdList)
 	{
@@ -1610,7 +1609,7 @@ static bool Reset(HWND hWnd, const CString& resetTo, int resetType)
 			postCmdList.emplace_back(IDI_UPDATE, IDS_PROC_SUBMODULESUPDATE, [&]
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 		}
@@ -1621,6 +1620,15 @@ static bool Reset(HWND hWnd, const CString& resetTo, int resetType)
 			postCmdList.emplace_back(IDI_THUMB_DOWN, IDS_MENUBISECTBAD, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /bad"); });
 			postCmdList.emplace_back(IDI_BISECT, IDS_MENUBISECTSKIP, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /skip"); });
 			postCmdList.emplace_back(IDI_BISECT_RESET, IDS_MENUBISECTRESET, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /reset"); });
+		}
+
+		if (resetType == 2)
+		{
+			postCmdList.emplace_back(IDI_CLEANUP, IDS_MENUCLEANUP, [&] {
+				CString sCmd;
+				sCmd.Format(L"/command:cleanup /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
+				CAppUtils::RunTortoiseGitProc(sCmd);
+			});
 		}
 	};
 
@@ -1683,50 +1691,6 @@ CString CAppUtils::GetMergeTempFile(const CString& type, const CTGitPath& merge,
 	return path;
 }
 
-static bool ParseHashesFromLsFile(const BYTE_VECTOR& out, CGitHash& hash1, bool& isFile1, CGitHash& hash2, bool& isFile2, CGitHash& hash3, bool& isFile3)
-{
-	size_t pos = 0;
-	CString one;
-	CString part;
-
-	while (pos < out.size())
-	{
-		one.Empty();
-
-		CGit::StringAppend(&one, &out[pos], CP_UTF8);
-		int tabstart = 0;
-		one.Tokenize(L"\t", tabstart);
-
-		tabstart = 0;
-		part = one.Tokenize(L" ", tabstart); //Tag
-		CString mode = one.Tokenize(L" ", tabstart); //Mode
-		part = one.Tokenize(L" ", tabstart); //Hash
-		CString hash = part;
-		part = one.Tokenize(L"\t", tabstart); //Stage
-		int stage = _wtol(part);
-		if (stage == 1)
-		{
-			hash1 = CGitHash::FromHexStrTry(hash);
-			isFile1 = _wtol(mode) != 160000;
-		}
-		else if (stage == 2)
-		{
-			hash2 = CGitHash::FromHexStrTry(hash);
-			isFile2 = _wtol(mode) != 160000;
-		}
-		else if (stage == 3)
-		{
-			hash3 = CGitHash::FromHexStrTry(hash);
-			isFile3 = _wtol(mode) != 160000;
-			return true;
-		}
-
-		pos = out.findNextString(pos);
-	}
-
-	return false;
-}
-
 void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CGitHash* mineHash, CString& theirsText, CGitHash* theirsHash, bool rebaseActive)
 {
 	if (baseText)
@@ -1743,7 +1707,7 @@ void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CGitHash
 			if (guessBranch && !g_Git.GetHash(hash, L"rebase-apply/onto"))
 			{
 				if (g_Git.GuessRefForHash(mineText, hash) == 0)
-					mineText.AppendFormat(L", %s", static_cast<LPCTSTR>(hash.ToString(g_Git.GetShortHASHLength())));
+					mineText.AppendFormat(L", %s", static_cast<LPCWSTR>(hash.ToString(g_Git.GetShortHASHLength())));
 			}
 			if (mineHash)
 				*mineHash = hash;
@@ -1775,9 +1739,9 @@ void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CGitHash
 			else
 			{
 				if (g_Git.GuessRefForHash(guessedRef, hash) == 0)
-					guessedRef.AppendFormat(L", %s", static_cast<LPCTSTR>(hash.ToString(g_Git.GetShortHASHLength())));
+					guessedRef.AppendFormat(L", %s", static_cast<LPCWSTR>(hash.ToString(g_Git.GetShortHASHLength())));
 			}
-			theirsText.FormatMessage(infotext.theirstext, infotext.headref, static_cast<LPCTSTR>(guessedRef));
+			theirsText.FormatMessage(infotext.theirstext, infotext.headref, static_cast<LPCWSTR>(guessedRef));
 			if (theirsHash)
 				*theirsHash = hash;
 			break;
@@ -1791,10 +1755,8 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 	CTGitPath directory = merge.GetDirectory();
 
 	BYTE_VECTOR vector;
-
 	CString cmd;
-	cmd.Format(L"git.exe ls-files -u -t -z -- \"%s\"", static_cast<LPCTSTR>(merge.GetGitPathString()));
-
+	cmd.Format(L"git.exe ls-files -u -t -z -- \"%s\"", static_cast<LPCWSTR>(merge.GetGitPathString()));
 	if (g_Git.Run(cmd, &vector))
 		return FALSE;
 
@@ -1802,16 +1764,16 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 	CGitHash mineHash, theirsHash;
 	GetConflictTitles(&baseTitle, mineTitle, &mineHash, theirsTitle, &theirsHash, isRebase);
 
-	CGitHash baseHash, realBaseHash, localHash, remoteHash;
+	CGitHash baseHash, localHash, remoteHash;
 	bool baseIsFile = true, localIsFile = true, remoteIsFile = true;
-	if (ParseHashesFromLsFile(vector, realBaseHash, baseIsFile, localHash, localIsFile, remoteHash, remoteIsFile))
-		baseHash = realBaseHash;
+	if (CGit::ParseConflictHashesFromLsFile(vector, baseHash, baseIsFile, localHash, localIsFile, remoteHash, remoteIsFile))
+		return FALSE;
 
 	if (!baseIsFile || !localIsFile || !remoteIsFile)
 	{
 		CTGitPath fullMergePath;
 		fullMergePath.SetFromWin(g_Git.CombinePath(merge));
-		if (fullMergePath.HasAdminDir())
+		if (fullMergePath.IsWCRoot())
 		{
 			CGit subgit;
 			subgit.m_IsUseGitDLL = false;
@@ -1819,12 +1781,12 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 			subgit.GetHash(baseHash, L"HEAD");
 		}
 
-		CGitDiff::ChangeType changeTypeMine = CGitDiff::Unknown;
-		CGitDiff::ChangeType changeTypeTheirs = CGitDiff::Unknown;
+		CGitDiff::ChangeType changeTypeMine = CGitDiff::ChangeType::Unknown;
+		CGitDiff::ChangeType changeTypeTheirs = CGitDiff::ChangeType::Unknown;
 
 		bool baseOK = false, mineOK = false, theirsOK = false;
 		CString baseSubject, mineSubject, theirsSubject;
-		if (fullMergePath.HasAdminDir())
+		if (fullMergePath.IsWCRoot())
 		{
 			CGit subgit;
 			subgit.m_IsUseGitDLL = false;
@@ -1834,8 +1796,8 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 		}
 		else if (baseHash.IsEmpty() && localHash.IsEmpty() && !remoteHash.IsEmpty()) // merge conflict with no submodule, but submodule in merged revision (not initialized)
 		{
-			changeTypeMine = CGitDiff::Identical;
-			changeTypeTheirs = CGitDiff::NewSubmodule;
+			changeTypeMine = CGitDiff::ChangeType::Identical;
+			changeTypeTheirs = CGitDiff::ChangeType::NewSubmodule;
 			baseSubject.LoadString(IDS_CONFLICT_NOSUBMODULE);
 			mineSubject = baseSubject;
 			theirsSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
@@ -1846,8 +1808,8 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 			baseSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
 			mineSubject = baseSubject;
 			theirsSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
-			changeTypeMine = CGitDiff::Identical;
-			changeTypeTheirs = CGitDiff::DeleteSubmodule;
+			changeTypeMine = CGitDiff::ChangeType::Identical;
+			changeTypeTheirs = CGitDiff::ChangeType::DeleteSubmodule;
 		}
 		else if (!baseHash.IsEmpty() && !localHash.IsEmpty() && !remoteHash.IsEmpty()) // base has submodule, mine has submodule and theirs also, but not initialized
 		{
@@ -1855,7 +1817,7 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 			mineSubject = baseSubject;
 			theirsSubject = baseSubject;
 			if (baseHash == localHash)
-				changeTypeMine = CGitDiff::Identical;
+				changeTypeMine = CGitDiff::ChangeType::Identical;
 		}
 		else if (baseHash.IsEmpty() && !localHash.IsEmpty() && !remoteHash.IsEmpty())
 		{
@@ -1864,14 +1826,14 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 			if (remoteIsFile)
 			{
 				theirsSubject.LoadString(IDS_CONFLICT_NOTASUBMODULE);
-				changeTypeMine = CGitDiff::NewSubmodule;
+				changeTypeMine = CGitDiff::ChangeType::NewSubmodule;
 			}
 			else
 				theirsSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
 			if (localIsFile)
 			{
 				mineSubject.LoadString(IDS_CONFLICT_NOTASUBMODULE);
-				changeTypeTheirs = CGitDiff::NewSubmodule;
+				changeTypeTheirs = CGitDiff::ChangeType::NewSubmodule;
 			}
 			else
 				mineSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
@@ -1882,24 +1844,24 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 			if (localHash.IsEmpty())
 			{
 				mineSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
-				changeTypeMine = CGitDiff::DeleteSubmodule;
+				changeTypeMine = CGitDiff::ChangeType::DeleteSubmodule;
 			}
 			else
 			{
 				mineSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
 				if (localHash == baseHash)
-					changeTypeMine = CGitDiff::Identical;
+					changeTypeMine = CGitDiff::ChangeType::Identical;
 			}
 			if (remoteHash.IsEmpty())
 			{
 				theirsSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
-				changeTypeTheirs = CGitDiff::DeleteSubmodule;
+				changeTypeTheirs = CGitDiff::ChangeType::DeleteSubmodule;
 			}
 			else
 			{
 				theirsSubject.LoadString(IDS_CONFLICT_SUBMODULENOTINITIALIZED);
 				if (remoteHash == baseHash)
-					changeTypeTheirs = CGitDiff::Identical;
+					changeTypeTheirs = CGitDiff::ChangeType::Identical;
 			}
 		}
 		else
@@ -1917,16 +1879,6 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 		return TRUE;
 	}
 
-	CTGitPathList list;
-	if (list.ParserFromLsFile(vector))
-	{
-		MessageBox(hWnd, L"Parse ls-files failed!", L"TortoiseGit", MB_OK | MB_ICONERROR);
-		return FALSE;
-	}
-
-	if (list.IsEmpty())
-		return FALSE;
-
 	CTGitPath theirs;
 	CTGitPath mine;
 	CTGitPath base;
@@ -1943,7 +1895,6 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 	}
 	base.SetFromGit(GetMergeTempFile(L"BASE",merge));
 
-	CString format = L"git.exe checkout-index --temp --stage=%d -- \"%s\"";
 	CFile tempfile;
 	//create a empty file, incase stage is not three
 	tempfile.Open(mine.GetWinPathString(),CFile::modeCreate|CFile::modeReadWrite);
@@ -1953,48 +1904,29 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 	tempfile.Open(base.GetWinPathString(),CFile::modeCreate|CFile::modeReadWrite);
 	tempfile.Close();
 
-	bool b_base=false, b_local=false, b_remote=false;
-
-	for (int i = 0; i< list.GetCount(); ++i)
-	{
-		CString outfile;
-		cmd.Empty();
-		outfile.Empty();
-
-		if( list[i].m_Stage == 1)
-		{
-			cmd.Format(format, list[i].m_Stage, static_cast<LPCTSTR>(list[i].GetGitPathString()));
-			b_base = true;
-			outfile = base.GetWinPathString();
-
-		}
-		if( list[i].m_Stage == 2 )
-		{
-			cmd.Format(format, list[i].m_Stage, static_cast<LPCTSTR>(list[i].GetGitPathString()));
-			b_local = true;
-			outfile = mine.GetWinPathString();
-
-		}
-		if( list[i].m_Stage == 3 )
-		{
-			cmd.Format(format, list[i].m_Stage, static_cast<LPCTSTR>(list[i].GetGitPathString()));
-			b_remote = true;
-			outfile = theirs.GetWinPathString();
-		}
+	CString format = L"git.exe checkout-index --temp --stage=%d -- \"%s\"";
+	auto prepareFile = [&hWnd, &merge, &format](int stage, const CString& outfile) {
+		CString cmd;
+		cmd.Format(format, stage, static_cast<LPCWSTR>(merge.GetGitPathString()));
 		CString output, err;
-		if(!outfile.IsEmpty())
-			if (!g_Git.Run(cmd, &output, &err, CP_UTF8))
-			{
-				CString file;
-				int start =0 ;
-				file = output.Tokenize(L"\t", start);
-				::MoveFileEx(file,outfile,MOVEFILE_REPLACE_EXISTING|MOVEFILE_COPY_ALLOWED);
-			}
-			else
-				CMessageBox::Show(hWnd, output + L'\n' + err, L"TortoiseGit", MB_OK | MB_ICONERROR);
-	}
+		if (!g_Git.Run(cmd, &output, &err, CP_UTF8))
+		{
+			CString file;
+			int start = 0;
+			file = output.Tokenize(L"\t", start);
+			::MoveFileEx(file, outfile, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+		}
+		else
+			CMessageBox::Show(hWnd, output + L'\n' + err, L"TortoiseGit", MB_OK | MB_ICONERROR);
+	};
+	if (!baseHash.IsEmpty())
+		prepareFile(1, base.GetWinPathString());
+	if (!localHash.IsEmpty())
+		prepareFile(2, mine.GetWinPathString());
+	if (!remoteHash.IsEmpty())
+		prepareFile(3, theirs.GetWinPathString());
 
-	if(b_local && b_remote )
+	if (!localHash.IsEmpty() && !remoteHash.IsEmpty())
 	{
 		merge.SetFromWin(g_Git.CombinePath(merge));
 		if (isRebase)
@@ -2006,45 +1938,45 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 	{
 		::DeleteFile(mine.GetWinPathString());
 		::DeleteFile(theirs.GetWinPathString());
-		if (!b_base)
+		if (baseHash.IsEmpty())
 			::DeleteFile(base.GetWinPathString());
 
 		SCOPE_EXIT{
-			if (b_base)
+			if (!baseHash.IsEmpty())
 				::DeleteFile(base.GetWinPathString());
 		};
 
 		CDeleteConflictDlg dlg(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 		if (!isRebase)
 		{
-			DescribeConflictFile(b_local, b_base, dlg.m_LocalStatus);
-			DescribeConflictFile(b_remote, b_base, dlg.m_RemoteStatus);
+			DescribeConflictFile(!localHash.IsEmpty(), !baseHash.IsEmpty(), dlg.m_LocalStatus);
+			DescribeConflictFile(!remoteHash.IsEmpty(), !baseHash.IsEmpty(), dlg.m_RemoteStatus);
 			dlg.m_LocalHash = mineHash;
 			dlg.m_RemoteHash = theirsHash;
 			dlg.m_LocalRef = mineTitle;
 			dlg.m_RemoteRef = theirsTitle;
-			dlg.m_bDiffMine = b_local;
+			dlg.m_bDiffMine = !localHash.IsEmpty();
 		}
 		else
 		{
-			DescribeConflictFile(b_local, b_base, dlg.m_RemoteStatus);
-			DescribeConflictFile(b_remote, b_base, dlg.m_LocalStatus);
+			DescribeConflictFile(!localHash.IsEmpty(), !baseHash.IsEmpty(), dlg.m_RemoteStatus);
+			DescribeConflictFile(!remoteHash.IsEmpty(), !baseHash.IsEmpty(), dlg.m_LocalStatus);
 			dlg.m_LocalHash = theirsHash;
 			dlg.m_RemoteHash = mineHash;
 			dlg.m_LocalRef = theirsTitle;
 			dlg.m_RemoteRef = mineTitle;
-			dlg.m_bDiffMine = !b_local;
+			dlg.m_bDiffMine = localHash.IsEmpty();
 		}
-		dlg.m_bShowModifiedButton = b_base;
+		dlg.m_bShowModifiedButton = !baseHash.IsEmpty();
 		dlg.m_File = merge;
 		dlg.m_FileBaseVersion = base;
 		if(dlg.DoModal() == IDOK)
 		{
 			CString out;
 			if(dlg.m_bIsDelete)
-				cmd.Format(L"git.exe rm -- \"%s\"", static_cast<LPCTSTR>(merge.GetGitPathString()));
+				cmd.Format(L"git.exe rm -- \"%s\"", static_cast<LPCWSTR>(merge.GetGitPathString()));
 			else
-				cmd.Format(L"git.exe add -- \"%s\"", static_cast<LPCTSTR>(merge.GetGitPathString()));
+				cmd.Format(L"git.exe add -- \"%s\"", static_cast<LPCWSTR>(merge.GetGitPathString()));
 
 			if (g_Git.Run(cmd, &out, CP_UTF8))
 			{
@@ -2084,7 +2016,7 @@ CString CAppUtils::GetClipboardLink(const CString &skipGitPrefix, int paramsCoun
 	}
 	if (HGLOBAL hglb = GetClipboardData(CF_UNICODETEXT); hglb)
 	{
-		auto lpstr = static_cast<LPCTSTR>(GlobalLock(hglb));
+		auto lpstr = static_cast<LPCWSTR>(GlobalLock(hglb));
 		sClipboardText = lpstr;
 		GlobalUnlock(hglb);
 	}
@@ -2093,6 +2025,14 @@ CString CAppUtils::GetClipboardLink(const CString &skipGitPrefix, int paramsCoun
 	{
 		if (sClipboardText[0] == L'"' && sClipboardText[sClipboardText.GetLength() - 1] == L'"')
 			sClipboardText=sClipboardText.Mid(1,sClipboardText.GetLength()-2);
+
+		if (int newlinepos = sClipboardText.Find(L"\n"); newlinepos >= 0)
+		{
+			sClipboardText.Truncate(newlinepos);
+			sClipboardText.TrimRight();
+		}
+		if (sClipboardText.IsEmpty())
+			return CString();
 
 		for (const CString& prefix : { L"http://", L"https://", L"git://", L"ssh://", L"git@" })
 		{
@@ -2232,13 +2172,15 @@ bool CAppUtils::MessageContainsConflictHints(HWND hWnd, const CString& message)
 	CString cleanupMode = g_Git.GetConfigValue(L"core.cleanup", L"default");
 	if (cleanupMode == L"verbatim" || cleanupMode == L"whitespace" || cleanupMode == L"scissors")
 		return false;
-	TCHAR commentChar = L'#';
+
 	CString commentCharValue = g_Git.GetConfigValue(L"core.commentchar");
-	if (!commentCharValue.IsEmpty())
-		commentChar = commentCharValue[0];
+	if (commentCharValue.IsEmpty())
+		commentCharValue = L"#";
+	else if (CGit::ms_LastMsysGitVersion < ConvertVersionToInt(2, 45, 0))
+		commentCharValue = commentCharValue.Left(1);
 
 	CString conflictsHint;
-	conflictsHint.Format(L"\n%c Conflicts:\n%c\t", commentChar, commentChar);
+	conflictsHint.Format(L"\n%s Conflicts:\n%s\t", static_cast<LPCWSTR>(commentCharValue), static_cast<LPCWSTR>(commentCharValue));
 
 	if (message.Find(conflictsHint) <= 0)
 		return false;
@@ -2258,22 +2200,24 @@ int CAppUtils::SaveCommitUnicodeFile(const CString& filename, CString &message)
 	try
 	{
 		CFile file(filename, CFile::modeReadWrite | CFile::modeCreate);
-		int cp = CUnicodeUtils::GetCPCode(g_Git.GetConfigValue(L"i18n.commitencoding"));
+		const int cp = CUnicodeUtils::GetCPCode(g_Git.GetConfigValue(L"i18n.commitencoding"));
 
-		bool stripComments = (CRegDWORD(L"Software\\TortoiseGit\\StripCommentedLines", FALSE) == TRUE);
-		TCHAR commentChar = L'#';
+		const bool stripComments = (CRegDWORD(L"Software\\TortoiseGit\\StripCommentedLines", FALSE) == TRUE);
+		CString commentCharValue;
 		if (stripComments)
 		{
-			CString commentCharValue = g_Git.GetConfigValue(L"core.commentchar");
-			if (!commentCharValue.IsEmpty())
-				commentChar = commentCharValue[0];
+			commentCharValue = g_Git.GetConfigValue(L"core.commentchar");
+			if (commentCharValue.IsEmpty())
+				commentCharValue = L"#";
+			else if (CGit::ms_LastMsysGitVersion < ConvertVersionToInt(2, 45, 0))
+				commentCharValue = commentCharValue.Left(1);
 		}
 
 		bool sanitize = (CRegDWORD(L"Software\\TortoiseGit\\SanitizeCommitMsg", TRUE) == TRUE);
 		if (sanitize)
 			message.Trim(L" \r\n");
 
-		int len = message.GetLength();
+		const int len = message.GetLength();
 		int start = 0;
 		int emptyLineCnt = 0;
 		while (start >= 0 && start < len)
@@ -2286,7 +2230,7 @@ int CAppUtils::SaveCommitUnicodeFile(const CString& filename, CString &message)
 				line.Truncate(start - oldStart);
 				++start; // move forward so we don't find the same char again
 			}
-			if (stripComments && (!line.IsEmpty() && line.GetAt(0) == commentChar) || (start < 0 && line.IsEmpty()))
+			if (stripComments && (!line.IsEmpty() && CStringUtils::StartsWith(line, commentCharValue)) || (start < 0 && line.IsEmpty()))
 				continue;
 			line.TrimRight(L" \r");
 			if (sanitize)
@@ -2355,7 +2299,7 @@ bool DoPull(HWND hWnd, const CString& url, bool bAutoLoad, BOOL bFetchTags, bool
 		args += L" --allow-unrelated-histories";
 
 	CString cmd;
-	cmd.Format(L"git.exe pull --progress -v --no-rebase%s \"%s\" %s", static_cast<LPCTSTR>(args), static_cast<LPCTSTR>(url), static_cast<LPCTSTR>(remoteBranchName));
+	cmd.Format(L"git.exe pull --progress -v --no-rebase%s -- \"%s\" %s", static_cast<LPCWSTR>(args), static_cast<LPCWSTR>(url), static_cast<LPCWSTR>(remoteBranchName));
 	CProgressDlg progress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 	progress.m_GitCmd = cmd;
 
@@ -2373,14 +2317,14 @@ bool DoPull(HWND hWnd, const CString& url, bool bAutoLoad, BOOL bFetchTags, bool
 				postCmdList.emplace_back(IDI_RESOLVE, IDS_PROGRS_CMD_RESOLVE, []
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:resolve /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:resolve /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 
 				postCmdList.emplace_back(IDI_COMMIT, IDS_MENUCOMMIT, []
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 				return;
@@ -2414,7 +2358,7 @@ bool DoPull(HWND hWnd, const CString& url, bool bAutoLoad, BOOL bFetchTags, bool
 				g_Git.GetRemoteTrackedBranchForHEAD(pullRemote, pullBranch);
 				CString defaultUpstream;
 				if (!pullRemote.IsEmpty() && !pullBranch.IsEmpty())
-					defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCTSTR>(pullRemote), static_cast<LPCTSTR>(pullBranch));
+					defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCWSTR>(pullRemote), static_cast<LPCWSTR>(pullBranch));
 				CAppUtils::GitReset(hWnd, defaultUpstream, 2);
 			});
 			return;
@@ -2430,13 +2374,13 @@ bool DoPull(HWND hWnd, const CString& url, bool bAutoLoad, BOOL bFetchTags, bool
 			postCmdList.emplace_back(IDI_DIFF, IDS_PROC_PULL_DIFFS, [&]
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(hashOld.ToString()), static_cast<LPCTSTR>(hashNew.ToString()));
+				sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(hashOld.ToString()), static_cast<LPCWSTR>(hashNew.ToString()));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 			postCmdList.emplace_back(IDI_LOG, IDS_PROC_PULL_LOG, [&]
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:log /path:\"%s\" /range:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(hashOld.ToString() + L".." + hashNew.ToString()));
+				sCmd.Format(L"/command:log /path:\"%s\" /range:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(hashOld.ToString() + L".." + hashNew.ToString()));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 		}
@@ -2450,17 +2394,17 @@ bool DoPull(HWND hWnd, const CString& url, bool bAutoLoad, BOOL bFetchTags, bool
 			postCmdList.emplace_back(IDI_UPDATE, IDS_PROC_SUBMODULESUPDATE, []
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 		}
 	};
 
-	INT_PTR ret = progress.DoModal();
+	const INT_PTR ret = progress.DoModal();
 
 	if (ret == IDOK && progress.m_GitStatus == 1 && progress.m_LogText.Find(L"CONFLICT") >= 0 && CMessageBox::Show(hWnd, IDS_SEECHANGES, IDS_APPNAME, MB_YESNO | MB_ICONINFORMATION) == IDYES)
 	{
-		cmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+		cmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 		CAppUtils::RunTortoiseGitProc(cmd);
 
 		return true;
@@ -2511,7 +2455,7 @@ bool CAppUtils::RebaseAfterFetch(HWND hWnd, const CString& upstream, int rebase,
 		dlg.m_PostButtonTexts.Add(CString(MAKEINTRESOURCE(IDS_MENUREBASE)));
 		dlg.m_bRebaseAutoStart = (rebase == 2);
 		dlg.m_bPreserveMerges = preserveMerges;
-		INT_PTR response = dlg.DoModal();
+		const INT_PTR response = dlg.DoModal();
 		if (response == IDOK)
 			return true;
 		else if (response == IDC_REBASE_POST_BUTTON)
@@ -2526,10 +2470,10 @@ bool CAppUtils::RebaseAfterFetch(HWND hWnd, const CString& upstream, int rebase,
 		else if (response == IDC_REBASE_POST_BUTTON + 2)
 		{
 			CString cmd, out, err;
-			cmd.Format(L"git.exe format-patch -o \"%s\" %s..%s",
-				static_cast<LPCTSTR>(g_Git.m_CurrentDir),
-				static_cast<LPCTSTR>(g_Git.FixBranchName(dlg.m_Upstream)),
-				static_cast<LPCTSTR>(g_Git.FixBranchName(dlg.m_Branch)));
+			cmd.Format(L"git.exe format-patch -o \"%s\" --end-of-options %s..%s",
+				static_cast<LPCWSTR>(g_Git.m_CurrentDir),
+				static_cast<LPCWSTR>(g_Git.FixBranchName(dlg.m_Upstream)),
+				static_cast<LPCWSTR>(g_Git.FixBranchName(dlg.m_Branch)));
 			if (g_Git.Run(cmd, &out, &err, CP_UTF8))
 			{
 				CMessageBox::Show(hWnd, out + L'\n' + err, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -2612,9 +2556,9 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 		arg += L" --no-tags";
 
 	if (fetchAllRemotes)
-		cmd.Format(L"git.exe fetch --all -v%s", static_cast<LPCTSTR>(arg));
+		cmd.Format(L"git.exe fetch --all -v%s", static_cast<LPCWSTR>(arg));
 	else
-		cmd.Format(L"git.exe fetch -v%s \"%s\" %s", static_cast<LPCTSTR>(arg), static_cast<LPCTSTR>(url), static_cast<LPCTSTR>(remoteBranch));
+		cmd.Format(L"git.exe fetch -v%s -- \"%s\" %s", static_cast<LPCWSTR>(arg), static_cast<LPCWSTR>(url), static_cast<LPCWSTR>(remoteBranch));
 
 	CProgressDlg progress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 	progress.m_PostCmdCallback = [&](DWORD status, PostCmdList& postCmdList)
@@ -2645,7 +2589,7 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 			g_Git.GetRemoteTrackedBranchForHEAD(pullRemote, pullBranch);
 			CString defaultUpstream;
 			if (!pullRemote.IsEmpty() && !pullBranch.IsEmpty())
-				defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCTSTR>(pullRemote), static_cast<LPCTSTR>(pullBranch));
+				defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCWSTR>(pullRemote), static_cast<LPCWSTR>(pullBranch));
 			CAppUtils::GitReset(hWnd, defaultUpstream, 2);
 		});
 
@@ -2653,6 +2597,8 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 
 		if (!runRebase && !GitAdminDir::IsBareRepo(g_Git.m_CurrentDir))
 			postCmdList.emplace_back(IDI_REBASE, IDS_MENUREBASE, [&]{ runRebase = false; CAppUtils::RebaseAfterFetch(hWnd); });
+
+		postCmdList.emplace_back(IDI_SWITCH, IDS_MENUSWITCH, [&hWnd] { CAppUtils::Switch(hWnd); });
 	};
 
 	progress.m_GitCmd = cmd;
@@ -2672,7 +2618,7 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 		return gitdlg.DoModal() == IDOK;
 	}
 
-	progress.m_PostExecCallback = [&](DWORD& exitCode, CString&)
+	progress.m_PostExecCallback = [&](HWND hWnd, DWORD& exitCode, CString&)
 	{
 		if (exitCode || !runRebase)
 			return;
@@ -2697,9 +2643,9 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 				return;
 			if (ret == 1)
 			{
-				CProgressDlg mergeProgress(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
-				mergeProgress.m_GitCmd = L"git.exe merge --ff-only " + upstream;
-				mergeProgress.m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
+				CProgressDlg mergeProgress(CWnd::FromHandle(hWnd));
+				mergeProgress.m_GitCmd = L"git.exe merge --ff-only -- " + upstream;
+				mergeProgress.m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
 				mergeProgress.m_PostCmdCallback = [](DWORD status, PostCmdList& postCmdList)
 				{
 					if (status && g_Git.HasWorkingTreeConflicts())
@@ -2708,7 +2654,7 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 						postCmdList.emplace_back(IDI_RESOLVE, IDS_PROGRS_CMD_RESOLVE, []
 						{
 							CString sCmd;
-							sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+							sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 							CAppUtils::RunTortoiseGitProc(sCmd);
 						});
 					}
@@ -2813,22 +2759,22 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, 
 		CString cmd;
 		if (allBranches)
 		{
-			cmd.Format(L"git.exe push --all %s\"%s\"",
-				static_cast<LPCTSTR>(arg),
-				static_cast<LPCTSTR>(remotesList[i]));
+			cmd.Format(L"git.exe push --all %s -- \"%s\"",
+				static_cast<LPCWSTR>(arg),
+				static_cast<LPCWSTR>(remotesList[i]));
 
 			if (tags)
 			{
 				progress.m_GitCmdList.push_back(cmd);
-				cmd.Format(L"git.exe push --tags %s\"%s\"", static_cast<LPCTSTR>(arg), static_cast<LPCTSTR>(remotesList[i]));
+				cmd.Format(L"git.exe push --tags %s -- \"%s\"", static_cast<LPCWSTR>(arg), static_cast<LPCWSTR>(remotesList[i]));
 			}
 		}
 		else
 		{
-			cmd.Format(L"git.exe push %s\"%s\" %s",
-				static_cast<LPCTSTR>(arg),
-				static_cast<LPCTSTR>(remotesList[i]),
-				static_cast<LPCTSTR>(localBranch));
+			cmd.Format(L"git.exe push %s -- \"%s\" %s",
+				static_cast<LPCWSTR>(arg),
+				static_cast<LPCWSTR>(remotesList[i]),
+				static_cast<LPCWSTR>(localBranch));
 			if (!remoteBranch.IsEmpty())
 			{
 				cmd += L":";
@@ -2839,7 +2785,7 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, 
 
 		if (!allBranches && !!CRegDWORD(L"Software\\TortoiseGit\\ShowBranchRevisionNumber", FALSE))
 		{
-			cmd.Format(L"git.exe rev-list --count --first-parent %s", static_cast<LPCTSTR>(localBranch));
+			cmd.Format(L"git.exe rev-list --count --first-parent --end-of-options %s --", static_cast<LPCWSTR>(localBranch));
 			progress.m_GitCmdList.push_back(cmd);
 		}
 	}
@@ -2859,7 +2805,7 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, 
 			if (exitcode)
 			{
 				CString temp;
-				temp.Format(IDS_ERR_HOOKFAILED, static_cast<LPCTSTR>(error));
+				temp.Format(IDS_ERR_HOOKFAILED, static_cast<LPCWSTR>(error));
 				MessageBox(hWnd, temp, L"TortoiseGit", MB_OK | MB_ICONERROR);
 			}
 		}
@@ -2870,7 +2816,7 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, 
 			if (rejected)
 			{
 				postCmdList.emplace_back(IDI_PULL, IDS_MENUPULL, [&hWnd]{ Pull(hWnd, true); });
-				postCmdList.emplace_back(IDI_UPDATE, IDS_MENUFETCH, [&]{ Fetch(hWnd, allRemotes ? L"" : remote, allRemotes); });
+				postCmdList.emplace_back(IDI_UPDATE, IDS_MENUFETCH, [&]{ Fetch(hWnd, allRemotes ? CString() : remote, allRemotes); });
 			}
 			postCmdList.emplace_back(IDI_PUSH, IDS_MENUPUSH, [&]{ Push(hWnd, localBranch); });
 			return;
@@ -2884,20 +2830,21 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, 
 			postCmdList.emplace_back(IDI_COMMIT, IDS_PROC_COMMIT_SUPERPROJECT, [&]
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(superprojectRoot));
+				sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(superprojectRoot));
 				RunTortoiseGitProc(sCmd);
 			});
 		}
 	};
 
-	INT_PTR ret = progress.DoModal();
-	return ret == IDOK;
+	return progress.DoModal() == IDOK;
 }
 
-bool CAppUtils::Push(HWND hWnd, const CString& selectLocalBranch)
+bool CAppUtils::Push(HWND hWnd, const CString& selectLocalBranch, int pushAll /* = BST_INETERMINATE */)
 {
 	CPushDlg dlg(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 	dlg.m_BranchSourceName = selectLocalBranch;
+	if (pushAll == BST_CHECKED)
+		dlg.m_bPushAllBranches = pushAll;
 
 	if (dlg.DoModal() == IDOK)
 		return DoPush(hWnd, !!dlg.m_bAutoLoad, !!dlg.m_bTags, !!dlg.m_bPushAllRemotes, !!dlg.m_bPushAllBranches, !!dlg.m_bForce, !!dlg.m_bForceWithLease, dlg.m_BranchSourceName, dlg.m_URL, dlg.m_BranchRemoteName, !!dlg.m_bSetUpstream, dlg.m_RecurseSubmodules, dlg.m_sPushOption);
@@ -2913,7 +2860,7 @@ bool CAppUtils::RequestPull(HWND hWnd, const CString& endrevision, const CString
 	if (dlg.DoModal()==IDOK)
 	{
 		CString cmd;
-		cmd.Format(L"git.exe request-pull %s \"%s\" %s", static_cast<LPCTSTR>(dlg.m_StartRevision), static_cast<LPCTSTR>(dlg.m_RepositoryURL), static_cast<LPCTSTR>(dlg.m_EndRevision));
+		cmd.Format(L"git.exe request-pull -- %s \"%s\" %s", static_cast<LPCWSTR>(dlg.m_StartRevision), static_cast<LPCWSTR>(dlg.m_RepositoryURL), static_cast<LPCWSTR>(dlg.m_EndRevision));
 
 		CSysProgressDlg sysProgressDlg;
 		sysProgressDlg.SetTitle(CString(MAKEINTRESOURCE(IDS_APPNAME)));
@@ -2923,11 +2870,18 @@ bool CAppUtils::RequestPull(HWND hWnd, const CString& endrevision, const CString
 		sysProgressDlg.ShowModeless(hWnd, true);
 
 		CString tempFileName = GetTempFile();
+		if (tempFileName.IsEmpty())
+		{
+			sysProgressDlg.Stop();
+			::MessageBox(hWnd, L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+			return false;
+		}
 		DeleteFile(tempFileName);
 		CreateDirectory(tempFileName, nullptr);
 		tempFileName += L"\\pullrequest.txt";
 		if (CString err; g_Git.RunLogFile(cmd, tempFileName, &err))
 		{
+			sysProgressDlg.Stop();
 			CString msg;
 			msg.LoadString(IDS_ERR_PULLREUQESTFAILED);
 			MessageBox(hWnd, msg + L'\n' + err, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -2936,6 +2890,7 @@ bool CAppUtils::RequestPull(HWND hWnd, const CString& endrevision, const CString
 
 		if (sysProgressDlg.HasUserCancelled())
 		{
+			sysProgressDlg.Stop();
 			CMessageBox::Show(hWnd, IDS_USERCANCELLED, IDS_APPNAME, MB_OK);
 			::DeleteFile(tempFileName);
 			return false;
@@ -3056,18 +3011,22 @@ BOOL CAppUtils::Commit(HWND hWnd, const CString& bugid, BOOL bWholeProject, CStr
 			sLogMsg = dlg.m_sLogMessage;
 			bSelectFilesForCommit = true;
 
+			// explorer might have been closed
+			if (!::IsWindow(hWnd))
+				hWnd = nullptr;
+
 			switch (dlg.m_PostCmd)
 			{
-			case GIT_POSTCOMMIT_CMD_DCOMMIT:
+			case Git_PostCommit_Cmd::DCommit:
 				CAppUtils::SVNDCommit(hWnd);
 				break;
-			case GIT_POSTCOMMIT_CMD_PUSH:
+			case Git_PostCommit_Cmd::Push:
 				CAppUtils::Push(hWnd);
 				break;
-			case GIT_POSTCOMMIT_CMD_CREATETAG:
+			case Git_PostCommit_Cmd::CreateTag:
 				CAppUtils::CreateBranchTag(hWnd, TRUE);
 				break;
-			case GIT_POSTCOMMIT_CMD_PULL:
+			case Git_PostCommit_Cmd::Pull:
 				CAppUtils::Pull(hWnd, true);
 				break;
 			default:
@@ -3116,7 +3075,7 @@ BOOL CAppUtils::SVNDCommit(HWND hWnd)
 				if (g_Git.SetConfigValue(L"svn.rmdir", gitSetting))
 				{
 					CString msg;
-					msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, L"svn.rmdir", static_cast<LPCTSTR>(gitSetting));
+					msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, L"svn.rmdir", static_cast<LPCWSTR>(gitSetting));
 					MessageBox(hWnd, msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 				}
 			}
@@ -3221,14 +3180,18 @@ static bool DoMerge(HWND hWnd, bool noFF, bool ffOnly, bool squash, bool noCommi
 	if (!logMessage.IsEmpty())
 	{
 		CString logmsg = logMessage;
-		logmsg.Replace(L"\\\"", L"\\\\\"");
-		logmsg.Replace(L"\"", L"\\\"");
-		args += L" -m \"" + logmsg + L"\"";
+		CString tempfile = ::GetTempFile();
+		if (tempfile.IsEmpty() || CAppUtils::SaveCommitUnicodeFile(tempfile, logmsg))
+		{
+			MessageBox(hWnd, L"Could not save merge message", L"TortoiseGit", MB_OK | MB_ICONERROR);
+			return FALSE;
+		}
+		args.AppendFormat(L" -F \"%s\"", static_cast<LPCWSTR>(tempfile));
 	}
 
 	CString mergeVersion = g_Git.FixBranchName(version);
 	CString cmd;
-	cmd.Format(L"git.exe merge%s %s", static_cast<LPCTSTR>(args), static_cast<LPCTSTR>(mergeVersion));
+	cmd.Format(L"git.exe merge%s -- %s", static_cast<LPCWSTR>(args), static_cast<LPCWSTR>(mergeVersion));
 
 	CProgressDlg Prodlg(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 	Prodlg.m_GitCmd = cmd;
@@ -3247,14 +3210,14 @@ static bool DoMerge(HWND hWnd, bool noFF, bool ffOnly, bool squash, bool noCommi
 				postCmdList.emplace_back(IDI_RESOLVE, IDS_PROGRS_CMD_RESOLVE, []
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:resolve /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:resolve /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 
 				postCmdList.emplace_back(IDI_COMMIT, IDS_MENUCOMMIT, []
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 			}
@@ -3277,7 +3240,7 @@ static bool DoMerge(HWND hWnd, bool noFF, bool ffOnly, bool squash, bool noCommi
 			postCmdList.emplace_back(IDI_COMMIT, IDS_MENUCOMMIT, []
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 			return;
@@ -3288,11 +3251,11 @@ static bool DoMerge(HWND hWnd, bool noFF, bool ffOnly, bool squash, bool noCommi
 			postCmdList.emplace_back(IDI_DELETE, IDS_PROC_REMOVEBRANCH, [&]
 			{
 				CString msg;
-				msg.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(version));
+				msg.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(version));
 				if (CMessageBox::Show(hWnd, msg, L"TortoiseGit", 2, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 1)
 				{
 					CString cmd, out;
-					cmd.Format(L"git.exe branch -D -- %s", static_cast<LPCTSTR>(version));
+					cmd.Format(L"git.exe branch -D -- %s", static_cast<LPCWSTR>(version));
 					if (g_Git.Run(cmd, &out, CP_UTF8))
 						MessageBox(hWnd, out, L"TortoiseGit", MB_OK);
 				}
@@ -3306,7 +3269,11 @@ static bool DoMerge(HWND hWnd, bool noFF, bool ffOnly, bool squash, bool noCommi
 			postCmdList.emplace_back(IDI_COMMIT, IDS_MENUSVNDCOMMIT, [&hWnd]{ CAppUtils::SVNDCommit(hWnd); });
 	};
 
-	Prodlg.DoModal();
+	if (Prodlg.DoModal() == IDCANCEL && g_Git.HasWorkingTreeConflicts() == 1)
+	{
+		CAppUtils::MergeAbort(hWnd);
+		return false;
+	}
 	return !Prodlg.m_GitStatus;
 }
 
@@ -3366,7 +3333,7 @@ void CAppUtils::EditNote(HWND hWnd, GitRevLoglist* rev, ProjectProperties* proje
 	}
 }
 
-inline bool CAppUtils::IsGitVersionNewerOrEqual(HWND hWnd, unsigned __int8 major, unsigned __int8 minor, unsigned __int8 patchlevel, unsigned __int8 build)
+bool CAppUtils::IsGitVersionNewerOrEqual(HWND hWnd, unsigned __int8 major, unsigned __int8 minor, unsigned __int8 patchlevel, unsigned __int8 build)
 {
 	auto ver = GetMsysgitVersion(hWnd);
 	return ver >= ConvertVersionToInt(major, minor, patchlevel, build);
@@ -3397,7 +3364,7 @@ int CAppUtils::GetMsysgitVersion(HWND hWnd)
 	}
 
 	CString err;
-	int ver = g_Git.GetGitVersion(&versiondebug, &err);
+	const int ver = g_Git.GetGitVersion(&versiondebug, &err);
 	if (ver < 0)
 	{
 		MessageBox(hWnd, L"git.exe not correctly set up (" + err + L")\nCheck TortoiseGit settings and consult help file for \"Git.exe Path\".", L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -3416,12 +3383,20 @@ int CAppUtils::GetMsysgitVersion(HWND hWnd)
 	regVersion = ver;
 	g_Git.ms_LastMsysGitVersion = ver;
 
+	// reinitialize everything (especially libgit2 config search paths), only needed because APPDATA is a Git config dir since 2.46
+	g_Git.m_bInitialized = false;
+	g_Git.CheckMsysGitDir();
+
+	// tell the cache to refresh everything and restart
+	SendCacheCommand(TGITCACHECOMMAND_REFRESHALL);
+	SendCacheCommand(TGITCACHECOMMAND_END);
+
 	return ver;
 }
 
 void CAppUtils::MarkWindowAsUnpinnable(HWND hWnd)
 {
-	typedef HRESULT (WINAPI *SHGPSFW) (HWND hwnd,REFIID riid,void** ppv);
+	using SHGPSFW = HRESULT(WINAPI*)(HWND hwnd, REFIID riid, void** ppv);
 
 	CAutoLibrary hShell = AtlLoadSystemLibraryUsingFullPath(L"Shell32.dll");
 
@@ -3440,20 +3415,55 @@ void CAppUtils::MarkWindowAsUnpinnable(HWND hWnd)
 		}
 	}
 }
+#endif
 
-void CAppUtils::SetWindowTitle(HWND hWnd, const CString& urlorpath, const CString& dialogname)
+CString CAppUtils::FormatWindowTitle(const CString& urlorpath2, const CString& dialogname, const CString& appname, DWORD format)
 {
-	ASSERT(dialogname.GetLength() < 70);
-	ASSERT(urlorpath.GetLength() < MAX_PATH);
-	WCHAR pathbuf[MAX_PATH] = {0};
+	CString urlorpath{ urlorpath2 };
+	switch (format)
+	{
+	case 1:
+	{
+		const CTGitPath filePath{ g_Git.m_CurrentDir };
+		const CString toStrip = filePath.GetContainingDirectory().GetWinPathString();
+		if (!CStringUtils::StartsWith(urlorpath2, g_Git.m_CurrentDir))
+			break;
+		else if (toStrip.IsEmpty() || CStringUtils::EndsWith(toStrip, L'\\'))
+			urlorpath = urlorpath2.Right(urlorpath2.GetLength() - toStrip.GetLength());
+		else
+			urlorpath = urlorpath2.Right(urlorpath2.GetLength() - toStrip.GetLength() - 1);
+	}
+	break;
+	default:
+		break;
+	}
 
-	PathCompactPathEx(pathbuf, urlorpath, 70 - dialogname.GetLength(), 0);
+	ASSERT(dialogname.GetLength() < 80);
+	ASSERT(urlorpath.GetLength() < MAX_PATH);
+	WCHAR pathbuf[MAX_PATH] = { 0 };
+
+	PathCompactPathEx(pathbuf, urlorpath, 80 - dialogname.GetLength(), 0);
 
 	wcscat_s(pathbuf, L" - ");
 	wcscat_s(pathbuf, dialogname);
 	wcscat_s(pathbuf, L" - ");
-	wcscat_s(pathbuf, CString(MAKEINTRESOURCE(IDS_APPNAME)));
-	SetWindowText(hWnd, pathbuf);
+	wcscat_s(pathbuf, appname);
+
+	return pathbuf;
+}
+
+#ifndef TGIT_TESTS_ONLY
+void CAppUtils::SetWindowTitle(const CWnd& dialog, const CString& urlorpath)
+{
+	CString sWindowTitle;
+	dialog.GetWindowTextW(sWindowTitle);
+	ASSERT(sWindowTitle.Find(CString(MAKEINTRESOURCE(IDS_APPNAME)), 0) == -1);
+	SetWindowTitle(dialog.GetSafeHwnd(), urlorpath, sWindowTitle);
+}
+
+void CAppUtils::SetWindowTitle(HWND hWnd, const CString& urlorpath, const CString& dialogname)
+{
+	SetWindowText(hWnd, FormatWindowTitle(urlorpath, dialogname, CString(MAKEINTRESOURCE(IDS_APPNAME)), static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\DialogTitles", 0))));
 }
 
 bool CAppUtils::BisectStart(HWND hWnd, const CString& lastGood, const CString& firstBad)
@@ -3510,7 +3520,7 @@ bool CAppUtils::BisectStart(HWND hWnd, const CString& lastGood, const CString& f
 				postCmdList.emplace_back(IDI_UPDATE, IDS_PROC_SUBMODULESUPDATE, []
 				{
 					CString sCmd;
-					sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+					sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 					CAppUtils::RunTortoiseGitProc(sCmd);
 				});
 			}
@@ -3545,29 +3555,33 @@ bool CAppUtils::BisectOperation(HWND hWnd, const CString& op, const CString& ref
 
 	progress.m_PostCmdCallback = [&](DWORD status, PostCmdList& postCmdList)
 	{
-		if (status)
-			return;
-
 		CTGitPath path = g_Git.m_CurrentDir;
+		if (status)
+		{
+			if (path.IsBisectActive())
+				postCmdList.emplace_back(IDI_BISECT_RESET, IDS_MENUBISECTRESET, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /reset"); });
+			return;
+		}
+
 		if (path.HasSubmodules())
 		{
 			postCmdList.emplace_back(IDI_UPDATE, IDS_PROC_SUBMODULESUPDATE, []
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:subupdate /bkpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 		}
 
+		if (!path.IsBisectActive())
+			return;
 		postCmdList.emplace_back(IDI_THUMB_UP, IDS_MENUBISECTGOOD, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /good"); });
 		postCmdList.emplace_back(IDI_THUMB_DOWN, IDS_MENUBISECTBAD, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /bad"); });
 		postCmdList.emplace_back(IDI_BISECT, IDS_MENUBISECTSKIP, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /skip"); });
-		if (op != L"reset")
-			postCmdList.emplace_back(IDI_BISECT_RESET, IDS_MENUBISECTRESET, []{ CAppUtils::RunTortoiseGitProc(L"/command:bisect /reset"); });
+		postCmdList.emplace_back(IDI_BISECT_RESET, IDS_MENUBISECTRESET, [] { CAppUtils::RunTortoiseGitProc(L"/command:bisect /reset"); });
 	};
 
-	INT_PTR ret = progress.DoModal();
-	return ret == IDOK;
+	return progress.DoModal() == IDOK;
 }
 
 int CAppUtils::Git2GetUserPassword(git_credential **out, const char *url, const char *username_from_url, unsigned int /*allowed_types*/, void * /*payload*/)
@@ -3614,7 +3628,7 @@ int CAppUtils::Git2CertificateCheck(git_cert* base_cert, int /*valid*/, const ch
 		dlg.m_sCertificateCN = servernameInCert;
 		dlg.m_sCertificateIssuer = issuer;
 		dlg.m_sHostname = CUnicodeUtils::GetUnicode(host);
-		dlg.m_sError = CFormatMessageWrapper(verificationError);
+		dlg.m_sError = static_cast<LPCWSTR>(CFormatMessageWrapper(verificationError));
 		if (dlg.DoModal() == IDOK)
 		{
 			last_accepted_cert.set(cert);
@@ -3622,194 +3636,6 @@ int CAppUtils::Git2CertificateCheck(git_cert* base_cert, int /*valid*/, const ch
 		}
 	}
 	return GIT_ECERTIFICATE;
-}
-
-int CAppUtils::ExploreTo(HWND hwnd, CString path)
-{
-	if (PathFileExists(path))
-	{
-		HRESULT ret = E_FAIL;
-		ITEMIDLIST __unaligned * pidl = ILCreateFromPath(path);
-		if (pidl)
-		{
-			ret = SHOpenFolderAndSelectItems(pidl, 0, 0, 0);
-			ILFree(pidl);
-		}
-		return SUCCEEDED(ret) ? 0 : -1;
-	}
-	// if filepath does not exist any more, navigate to closest matching folder
-	do
-	{
-		int pos = path.ReverseFind(L'\\');
-		if (pos <= 3)
-			break;
-		path.Truncate(pos);
-	} while (!PathFileExists(path));
-	return reinterpret_cast<INT_PTR>(ShellExecute(hwnd, L"explore", path, nullptr, nullptr, SW_SHOW)) > 32 ? 0 : -1;
-}
-
-int CAppUtils::ResolveConflict(HWND hWnd, CTGitPath& path, resolve_with resolveWith)
-{
-	bool b_local = false, b_remote = false;
-	BYTE_VECTOR vector;
-	{
-		CString cmd;
-		cmd.Format(L"git.exe ls-files -u -t -z -- \"%s\"", static_cast<LPCTSTR>(path.GetGitPathString()));
-		if (g_Git.Run(cmd, &vector))
-		{
-			MessageBox(hWnd, L"git ls-files failed!", L"TortoiseGit", MB_OK);
-			return -1;
-		}
-
-		CTGitPathList list;
-		if (list.ParserFromLsFile(vector))
-		{
-			MessageBox(hWnd, L"Parse ls-files failed!", L"TortoiseGit", MB_OK);
-			return -1;
-		}
-
-		if (list.IsEmpty())
-			return 0;
-		for (int i = 0; i < list.GetCount(); ++i)
-		{
-			if (list[i].m_Stage == 2)
-				b_local = true;
-			if (list[i].m_Stage == 3)
-				b_remote = true;
-		}
-	}
-
-	bool baseIsFile = true, localIsFile = true, remoteIsFile = true;
-	CGitHash baseHash, localHash, remoteHash;
-	ParseHashesFromLsFile(vector, baseHash, baseIsFile, localHash, localIsFile, remoteHash, remoteIsFile);
-
-	CBlockCacheForPath block(g_Git.m_CurrentDir);
-	if ((resolveWith == RESOLVE_WITH_THEIRS && !b_remote) || (resolveWith == RESOLVE_WITH_MINE && !b_local))
-	{
-		CString gitcmd, output; //retest with registered submodule!
-		gitcmd.Format(L"git.exe rm -f -- \"%s\"", static_cast<LPCTSTR>(path.GetGitPathString()));
-		if (g_Git.Run(gitcmd, &output, CP_UTF8))
-		{
-			// a .git folder in a submodule which is not in .gitmodules cannot be deleted using "git rm"
-			if (PathIsDirectory(path.GetGitPathString()) && !PathIsDirectoryEmpty(path.GetGitPathString()))
-			{
-				CString message(output);
-				output += L"\n\n";
-				output.AppendFormat(IDS_PROC_DELETEBRANCHTAG, path.GetWinPath());
-				CString deleteButton;
-				deleteButton.LoadString(IDS_DELETEBUTTON);
-				CString abortButton;
-				abortButton.LoadString(IDS_ABORTBUTTON);
-				if (CMessageBox::Show(hWnd, output, L"TortoiseGit", 2, IDI_QUESTION, deleteButton, abortButton) == 2)
-					return -1;
-				path.Delete(true, true);
-				output.Empty();
-				if (!g_Git.Run(gitcmd, &output, CP_UTF8))
-				{
-					RemoveTempMergeFile(path);
-					return 0;
-				}
-			}
-			MessageBox(hWnd, output, L"TortoiseGit", MB_ICONERROR);
-			return -1;
-		}
-		RemoveTempMergeFile(path);
-		return 0;
-	}
-
-	if (resolveWith == RESOLVE_WITH_THEIRS || resolveWith == RESOLVE_WITH_MINE)
-	{
-		auto resolve = [&b_local, &b_remote, &hWnd](const CTGitPath& path, int stage, bool willBeFile, const CGitHash& hash) -> int
-		{
-			if (!willBeFile)
-			{
-				CTGitPath fullPath;
-				fullPath.SetFromWin(g_Git.CombinePath(path));
-				if (!fullPath.HasAdminDir()) // check if submodule is initialized
-				{
-					CString gitcmd, output;
-					if (!fullPath.IsDirectory())
-					{
-						gitcmd.Format(L"git.exe checkout-index -f --stage=%d -- \"%s\"", stage, static_cast<LPCTSTR>(path.GetGitPathString()));
-						if (g_Git.Run(gitcmd, &output, CP_UTF8))
-						{
-							MessageBox(hWnd, output, L"TortoiseGit", MB_ICONERROR);
-							return -1;
-						}
-					}
-					gitcmd.Format(L"git.exe update-index --replace --cacheinfo 0160000,%s,\"%s\"", static_cast<LPCTSTR>(hash.ToString()), static_cast<LPCTSTR>(path.GetGitPathString()));
-					if (g_Git.Run(gitcmd, &output, CP_UTF8))
-					{
-						MessageBox(hWnd, output, L"TortoiseGit", MB_ICONERROR);
-						return -1;
-					}
-					return 0;
-				}
-
-				CGit subgit;
-				subgit.m_IsUseGitDLL = false;
-				subgit.m_CurrentDir = fullPath.GetWinPath();
-				CGitHash submoduleHead;
-				if (subgit.GetHash(submoduleHead, L"HEAD"))
-				{
-					MessageBox(hWnd, subgit.GetGitLastErr(L"Could not get HEAD hash of submodule, this should not happen!"), L"TortoiseGit", MB_ICONERROR);
-					return -1;
-				}
-				if (submoduleHead != hash)
-				{
-					CString origPath = g_Git.m_CurrentDir;
-					g_Git.m_CurrentDir = fullPath.GetWinPath();
-					SetCurrentDirectory(g_Git.m_CurrentDir);
-					if (!GitReset(hWnd, hash.ToString()))
-					{
-						g_Git.m_CurrentDir = origPath;
-						SetCurrentDirectory(g_Git.m_CurrentDir);
-						return -1;
-					}
-					g_Git.m_CurrentDir = origPath;
-					SetCurrentDirectory(g_Git.m_CurrentDir);
-				}
-			}
-			else
-			{
-				CString gitcmd, output;
-				if (b_local && b_remote)
-					gitcmd.Format(L"git.exe checkout-index -f --stage=%d -- \"%s\"", stage, static_cast<LPCTSTR>(path.GetGitPathString()));
-				else
-					gitcmd.Format(L"git.exe add -f -- \"%s\"", static_cast<LPCTSTR>(path.GetGitPathString()));
-				if (g_Git.Run(gitcmd, &output, CP_UTF8))
-				{
-					MessageBox(hWnd, output, L"TortoiseGit", MB_ICONERROR);
-					return -1;
-				}
-			}
-			return 0;
-		};
-		int ret = -1;
-		if (resolveWith == RESOLVE_WITH_THEIRS)
-			ret = resolve(path, 3, remoteIsFile, remoteHash);
-		else
-			ret = resolve(path, 2, localIsFile, localHash);
-		if (ret)
-			return ret;
-	}
-
-	if (PathFileExists(g_Git.CombinePath(path)) && (path.m_Action & CTGitPath::LOGACTIONS_UNMERGED))
-	{
-		CString gitcmd, output;
-		gitcmd.Format(L"git.exe add -f -- \"%s\"", static_cast<LPCTSTR>(path.GetGitPathString()));
-		if (g_Git.Run(gitcmd, &output, CP_UTF8))
-		{
-			MessageBox(hWnd, output, L"TortoiseGit", MB_ICONERROR);
-			return -1;
-		}
-
-		path.m_Action |= CTGitPath::LOGACTIONS_MODIFIED;
-		path.m_Action &= ~CTGitPath::LOGACTIONS_UNMERGED;
-	}
-
-	RemoveTempMergeFile(path);
-	return 0;
 }
 
 bool CAppUtils::ShellOpen(const CString& file, HWND hwnd /*= nullptr */)
@@ -3851,8 +3677,8 @@ bool CAppUtils::DeleteRef(CWnd* parent, const CString& ref)
 	if (CGit::GetShortName(ref, shortname, L"refs/remotes/"))
 	{
 		CString msg;
-		msg.Format(IDS_PROC_DELETEREMOTEBRANCH, static_cast<LPCTSTR>(ref));
-		int result = CMessageBox::Show(parent->GetSafeOwner()->GetSafeHwnd(), msg, L"TortoiseGit", 3, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_PROC_DELETEREMOTEBRANCH_LOCALREMOTE)), CString(MAKEINTRESOURCE(IDS_PROC_DELETEREMOTEBRANCH_LOCAL)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)));
+		msg.Format(IDS_PROC_DELETEREMOTEBRANCH, static_cast<LPCWSTR>(ref));
+		const int result = CMessageBox::Show(parent->GetSafeOwner()->GetSafeHwnd(), msg, L"TortoiseGit", 3, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_PROC_DELETEREMOTEBRANCH_LOCALREMOTE)), CString(MAKEINTRESOURCE(IDS_PROC_DELETEREMOTEBRANCH_LOCAL)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)));
 		if (result == 1)
 		{
 			CString remoteName = shortname.Left(shortname.Find(L'/'));
@@ -3888,10 +3714,10 @@ bool CAppUtils::DeleteRef(CWnd* parent, const CString& ref)
 	{
 		CString err;
 		std::vector<GitRevLoglist> stashList;
-		size_t count = !GitRevLoglist::GetRefLog(ref, stashList, err) ? stashList.size() : 0;
+		const size_t count = !GitRevLoglist::GetRefLog(ref, stashList, err) ? stashList.size() : 0;
 		CString msg;
 		msg.Format(IDS_PROC_DELETEALLSTASH, count);
-		int choose = CMessageBox::Show(parent->GetSafeOwner()->GetSafeHwnd(), msg, L"TortoiseGit", 3, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_DROPONESTASH)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)));
+		const int choose = CMessageBox::Show(parent->GetSafeOwner()->GetSafeHwnd(), msg, L"TortoiseGit", 3, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_DROPONESTASH)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)));
 		if (choose == 1)
 		{
 			CString out;
@@ -3910,7 +3736,7 @@ bool CAppUtils::DeleteRef(CWnd* parent, const CString& ref)
 	}
 
 	CString msg;
-	msg.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(ref));
+	msg.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(ref));
 	// Check if branch is fully merged in HEAD
 	if (CGit::GetShortName(ref, shortname, L"refs/heads/") && !g_Git.IsFastForward(ref, L"HEAD"))
 	{
@@ -3945,8 +3771,9 @@ void CAppUtils::SetupBareRepoIcon(const CString& path)
 		{
 			DWORD dwWritten = 0;
 			CString sIni = L"[.ShellClassInfo]\r\nConfirmFileOp=0\r\nIconFile=git.ico\r\nIconIndex=0\r\nInfoTip=Git Repository\r\n";
-			WriteFile(hFile, static_cast<LPCTSTR>(sIni), sIni.GetLength() * sizeof(TCHAR), &dwWritten, nullptr);
+			WriteFile(hFile, static_cast<LPCWSTR>(sIni), sIni.GetLength() * sizeof(wchar_t), &dwWritten, nullptr);
 		}
 		PathMakeSystemFolder(path);
 	}
 }
+#endif

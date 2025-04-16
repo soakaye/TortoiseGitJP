@@ -126,6 +126,19 @@ Attributes for all users on a system should be placed in the
 for a path to <emphasis>Unspecified</emphasis> state.  This can be done by listing
 the name of the attribute prefixed with an exclamation point <emphasis>!</emphasis>.</simpara>
 </simplesect>
+<simplesect id="gitattributes(5)__reserved_builtin__attributes">
+<title>RESERVED BUILTIN_* ATTRIBUTES</title>
+<simpara>builtin_* is a reserved namespace for builtin attribute values. Any
+user defined attributes under this namespace will be ignored and
+trigger a warning.</simpara>
+<section id="gitattributes(5)__emphasis_builtin_objectmode_emphasis">
+<title><emphasis>builtin_objectmode</emphasis></title>
+<simpara>This attribute is for filtering files by their file bit modes (40000,
+120000, 160000, 100755, 100644). e.g. <emphasis>:(attr:builtin_objectmode=160000)</emphasis>.
+You may also check these values with <emphasis>git check-attr builtin_objectmode -- &lt;file&gt;</emphasis>.
+If the object is not in the index <emphasis>git check-attr --cached</emphasis> will return unspecified.</simpara>
+</section>
+</simplesect>
 <simplesect id="gitattributes(5)__effects">
 <title>EFFECTS</title>
 <simpara>Certain operations by Git can be influenced by assigning
@@ -141,14 +154,12 @@ Git stores the contents you prepare in the working tree in the
 repository upon <emphasis>git add</emphasis> and <emphasis>git commit</emphasis>.</simpara>
 <section id="gitattributes(5)__emphasis_text_emphasis">
 <title><emphasis>text</emphasis></title>
-<simpara>This attribute enables and controls end-of-line normalization.  When a
-text file is normalized, its line endings are converted to LF in the
-repository.  To control what line ending style is used in the working
-directory, use the <emphasis>eol</emphasis> attribute for a single file and the
-<emphasis>core.eol</emphasis> configuration variable for all text files.
-Note that setting <emphasis>core.autocrlf</emphasis> to <emphasis>true</emphasis> or <emphasis>input</emphasis> overrides
-<emphasis>core.eol</emphasis> (see the definitions of those options in
-<xref linkend="git-config(1)" />).</simpara>
+<simpara>This attribute marks the path as a text file, which enables end-of-line
+conversion: When a matching file is added to the index, the file's line
+endings are normalized to LF in the index.  Conversely, when the file is
+copied from the index to the working directory, its line endings may be
+converted from LF to CRLF depending on the <emphasis>eol</emphasis> attribute, the Git
+config, and the platform (see explanation of <emphasis>eol</emphasis> below).</simpara>
 <variablelist>
 <varlistentry>
 <term>
@@ -157,8 +168,9 @@ Set
 <listitem>
 <simpara>
         Setting the <emphasis>text</emphasis> attribute on a path enables end-of-line
-        normalization and marks the path as a text file.  End-of-line
-        conversion takes place without guessing the content type.
+        conversion on checkin and checkout as described above.  Line endings
+        are normalized to LF in the index every time the file is checked in,
+        even if the file was previously added to Git with CRLF line endings.
 </simpara>
 </listitem>
 </varlistentry>
@@ -179,10 +191,11 @@ Set to string value "auto"
 </term>
 <listitem>
 <simpara>
-        When <emphasis>text</emphasis> is set to "auto", the path is marked for automatic
-        end-of-line conversion.  If Git decides that the content is
-        text, its line endings are converted to LF on checkin.
-        When the file has been committed with CRLF, no conversion is done.
+        When <emphasis>text</emphasis> is set to "auto", Git decides by itself whether the file
+        is text or binary.  If it is text and the file was not already in
+        Git with CRLF endings, line endings are converted on checkin and
+        checkout as described above.  Otherwise, no conversion is done on
+        checkin or checkout.
 </simpara>
 </listitem>
 </varlistentry>
@@ -204,12 +217,10 @@ unspecified.</simpara>
 </section>
 <section id="gitattributes(5)__emphasis_eol_emphasis">
 <title><emphasis>eol</emphasis></title>
-<simpara>This attribute sets a specific line-ending style to be used in the
-working directory.  It enables end-of-line conversion without any
-content checks, effectively setting the <emphasis>text</emphasis> attribute.  Note that
-setting this attribute on paths which are in the index with CRLF line
-endings may make the paths to be considered dirty.  Adding the path to
-the index again will normalize the line endings in the index.</simpara>
+<simpara>This attribute marks a path to use a specific line-ending style in the
+working tree when it is checked out.  It has effect only if <emphasis>text</emphasis> or
+<emphasis>text=auto</emphasis> is set (see above), but specifying <emphasis>eol</emphasis> automatically sets
+<emphasis>text</emphasis> if <emphasis>text</emphasis> was left unspecified.</simpara>
 <variablelist>
 <varlistentry>
 <term>
@@ -217,9 +228,8 @@ Set to string value "crlf"
 </term>
 <listitem>
 <simpara>
-        This setting forces Git to normalize line endings for this
-        file on checkin and convert them to CRLF when the file is
-        checked out.
+        This setting converts the file's line endings in the working
+        directory to CRLF when the file is checked out.
 </simpara>
 </listitem>
 </varlistentry>
@@ -229,9 +239,23 @@ Set to string value "lf"
 </term>
 <listitem>
 <simpara>
-        This setting forces Git to normalize line endings to LF on
-        checkin and prevents conversion to CRLF when the file is
-        checked out.
+        This setting uses the same line endings in the working directory as
+        in the index when the file is checked out.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+Unspecified
+</term>
+<listitem>
+<simpara>
+        If the <emphasis>eol</emphasis> attribute is unspecified for a file, its line endings
+        in the working directory are determined by the <emphasis>core.autocrlf</emphasis> or
+        <emphasis>core.eol</emphasis> configuration variable (see the definitions of those
+        options in <xref linkend="git-config(1)" />).  If <emphasis>text</emphasis> is set but neither of
+        those variables is, the default is <emphasis>eol=crlf</emphasis> on Windows and
+        <emphasis>eol=lf</emphasis> on all other platforms.
 </simpara>
 </listitem>
 </varlistentry>
@@ -389,7 +413,7 @@ you want UTF-16 little endian with BOM).
 Please note, it is highly recommended to
 explicitly define the line endings with <emphasis>eol</emphasis> if the <emphasis>working-tree-encoding</emphasis>
 attribute is used to avoid ambiguity.</simpara>
-<screen>*.ps1           text working-tree-encoding=UTF-16LE eol=CRLF</screen>
+<screen>*.ps1           text working-tree-encoding=UTF-16LE eol=crlf</screen>
 <simpara>You can get a list of all available encodings on your platform with the
 following command:</simpara>
 <screen>iconv --list</screen>
@@ -489,7 +513,7 @@ content provided to them on standard input.</simpara>
 <emphasis>filter.&lt;driver&gt;.process</emphasis> then Git can process all blobs with a
 single filter invocation for the entire life of a single Git
 command. This is achieved by using the long-running process protocol
-(described in technical/long-running-process-protocol.txt).</simpara>
+(described in Documentation/technical/long-running-process-protocol.adoc).</simpara>
 <simpara>When Git encounters the first file that needs to be cleaned or smudged,
 it starts the filter and performs the handshake. In the handshake, the
 welcome message sent by Git is "git-filter-client", only version 2 is
@@ -637,8 +661,8 @@ clean/smudge filter or text/eol/ident attributes, merging anything
 where the attribute is not in place would normally cause merge
 conflicts.</simpara>
 <simpara>To prevent these unnecessary merge conflicts, Git can be told to run a
-virtual check-out and check-in of all three stages of a file when
-resolving a three-way merge by setting the <emphasis>merge.renormalize</emphasis>
+virtual check-out and check-in of all three stages of each file that
+needs a three-way content merge, by setting the <emphasis>merge.renormalize</emphasis>
 configuration variable.  This prevents changes caused by check-in
 conversion from causing spurious merge conflicts when a converted file
 is merged with an unconverted file.</simpara>
@@ -727,6 +751,31 @@ attribute set to <emphasis>jcdiff</emphasis>, it calls the command you specified
 with the above configuration, i.e. <emphasis>j-c-diff</emphasis>, with 7
 parameters, just like <emphasis>GIT_EXTERNAL_DIFF</emphasis> program is called.
 See <xref linkend="git(1)" /> for details.</simpara>
+<simpara>If the program is able to ignore certain changes (similar to
+<emphasis>git diff --ignore-space-change</emphasis>), then also set the option
+<emphasis>trustExitCode</emphasis> to true.  It is then expected to return exit code 1 if
+it finds significant changes and 0 if it doesn't.</simpara>
+</section>
+<section id="gitattributes(5)__setting_the_internal_diff_algorithm">
+<title>Setting the internal diff algorithm</title>
+<simpara>The diff algorithm can be set through the <emphasis>diff.algorithm</emphasis> config key, but
+sometimes it may be helpful to set the diff algorithm per path. For example,
+one may want to use the <emphasis>minimal</emphasis> diff algorithm for .json files, and the
+<emphasis>histogram</emphasis> for .c files, and so on without having to pass in the algorithm
+through the command line each time.</simpara>
+<simpara>First, in <emphasis>.gitattributes</emphasis>, assign the <emphasis>diff</emphasis> attribute for paths.</simpara>
+<screen>*.json diff=&lt;name&gt;</screen>
+<simpara>Then, define a "diff.&lt;name&gt;.algorithm" configuration to specify the diff
+algorithm, choosing from <emphasis>myers</emphasis>, <emphasis>patience</emphasis>, <emphasis>minimal</emphasis>, or <emphasis>histogram</emphasis>.</simpara>
+<screen>[diff "&lt;name&gt;"]
+  algorithm = histogram</screen>
+<simpara>This diff algorithm applies to user facing diff output like git-diff(1),
+git-show(1) and is used for the <emphasis>--stat</emphasis> output as well. The merge machinery
+will not use the diff algorithm set through this method.</simpara>
+<note><simpara>If <emphasis>diff.&lt;name&gt;.command</emphasis> is defined for path with the
+<emphasis>diff=&lt;name&gt;</emphasis> attribute, it is executed as an external diff driver
+(see above), and adding <emphasis>diff.&lt;name&gt;.algorithm</emphasis> has no effect, as the
+algorithm is not passed to the external diff driver.</simpara></note>
 </section>
 <section id="gitattributes(5)__defining_a_custom_hunk_header">
 <title>Defining a custom hunk-header</title>
@@ -826,6 +875,11 @@ patterns are available:</simpara>
 </listitem>
 <listitem>
 <simpara>
+<emphasis>kotlin</emphasis> suitable for source code in the Kotlin language.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
 <emphasis>markdown</emphasis> suitable for Markdown documents.
 </simpara>
 </listitem>
@@ -867,6 +921,11 @@ patterns are available:</simpara>
 <listitem>
 <simpara>
 <emphasis>rust</emphasis> suitable for source code in the Rust language.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>scheme</emphasis> suitable for source code in the Scheme language.
 </simpara>
 </listitem>
 <listitem>
@@ -1124,34 +1183,39 @@ manual page is a wrong place to talk about it.  However&#8230;</simpara>
 <simpara>The <emphasis>merge.*.name</emphasis> variable gives the driver a human-readable
 name.</simpara>
 <simpara>The merge.*.driver` variable's value is used to construct a
-command to run to merge ancestor's version (<emphasis>%O</emphasis>), current
+command to run to common ancestor's version (<emphasis>%O</emphasis>), current
 version (<emphasis>%A</emphasis>) and the other branches version (<emphasis>%B</emphasis>).  These
 three tokens are replaced with the names of temporary files that
 hold the contents of these versions when the command line is
-built. Additionally, %L will be replaced with the conflict marker
+built. Additionally, <emphasis>%L</emphasis> will be replaced with the conflict marker
 size (see below).</simpara>
 <simpara>The merge driver is expected to leave the result of the merge in
 the file named with <emphasis>%A</emphasis> by overwriting it, and exit with zero
 status if it managed to merge them cleanly, or non-zero if there
-were conflicts.</simpara>
+were conflicts.  When the driver crashes (e.g. killed by SEGV),
+it is expected to exit with non-zero status that are higher than
+128, and in such a case, the merge results in a failure (which is
+different from producing a conflict).</simpara>
 <simpara>The <emphasis>merge.*.recursive</emphasis> variable specifies what other merge
 driver to use when the merge driver is called for an internal
 merge between common ancestors, when there are more than one.
 When left unspecified, the driver itself is used for both
 internal merge and the final merge.</simpara>
 <simpara>The merge driver can learn the pathname in which the merged result
-will be stored via placeholder <emphasis>%P</emphasis>.</simpara>
+will be stored via placeholder <emphasis>%P</emphasis>. The conflict labels to be used
+for the common ancestor, local head and other head can be passed by
+using <emphasis>%S</emphasis>, <emphasis>%X</emphasis> and <emphasis>%Y</emphasis> respectively.</simpara>
 </section>
 <section id="gitattributes(5)__emphasis_conflict_marker_size_emphasis">
 <title><emphasis>conflict-marker-size</emphasis></title>
 <simpara>This attribute controls the length of conflict markers left in
-the work tree file during a conflicted merge.  Only setting to
-the value to a positive integer has any meaningful effect.</simpara>
+the work tree file during a conflicted merge.  Only a positive
+integer has a meaningful effect.</simpara>
 <simpara>For example, this line in <emphasis>.gitattributes</emphasis> can be used to tell the merge
 machinery to leave much longer (instead of the usual 7-character-long)
-conflict markers when merging the file <emphasis>Documentation/git-merge.txt</emphasis>
+conflict markers when merging the file <emphasis>Documentation/git-merge.adoc</emphasis>
 results in a conflict.</simpara>
-<screen>Documentation/git-merge.txt     conflict-marker-size=32</screen>
+<screen>Documentation/git-merge.adoc    conflict-marker-size=32</screen>
 </section>
 </section>
 <section id="gitattributes(5)__checking_whitespace_errors">
@@ -1202,7 +1266,7 @@ String
 </term>
 <listitem>
 <simpara>
-        Specify a comma separate list of common whitespace problems to
+        Specify a comma separated list of common whitespace problems to
         notice in the same format as the <emphasis>core.whitespace</emphasis> configuration
         variable.
 </simpara>
@@ -1228,7 +1292,8 @@ tag then no replacement will be done.  The placeholders are the same
 as those for the option <emphasis>--pretty=format:</emphasis> of <xref linkend="git-log(1)" />,
 except that they need to be wrapped like this: <emphasis>$Format:PLACEHOLDERS$</emphasis>
 in the file.  E.g. the string <emphasis>$Format:%H$</emphasis> will be replaced by the
-commit hash.</simpara>
+commit hash.  However, only one <emphasis>%(describe)</emphasis> placeholder is expanded
+per archive to avoid denial-of-service attacks.</simpara>
 </section>
 </section>
 <section id="gitattributes(5)__packing_objects">
@@ -1279,6 +1344,12 @@ gitattributes files), not in <emphasis>.gitattributes</emphasis> files in workin
 subdirectories.  The built-in macro attribute "binary" is equivalent
 to:</simpara>
 <screen>[attr]binary -diff -merge -text</screen>
+</simplesect>
+<simplesect id="gitattributes(5)__notes">
+<title>NOTES</title>
+<simpara>Git does not follow symbolic links when accessing a <emphasis>.gitattributes</emphasis>
+file in the working tree. This keeps behavior consistent when the file
+is accessed from the index or a tree versus from the filesystem.</simpara>
 </simplesect>
 <simplesect id="gitattributes(5)__examples">
 <title>EXAMPLES</title>

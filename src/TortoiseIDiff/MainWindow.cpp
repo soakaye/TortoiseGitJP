@@ -1,7 +1,7 @@
 ﻿// TortoiseGitIDiff - an image diff viewer in TortoiseSVN
 
-// Copyright (C) 2015-2019 - TortoiseGit
-// Copyright (C) 2006-2015, 2018, 2020 - TortoiseSVN
+// Copyright (C) 2015-2019, 2023, 2025 - TortoiseGit
+// Copyright (C) 2006-2015, 2018, 2020-2021, 2023 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include <CommCtrl.h>
 #include <Commdlg.h>
@@ -27,17 +28,16 @@
 #include "PathUtils.h"
 #include "DPIAware.h"
 #include "LoadIconEx.h"
-#include "registry.h"
 #include "Theme.h"
 #include "DarkModeHelper.h"
 
 #pragma comment(lib, "comctl32.lib")
 
-tstring CMainWindow::leftpicpath;
-tstring CMainWindow::leftpictitle;
+std::wstring CMainWindow::leftpicpath;
+std::wstring CMainWindow::leftpictitle;
 
-tstring CMainWindow::rightpicpath;
-tstring CMainWindow::rightpictitle;
+std::wstring CMainWindow::rightpicpath;
+std::wstring CMainWindow::rightpictitle;
 
 const UINT TaskBarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
 
@@ -78,7 +78,7 @@ void CMainWindow::PositionChildren(RECT * clientrect /* = nullptr */)
     RECT tbRect;
     if (!clientrect)
         return;
-    const auto splitter_border = CDPIAware::Instance().ScaleX(SPLITTER_BORDER);
+    const auto splitter_border = CDPIAware::Instance().ScaleX(*this, SPLITTER_BORDER);
     SendMessage(hwndTB, TB_AUTOSIZE, 0, 0);
     GetWindowRect(hwndTB, &tbRect);
     LONG tbHeight = tbRect.bottom-tbRect.top-1;
@@ -167,6 +167,9 @@ LRESULT CALLBACK CMainWindow::WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam,
     {
         SetUUIDOverlayIcon(hwnd);
     }
+    auto optRet = CTheme::HandleMenuBar(hwnd, uMsg, wParam, lParam);
+    if (optRet.has_value())
+        return optRet.value();
     switch (uMsg)
     {
     case WM_CREATE:
@@ -186,9 +189,9 @@ LRESULT CALLBACK CMainWindow::WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam,
             {
                 picWindow3.RegisterAndCreateWindow(hwnd);
 
-                picWindow1.SetPic(selectionPaths[FileTypeMine], selectionTitles[FileTypeMine], false);
-                picWindow2.SetPic(selectionPaths[FileTypeBase], selectionTitles[FileTypeBase], false);
-                picWindow3.SetPic(selectionPaths[FileTypeTheirs], selectionTitles[FileTypeTheirs], false);
+                picWindow1.SetPic(selectionPaths[FileType::Mine], selectionTitles[FileType::Mine], false);
+                picWindow2.SetPic(selectionPaths[FileType::Base], selectionTitles[FileType::Base], false);
+                picWindow3.SetPic(selectionPaths[FileType::Theirs], selectionTitles[FileType::Theirs], false);
             }
 
             picWindow1.SetSelectionMode(!selectionPaths.empty());
@@ -394,7 +397,7 @@ LRESULT CALLBACK CMainWindow::WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam,
 
                 // Specify the resource identifier of the descriptive
                 // text for the given button.
-                TCHAR stringbuf[MAX_PATH] = {0};
+                wchar_t stringbuf[MAX_PATH] = { 0 };
                 MENUITEMINFO mii;
                 mii.cbSize = sizeof(MENUITEMINFO);
                 mii.fMask = MIIM_TYPE;
@@ -418,6 +421,10 @@ LRESULT CALLBACK CMainWindow::WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam,
     case WM_SYSCOLORCHANGE:
         CTheme::Instance().OnSysColorChanged();
         CTheme::Instance().SetDarkTheme(CTheme::Instance().IsDarkTheme(), true);
+        break;
+    case WM_DPICHANGED:
+        CDPIAware::Instance().Invalidate();
+        ::RedrawWindow(*this, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
         break;
     default:
         return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -479,7 +486,7 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             UINT uCheck = MF_BYCOMMAND;
             uCheck |= bOverlap ? MF_CHECKED : MF_UNCHECKED;
             CheckMenuItem(hMenu, ID_VIEW_OVERLAPIMAGES, uCheck);
-            uCheck |= ((m_BlendType == CPicWindow::BLEND_ALPHA) && bOverlap) ? MF_CHECKED : MF_UNCHECKED;
+            uCheck |= ((m_BlendType == CPicWindow::BlendType::Alpha) && bOverlap) ? MF_CHECKED : MF_UNCHECKED;
             CheckMenuItem(hMenu, ID_VIEW_BLENDALPHA, uCheck);
             UINT uEnabled = MF_BYCOMMAND;
             uEnabled |= bOverlap ? MF_ENABLED : MF_DISABLED | MF_GRAYED;
@@ -492,7 +499,7 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             tbi.fsState = bOverlap ? TBSTATE_CHECKED | TBSTATE_ENABLED : TBSTATE_ENABLED;
             SendMessage(hwndTB, TB_SETBUTTONINFO, ID_VIEW_OVERLAPIMAGES, reinterpret_cast<LPARAM>(&tbi));
 
-            tbi.fsState = ((m_BlendType == CPicWindow::BLEND_ALPHA) && bOverlap) ? TBSTATE_CHECKED : 0;
+            tbi.fsState = ((m_BlendType == CPicWindow::BlendType::Alpha) && bOverlap) ? TBSTATE_CHECKED : 0;
             if (bOverlap)
                 tbi.fsState |= TBSTATE_ENABLED;
             else
@@ -543,14 +550,14 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
         break;
     case ID_VIEW_BLENDALPHA:
         {
-            if (m_BlendType == CPicWindow::BLEND_ALPHA)
-                m_BlendType = CPicWindow::BLEND_XOR;
+            if (m_BlendType == CPicWindow::BlendType::Alpha)
+                m_BlendType = CPicWindow::BlendType::Xor;
             else
-                m_BlendType = CPicWindow::BLEND_ALPHA;
+                m_BlendType = CPicWindow::BlendType::Alpha;
 
             HMENU hMenu = GetMenu(*this);
             UINT uCheck = MF_BYCOMMAND;
-            uCheck |= ((m_BlendType == CPicWindow::BLEND_ALPHA) && bOverlap) ? MF_CHECKED : MF_UNCHECKED;
+            uCheck |= ((m_BlendType == CPicWindow::BlendType::Alpha) && bOverlap) ? MF_CHECKED : MF_UNCHECKED;
             CheckMenuItem(hMenu, ID_VIEW_BLENDALPHA, uCheck);
             UINT uEnabled = MF_BYCOMMAND;
             uEnabled |= bOverlap ? MF_ENABLED : MF_DISABLED | MF_GRAYED;
@@ -560,7 +567,7 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             TBBUTTONINFO tbi;
             tbi.cbSize = sizeof(TBBUTTONINFO);
             tbi.dwMask = TBIF_STATE;
-            tbi.fsState = ((m_BlendType == CPicWindow::BLEND_ALPHA) && bOverlap) ? TBSTATE_CHECKED | TBSTATE_ENABLED : TBSTATE_ENABLED;
+            tbi.fsState = ((m_BlendType == CPicWindow::BlendType::Alpha) && bOverlap) ? TBSTATE_CHECKED | TBSTATE_ENABLED : TBSTATE_ENABLED;
             SendMessage(hwndTB, TB_SETBUTTONINFO, ID_VIEW_BLENDALPHA, reinterpret_cast<LPARAM>(&tbi));
             picWindow1.SetBlendAlpha(m_BlendType, picWindow1.GetBlendAlpha());
             PositionChildren();
@@ -754,17 +761,17 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             auto hSource = reinterpret_cast<HWND>(lParam);
             FileType resolveWith;
             if (picWindow1 == hSource)
-                resolveWith = FileTypeMine;
+                resolveWith = FileType::Mine;
             else if (picWindow2 == hSource)
-                resolveWith = FileTypeBase;
+                resolveWith = FileType::Base;
             else if (picWindow3 == hSource)
-                resolveWith = FileTypeTheirs;
+                resolveWith = FileType::Theirs;
             else
                 break;
 
             if (selectionResult.empty())
             {
-                PostQuitMessage(resolveWith);
+                PostQuitMessage(static_cast<int>(resolveWith));
                 break;
             }
 
@@ -773,14 +780,14 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             CAutoBuf projectRoot;
             if (git_repository_discover(projectRoot, CUnicodeUtils::GetUTF8(selectionResult.c_str()), FALSE, nullptr) < 0 && strstr(projectRoot->ptr, "/.git/"))
             {
-                PostQuitMessage(resolveWith);
+                PostQuitMessage(static_cast<int>(resolveWith));
                 break;
             }
 
             CAutoRepository repository(projectRoot->ptr);
             if (!repository)
             {
-                PostQuitMessage(resolveWith);
+                PostQuitMessage(static_cast<int>(resolveWith));
                 break;
             }
 
@@ -789,17 +796,17 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             CAutoIndex index;
             if (git_repository_index(index.GetPointer(), repository) || (git_index_get_bypath(index, subpath, 1) == nullptr && git_index_get_bypath(index, subpath, 2) == nullptr))
             {
-                PostQuitMessage(resolveWith);
+                PostQuitMessage(static_cast<int>(resolveWith));
                 break;
             }
 
             CString sTemp;
-            sTemp.Format(ResString(hResource, IDS_MARKASRESOLVED), static_cast<LPCTSTR>(CPathUtils::GetFileNameFromPath(selectionResult.c_str())));
+            sTemp.Format(ResString(hResource, IDS_MARKASRESOLVED), static_cast<LPCWSTR>(CPathUtils::GetFileNameFromPath(selectionResult.c_str())));
             if (MessageBox(m_hwnd, sTemp, L"TortoiseGitMerge", MB_YESNO | MB_ICONQUESTION) != IDYES)
                 break;
 
             CString cmd;
-            cmd.Format(L"\"%sTortoiseGitProc.exe\" /command:resolve /path:\"%s\" /closeonend:1 /noquestion /skipcheck /silent", static_cast<LPCTSTR>(CPathUtils::GetAppDirectory()), selectionResult.c_str());
+            cmd.Format(L"\"%sTortoiseGitProc.exe\" /command:resolve /path:\"%s\" /closeonend:1 /noquestion /skipcheck /silent", static_cast<LPCWSTR>(CPathUtils::GetAppDirectory()), selectionResult.c_str());
             if (resolveMsgWnd)
                 cmd.AppendFormat(L" /resolvemsghwnd:%I64d /resolvemsgwparam:%I64d /resolvemsglparam:%I64d", reinterpret_cast<__int64>(resolveMsgWnd), static_cast<__int64>(resolveMsgWParam), static_cast<__int64>(resolveMsgLParam));
 
@@ -810,7 +817,7 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             if (!CreateProcess(nullptr, cmd.GetBuffer(), nullptr, nullptr, FALSE, CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr, &startup, &process))
             {
                 cmd.ReleaseBuffer();
-                PostQuitMessage(resolveWith);
+                PostQuitMessage(static_cast<int>(resolveWith));
                 break;
             }
             cmd.ReleaseBuffer();
@@ -820,7 +827,7 @@ LRESULT CMainWindow::DoCommand(int id, LPARAM lParam)
             CloseHandle(process.hThread);
             CloseHandle(process.hProcess);
 
-            PostQuitMessage(resolveWith);
+            PostQuitMessage(static_cast<int>(resolveWith));
         }
         break;
         case ID_VIEW_DARKMODE:
@@ -1002,8 +1009,8 @@ LRESULT CMainWindow::Splitter_OnLButtonUp(HWND hwnd, UINT /*iMsg*/, WPARAM /*wPa
     if (bDragMode == FALSE)
         return 0;
 
-    const auto bordersm = CDPIAware::Instance().ScaleX(2);
-    const auto borderl = CDPIAware::Instance().ScaleY(4);
+    const auto bordersm = CDPIAware::Instance().ScaleX(*this, 2);
+    const auto borderl = CDPIAware::Instance().ScaleY(*this, 4);
 
     GetClientRect(hwnd, &clientrect);
     GetWindowRect(hwnd, &rect);
@@ -1109,8 +1116,8 @@ LRESULT CMainWindow::Splitter_OnMouseMove(HWND hwnd, UINT /*iMsg*/, WPARAM wPara
     if (bDragMode == FALSE)
         return 0;
 
-    const auto bordersm = CDPIAware::Instance().ScaleX(2);
-    const auto borderl = CDPIAware::Instance().ScaleY(4);
+    const auto bordersm = CDPIAware::Instance().ScaleX(*this, 2);
+    const auto borderl = CDPIAware::Instance().ScaleY(*this, 4);
 
     pt.x = static_cast<short>(LOWORD(lParam));  // horizontal position of cursor
     pt.y = static_cast<short>(HIWORD(lParam));
@@ -1196,7 +1203,7 @@ BOOL CALLBACK CMainWindow::OpenDlgProc(HWND hwndDlg, UINT message, WPARAM wParam
         {
         case IDC_LEFTBROWSE:
             {
-                TCHAR path[MAX_PATH] = {0};
+                wchar_t path[MAX_PATH] = { 0 };
                 if (AskForFile(hwndDlg, path))
                 {
                     SetDlgItemText(hwndDlg, IDC_LEFTIMAGE, path);
@@ -1205,7 +1212,7 @@ BOOL CALLBACK CMainWindow::OpenDlgProc(HWND hwndDlg, UINT message, WPARAM wParam
             break;
         case IDC_RIGHTBROWSE:
             {
-                TCHAR path[MAX_PATH] = {0};
+                wchar_t path[MAX_PATH] = { 0 };
                 if (AskForFile(hwndDlg, path))
                 {
                     SetDlgItemText(hwndDlg, IDC_RIGHTIMAGE, path);
@@ -1214,7 +1221,7 @@ BOOL CALLBACK CMainWindow::OpenDlgProc(HWND hwndDlg, UINT message, WPARAM wParam
             break;
         case IDOK:
             {
-                TCHAR path[MAX_PATH] = { 0 };
+                wchar_t path[MAX_PATH] = { 0 };
                 if (!GetDlgItemText(hwndDlg, IDC_LEFTIMAGE, path, _countof(path)))
                     *path = 0;
                 leftpicpath = path;
@@ -1232,7 +1239,7 @@ BOOL CALLBACK CMainWindow::OpenDlgProc(HWND hwndDlg, UINT message, WPARAM wParam
     return FALSE;
 }
 
-bool CMainWindow::AskForFile(HWND owner, TCHAR * path)
+bool CMainWindow::AskForFile(HWND owner, wchar_t* path)
 {
     OPENFILENAME ofn = {0};         // common dialog box structure
     // Initialize OPENFILENAME
@@ -1244,7 +1251,7 @@ bool CMainWindow::AskForFile(HWND owner, TCHAR * path)
     ofn.lpstrTitle = sTitle;
     ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST | OFN_EXPLORER;
     ofn.hInstance = ::hResource;
-    TCHAR filters[] = L"Images\0*.wmf;*.jpg;*jpeg;*.bmp;*.gif;*.png;*.ico;*.dib;*.emf;*.webp\0All (*.*)\0*.*\0\0";
+    constexpr wchar_t filters[] = L"Images\0*.wmf;*.jpg;*jpeg;*.bmp;*.gif;*.png;*.ico;*.dib;*.emf;*.webp;*.svg;*.svgz\0All (*.*)\0*.*\0\0";
     ofn.lpstrFilter = filters;
     ofn.nFilterIndex = 1;
     // Display the Open dialog box.
@@ -1265,7 +1272,7 @@ bool CMainWindow::CreateToolbar()
 
     hwndTB = CreateWindowEx(TBSTYLE_EX_DOUBLEBUFFER,
                             TOOLBARCLASSNAME,
-                            static_cast<LPCTSTR>(nullptr),
+                            static_cast<LPCWSTR>(nullptr),
                             WS_CHILD | WS_BORDER | WS_VISIBLE | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS,
                             0, 0, 0, 0,
                             *this,
@@ -1279,8 +1286,8 @@ bool CMainWindow::CreateToolbar()
 
     TBBUTTON tbb[14];
     // create an imagelist containing the icons for the toolbar
-    auto imgSizeX = CDPIAware::Instance().ScaleX(24);
-    auto imgSizeY = CDPIAware::Instance().ScaleY(24);
+    auto imgSizeX = CDPIAware::Instance().ScaleX(*this, 24);
+    auto imgSizeY = CDPIAware::Instance().ScaleY(*this, 24);
     hToolbarImgList = ImageList_Create(imgSizeX, imgSizeY, ILC_COLOR32 | ILC_MASK | ILC_HIGHQUALITYSCALE, 12, 4);
     if (!hToolbarImgList)
         return false;

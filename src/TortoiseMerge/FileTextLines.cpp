@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2016, 2019 - TortoiseGit
+// Copyright (C) 2016, 2019, 2021, 2023, 2025 - TortoiseGit
 // Copyright (C) 2007-2016, 2019 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,26 +17,27 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "resource.h"
-#include "UnicodeUtils.h"
 #include "registry.h"
 #include "FileTextLines.h"
 #include "FormatMessageWrapper.h"
 #include "SmartHandle.h"
+#include <intsafe.h>
 
-wchar_t inline WideCharSwap(wchar_t nValue)
+constexpr wchar_t inline WideCharSwap(wchar_t nValue) noexcept
 {
 	return (((nValue>> 8)) | (nValue << 8));
 	//return _byteswap_ushort(nValue);
 }
 
-UINT64 inline WordSwapBytes(UINT64 nValue)
+constexpr UINT64 inline WordSwapBytes(UINT64 nValue) noexcept
 {
 	return ((nValue&0xff00ff00ff00ff)<<8) | ((nValue>>8)&0xff00ff00ff00ff); // swap BYTESs in WORDs
 }
 
-UINT32 inline DwordSwapBytes(UINT32 nValue)
+constexpr UINT32 inline DwordSwapBytes(UINT32 nValue) noexcept
 {
 	UINT32 nRet = (nValue<<16) | (nValue>>16); // swap WORDs
 	nRet = ((nRet&0xff00ff)<<8) | ((nRet>>8)&0xff00ff); // swap BYTESs in WORDs
@@ -44,29 +45,25 @@ UINT32 inline DwordSwapBytes(UINT32 nValue)
 	//return _byteswap_ulong(nValue);
 }
 
-UINT64 inline DwordSwapBytes(UINT64 nValue)
+constexpr UINT64 inline DwordSwapBytes(UINT64 nValue) noexcept
 {
 	UINT64 nRet = ((nValue&0xffff0000ffffL)<<16) | ((nValue>>16)&0xffff0000ffffL); // swap WORDs in DWORDs
 	nRet = ((nRet&0xff00ff00ff00ff)<<8) | ((nRet>>8)&0xff00ff00ff00ff); // swap BYTESs in WORDs
 	return nRet;
 }
 
-CFileTextLines::CFileTextLines(void)
-	: m_bNeedsConversion(false)
-	, m_bKeepEncoding(false)
-{
-	m_SaveParams.m_UnicodeType = CFileTextLines::AUTOTYPE;
-	m_SaveParams.m_LineEndings = EOL_AUTOLINE;
-}
-
-CFileTextLines::~CFileTextLines(void)
+CFileTextLines::CFileTextLines()
 {
 }
 
-CFileTextLines::UnicodeType CFileTextLines::CheckUnicodeType(LPVOID pBuffer, int cb)
+CFileTextLines::~CFileTextLines()
+{
+}
+
+CFileTextLines::UnicodeType CFileTextLines::CheckUnicodeType(LPCVOID pBuffer, int cb)
 {
 	if (cb < 2)
-		return CFileTextLines::ASCII;
+		return CFileTextLines::UnicodeType::ASCII;
 	auto const pVal32 = static_cast<const UINT32*>(pBuffer);
 	auto const pVal16 = static_cast<const UINT16*>(pBuffer);
 	auto const pVal8 = static_cast<const UINT8*>(pBuffer);
@@ -76,33 +73,33 @@ CFileTextLines::UnicodeType CFileTextLines::CheckUnicodeType(LPVOID pBuffer, int
 	for (int j=0; j<nDwords; ++j)
 	{
 		if (0x00000000 == pVal32[j])
-			return CFileTextLines::BINARY;
+			return CFileTextLines::UnicodeType::BINARY;
 	}
 	if (cb >=4 )
 	{
 		if (*pVal32 == 0x0000FEFF)
 		{
-			return CFileTextLines::UTF32_LE;
+			return CFileTextLines::UnicodeType::UTF32_LE;
 		}
 		if (*pVal32 == 0xFFFE0000)
 		{
-			return CFileTextLines::UTF32_BE;
+			return CFileTextLines::UnicodeType::UTF32_BE;
 		}
 	}
 	if (*pVal16 == 0xFEFF)
 	{
-		return CFileTextLines::UTF16_LEBOM;
+		return CFileTextLines::UnicodeType::UTF16_LEBOM;
 	}
 	if (*pVal16 == 0xFFFE)
 	{
-		return CFileTextLines::UTF16_BEBOM;
+		return CFileTextLines::UnicodeType::UTF16_BEBOM;
 	}
 	if (cb < 3)
-		return CFileTextLines::ASCII;
+		return CFileTextLines::UnicodeType::ASCII;
 	if (*pVal16 == 0xBBEF)
 	{
 		if (pVal8[2] == 0xBF)
-			return CFileTextLines::UTF8BOM;
+			return CFileTextLines::UnicodeType::UTF8BOM;
 	}
 	// check for illegal UTF8 sequences
 	bool bNonANSI = false;
@@ -124,9 +121,9 @@ CFileTextLines::UnicodeType CFileTextLines::CheckUnicodeType(LPVOID pBuffer, int
 				// null-chars are not allowed for ASCII or UTF8, that means
 				// this file is most likely UTF16 encoded
 				if (i % 2)
-					return CFileTextLines::UTF16_LE;
+					return CFileTextLines::UnicodeType::UTF16_LE;
 				else
-					return CFileTextLines::UTF16_BE;
+					return CFileTextLines::UnicodeType::UTF16_BE;
 			}
 		}
 		if ((pVal8[i] & 0x80) != 0) // non ASCII
@@ -154,32 +151,32 @@ CFileTextLines::UnicodeType CFileTextLines::CheckUnicodeType(LPVOID pBuffer, int
 					// null-chars are not allowed for ASCII or UTF8, that means
 					// this file is most likely UTF16 encoded
 					if (i%2)
-						return CFileTextLines::UTF16_LE;
+						return CFileTextLines::UnicodeType::UTF16_LE;
 					else
-						return CFileTextLines::UTF16_BE;
+						return CFileTextLines::UnicodeType::UTF16_BE;
 				}
 				nNeedData = 0;
 			}
 			else if (nNeedData)
 			{
-				return CFileTextLines::ASCII;
+				return CFileTextLines::UnicodeType::ASCII;
 			}
 			continue;
 		}
 		if ((zChar & 0x40)==0) // top bit
 		{
 			if (!nNeedData)
-				return CFileTextLines::ASCII;
+				return CFileTextLines::UnicodeType::ASCII;
 			--nNeedData;
 		}
 		else if (nNeedData)
 		{
-			return CFileTextLines::ASCII;
+			return CFileTextLines::UnicodeType::ASCII;
 		}
 		else if ((zChar & 0x20)==0) // top two bits
 		{
 			if (zChar<=0xC1)
-				return CFileTextLines::ASCII;
+				return CFileTextLines::UnicodeType::ASCII;
 			nNeedData = 1;
 		}
 		else if ((zChar & 0x10)==0) // top three bits
@@ -189,36 +186,31 @@ CFileTextLines::UnicodeType CFileTextLines::CheckUnicodeType(LPVOID pBuffer, int
 		else if ((zChar & 0x08)==0) // top four bits
 		{
 			if (zChar>=0xf5)
-				return CFileTextLines::ASCII;
+				return CFileTextLines::UnicodeType::ASCII;
 			nNeedData = 3;
 		}
 		else
-			return CFileTextLines::ASCII;
+			return CFileTextLines::UnicodeType::ASCII;
 	}
 	if (bNonANSI && nNeedData==0)
 		// if get here thru nonAscii and no missing data left then its valid UTF8
-		return CFileTextLines::UTF8;
+		return CFileTextLines::UnicodeType::UTF8;
 	if (!bNonANSI && (DWORD(CRegDWORD(L"Software\\TortoiseGitMerge\\UseUTF8", FALSE))))
-		return CFileTextLines::UTF8;
-	return CFileTextLines::ASCII;
+		return CFileTextLines::UnicodeType::UTF8;
+	return CFileTextLines::UnicodeType::ASCII;
 }
 
 
-BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
+BOOL CFileTextLines::Load(const CString& sFilePath, int /*lengthHint*/ /* = 0*/)
 {
-	WCHAR exceptionError[1000] = {0};
-	m_SaveParams.m_LineEndings = EOL_AUTOLINE;
+	m_SaveParams.m_LineEndings = EOL::AutoLine;
 	if (!m_bKeepEncoding)
-		m_SaveParams.m_UnicodeType = CFileTextLines::AUTOTYPE;
+		m_SaveParams.m_UnicodeType = CFileTextLines::UnicodeType::AUTOTYPE;
 	RemoveAll();
-	if(lengthHint != 0)
-	{
-		Reserve(lengthHint);
-	}
 
 	if (PathIsDirectory(sFilePath))
 	{
-		m_sErrorString.Format(IDS_ERR_FILE_NOTAFILE, static_cast<LPCTSTR>(sFilePath));
+		m_sErrorString.Format(IDS_ERR_FILE_NOTAFILE, static_cast<LPCWSTR>(sFilePath));
 		return FALSE;
 	}
 
@@ -241,7 +233,7 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 		SetErrorString();
 		return FALSE;
 	}
-	if (fsize.HighPart)
+	if (fsize.QuadPart >= INT_MAX)
 	{
 		// file is way too big for us
 		m_sErrorString.LoadString(IDS_ERR_FILE_TOOBIG);
@@ -249,24 +241,20 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 	}
 
 	// create buffer
-	// If new[] was done for type T delete[] must be called on a pointer of type T*,
-	// otherwise the behavior is undefined.
-	// +1 is to address possible truncation when integer division is done
-	CBuffer oFile;
+	std::unique_ptr<BYTE[]> fileBuffer;
 	try
 	{
-		oFile.SetLength(fsize.LowPart);
+		fileBuffer = std::unique_ptr<BYTE[]>(new BYTE[fsize.LowPart]); // prevent default initialization
 	}
 	catch (CMemoryException* e)
 	{
-		e->GetErrorMessage(exceptionError, _countof(exceptionError));
-		m_sErrorString = exceptionError;
+		e->GetErrorMessage(CStrBuf(m_sErrorString, 1000), 1000);
 		return FALSE;
 	}
 
 	// load file
 	DWORD dwReadBytes = 0;
-	if (!ReadFile(hFile, static_cast<void*>(oFile), fsize.LowPart, &dwReadBytes, nullptr))
+	if (!ReadFile(hFile, static_cast<void*>(fileBuffer.get()), fsize.LowPart, &dwReadBytes, nullptr))
 	{
 		SetErrorString();
 		return FALSE;
@@ -274,63 +262,70 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 	hFile.CloseHandle();
 
 	// detect type
-	if (m_SaveParams.m_UnicodeType == CFileTextLines::AUTOTYPE)
+	if (m_SaveParams.m_UnicodeType == CFileTextLines::UnicodeType::AUTOTYPE)
 	{
-		m_SaveParams.m_UnicodeType = this->CheckUnicodeType(oFile, dwReadBytes);
+		m_SaveParams.m_UnicodeType = this->CheckUnicodeType(fileBuffer.get(), dwReadBytes);
 	}
 	// enforce conversion for all but ASCII and UTF8 type
-	m_bNeedsConversion = (m_SaveParams.m_UnicodeType != CFileTextLines::UTF8) && (m_SaveParams.m_UnicodeType != CFileTextLines::ASCII);
+	m_bNeedsConversion = (m_SaveParams.m_UnicodeType != CFileTextLines::UnicodeType::UTF8) && (m_SaveParams.m_UnicodeType != CFileTextLines::UnicodeType::ASCII);
+
+	// no need to decode empty file
+	if (dwReadBytes == 0)
+		return TRUE;
 
 	// we may have to convert the file content - CString is UTF16LE
+	std::unique_ptr<CDecodeFilter> pFilter;
 	try
 	{
-		CBaseFilter* pFilter = nullptr;
 		switch (m_SaveParams.m_UnicodeType)
 		{
-		case BINARY:
-			m_sErrorString.Format(IDS_ERR_FILE_BINARY, static_cast<LPCTSTR>(sFilePath));
+		case UnicodeType::BINARY:
+			m_sErrorString.Format(IDS_ERR_FILE_BINARY, static_cast<LPCWSTR>(sFilePath));
 			return FALSE;
-		case UTF8:
-		case UTF8BOM:
-			pFilter = new CUtf8Filter(nullptr);
+		case UnicodeType::UTF8:
+		case UnicodeType::UTF8BOM:
+			pFilter = std::make_unique<CUtf8Filter>(nullptr);
 			break;
 		default:
-		case ASCII:
-			pFilter = new CAsciiFilter(nullptr);
+		case UnicodeType::ASCII:
+			pFilter = std::make_unique<CAsciiFilter>(nullptr);
 			break;
-		case UTF16_BE:
-		case UTF16_BEBOM:
-			pFilter = new CUtf16beFilter(nullptr);
+		case UnicodeType::UTF16_BE:
+		case UnicodeType::UTF16_BEBOM:
+			pFilter = std::make_unique<CUtf16beFilter>(nullptr);
 			break;
-		case UTF16_LE:
-		case UTF16_LEBOM:
-			pFilter = new CUtf16leFilter(nullptr);
+		case UnicodeType::UTF16_LE:
+		case UnicodeType::UTF16_LEBOM:
+			pFilter = std::make_unique<CUtf16leFilter>(nullptr);
 			break;
-		case UTF32_BE:
-			pFilter = new CUtf32beFilter(nullptr);
+		case UnicodeType::UTF32_BE:
+			pFilter = std::make_unique<CUtf32beFilter>(nullptr);
 			break;
-		case UTF32_LE:
-			pFilter = new CUtf32leFilter(nullptr);
+		case UnicodeType::UTF32_LE:
+			pFilter = std::make_unique<CUtf32leFilter>(nullptr);
 			break;
 		}
-		pFilter->Decode(oFile);
-		delete pFilter;
+		if (!pFilter->Decode(std::move(fileBuffer), dwReadBytes))
+		{
+			SetErrorString();
+			return FALSE;
+		}
 	}
 	catch (CMemoryException* e)
 	{
-		e->GetErrorMessage(exceptionError, _countof(exceptionError));
-		m_sErrorString = exceptionError;
+		e->GetErrorMessage(CStrBuf(m_sErrorString, 1000), 1000);
 		return FALSE;
 	}
 
-	int nReadChars=oFile.GetLength()/sizeof(wchar_t);
-	auto pTextBuf = static_cast<wchar_t*>(oFile);
-	wchar_t * pLineStart = pTextBuf;
-	if ((m_SaveParams.m_UnicodeType == UTF8BOM)
-		|| (m_SaveParams.m_UnicodeType == UTF16_LEBOM)
-		|| (m_SaveParams.m_UnicodeType == UTF16_BEBOM)
-		|| (m_SaveParams.m_UnicodeType == UTF32_LE)
-		|| (m_SaveParams.m_UnicodeType == UTF32_BE))
+	std::wstring_view converted = pFilter.get()->GetStringView();
+	int nReadChars = static_cast<int>(converted.size()); // see above, we have a INT_MAX limitation
+	auto pTextBuf = converted.data();
+	const wchar_t* pLineStart = pTextBuf;
+	if (!converted.empty() && ((m_SaveParams.m_UnicodeType == UnicodeType::UTF8BOM)
+		|| (m_SaveParams.m_UnicodeType == UnicodeType::UTF16_LEBOM)
+		|| (m_SaveParams.m_UnicodeType == UnicodeType::UTF16_BEBOM)
+		|| (m_SaveParams.m_UnicodeType == UnicodeType::UTF32_LE)
+		|| (m_SaveParams.m_UnicodeType == UnicodeType::UTF32_BE)))
 	{
 		// ignore the BOM
 		++pTextBuf;
@@ -339,7 +334,7 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 	}
 
 	// fill in the lines into the array
-	size_t countEOLs[EOL__COUNT] = { 0 };
+	size_t countEOLs[static_cast<int>(EOL::_COUNT)] = { 0 };
 	CFileTextLine oTextLine;
 	for (int i = nReadChars; i; --i)
 	{
@@ -348,37 +343,37 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 		{
 		case '\r':
 			// crlf line ending or cr line ending
-			eEol = ((i > 1) && *(pTextBuf) == '\n') ? EOL_CRLF : EOL_CR;
+			eEol = ((i > 1) && *(pTextBuf) == '\n') ? EOL::CRLF : EOL::CR;
 			break;
 		case '\n':
 			// lfcr line ending or lf line ending
-			eEol = ((i > 1) && *(pTextBuf) == '\r') ? EOL_LFCR : EOL_LF;
-			if (eEol == EOL_LFCR)
+			eEol = ((i > 1) && *(pTextBuf) == '\r') ? EOL::LFCR : EOL::LF;
+			if (eEol == EOL::LFCR)
 			{
 				// LFCR is very rare on Windows, so we have to double check
 				// that this is not just a LF followed by CRLF
-				if (((countEOLs[EOL_CRLF] > 1) || (countEOLs[EOL_LF] > 1) || (GetCount() < 2)) &&
+				if (((countEOLs[static_cast<int>(EOL::CRLF)] > 1) || (countEOLs[static_cast<int>(EOL::LF)] > 1) || (GetCount() < 2)) &&
 					((i > 2) && (*(pTextBuf+1) == '\n')))
 				{
 					// change the EOL back to a simple LF
-					eEol = EOL_LF;
+					eEol = EOL::LF;
 				}
 			}
 			break;
 		case 0x000b:
-			eEol = EOL_VT;
+			eEol = EOL::VT;
 			break;
 		case 0x000c:
-			eEol = EOL_FF;
+			eEol = EOL::FF;
 			break;
 		case 0x0085:
-			eEol = EOL_NEL;
+			eEol = EOL::NEL;
 			break;
 		case 0x2028:
-			eEol = EOL_LS;
+			eEol = EOL::LS;
 			break;
 		case 0x2029:
-			eEol = EOL_PS;
+			eEol = EOL::PS;
 			break;
 		default:
 			continue;
@@ -386,8 +381,8 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 		oTextLine.sLine = CString(pLineStart, static_cast<int>(pTextBuf-pLineStart) - 1);
 		oTextLine.eEnding = eEol;
 		CStdFileLineArray::Add(oTextLine);
-		++countEOLs[eEol];
-		if (eEol==EOL_CRLF || eEol==EOL_LFCR)
+		++countEOLs[static_cast<int>(eEol)];
+		if (eEol == EOL::CRLF || eEol == EOL::LFCR)
 		{
 			++pTextBuf;
 			--i;
@@ -395,18 +390,18 @@ BOOL CFileTextLines::Load(const CString& sFilePath, int lengthHint /* = 0*/)
 		pLineStart = pTextBuf;
 	}
 	CString line(pLineStart, static_cast<int>(pTextBuf - pLineStart));
-	Add(line, EOL_NOENDING);
+	Add(line, EOL::NoEnding);
 
 	// some EOLs are not supported by the svn diff lib.
-	m_bNeedsConversion |= (countEOLs[EOL_CRLF]!=0);
-	m_bNeedsConversion |= (countEOLs[EOL_FF]!=0);
-	m_bNeedsConversion |= (countEOLs[EOL_VT]!=0);
-	m_bNeedsConversion |= (countEOLs[EOL_NEL]!=0);
-	m_bNeedsConversion |= (countEOLs[EOL_LS]!=0);
-	m_bNeedsConversion |= (countEOLs[EOL_PS]!=0);
+	m_bNeedsConversion |= (countEOLs[static_cast<int>(EOL::CRLF)] != 0);
+	m_bNeedsConversion |= (countEOLs[static_cast<int>(EOL::FF)] != 0);
+	m_bNeedsConversion |= (countEOLs[static_cast<int>(EOL::VT)] != 0);
+	m_bNeedsConversion |= (countEOLs[static_cast<int>(EOL::NEL)] != 0);
+	m_bNeedsConversion |= (countEOLs[static_cast<int>(EOL::LS)] != 0);
+	m_bNeedsConversion |= (countEOLs[static_cast<int>(EOL::PS)] != 0);
 
 	size_t eolmax = 0;
-	for (int nEol = 0; nEol<EOL__COUNT; nEol++)
+	for (int nEol = 0; nEol < static_cast<int>(EOL::_COUNT); nEol++)
 	{
 		if (eolmax < countEOLs[nEol])
 		{
@@ -466,7 +461,7 @@ BOOL CFileTextLines::Save( const CString& sFilePath
 						, const CString& linestart /*= CString()*/
 						, const CString& blockstart /*= CString()*/
 						, const CString& blockend /*= CString()*/
-						, const std::wregex& rx /*= std::wregex(L"")*/
+						, const std::wregex& rx /*= std::wregex()*/
 						, const std::wstring& replacement /*=L""*/)
 {
 	m_sCommentLine = linestart;
@@ -491,44 +486,45 @@ BOOL CFileTextLines::Save( const CString& sFilePath
 		CStdioFile file;			// Hugely faster than CFile for big file writes - because it uses buffering
 		if (!file.Open(sFilePath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary | CFile::shareDenyNone))
 		{
-			m_sErrorString.Format(IDS_ERR_FILE_OPEN, static_cast<LPCTSTR>(sFilePath));
+			m_sErrorString.Format(IDS_ERR_FILE_OPEN, static_cast<LPCWSTR>(sFilePath));
 			return FALSE;
 		}
 
-		CBaseFilter* pFilter = nullptr;
+		std::unique_ptr<CEncodeFilter> pFilter;
 		bool bSaveBom = true;
-		CFileTextLines::UnicodeType eUnicodeType = bSaveAsUTF8 ? CFileTextLines::UTF8 : m_SaveParams.m_UnicodeType;
+		CFileTextLines::UnicodeType eUnicodeType = bSaveAsUTF8 ? CFileTextLines::UnicodeType::UTF8 : m_SaveParams.m_UnicodeType;
 		switch (eUnicodeType)
 		{
 		default:
-		case CFileTextLines::ASCII:
+		case CFileTextLines::UnicodeType::ASCII:
 			bSaveBom = false;
-			pFilter = new CAsciiFilter(&file);
+			pFilter = std::make_unique<CAsciiFilter>(&file);
 			break;
-		case CFileTextLines::UTF8:
+		case CFileTextLines::UnicodeType::UTF8:
 			bSaveBom = false;
-		case CFileTextLines::UTF8BOM:
-			pFilter = new CUtf8Filter(&file);
+			[[fallthrough]];
+		case CFileTextLines::UnicodeType::UTF8BOM:
+			pFilter = std::make_unique<CUtf8Filter>(&file);
 			break;
-		case CFileTextLines::UTF16_BE:
+		case CFileTextLines::UnicodeType::UTF16_BE:
 			bSaveBom = false;
-			pFilter = new CUtf16beFilter(&file);
+			pFilter = std::make_unique<CUtf16beFilter>(&file);
 			break;
-		case CFileTextLines::UTF16_BEBOM:
-			pFilter = new CUtf16beFilter(&file);
+		case CFileTextLines::UnicodeType::UTF16_BEBOM:
+			pFilter = std::make_unique<CUtf16beFilter>(&file);
 			break;
-		case CFileTextLines::UTF16_LE:
+		case CFileTextLines::UnicodeType::UTF16_LE:
 			bSaveBom = false;
-			pFilter = new CUtf16leFilter(&file);
+			pFilter = std::make_unique<CUtf16leFilter>(&file);
 			break;
-		case CFileTextLines::UTF16_LEBOM:
-			pFilter = new CUtf16leFilter(&file);
+		case CFileTextLines::UnicodeType::UTF16_LEBOM:
+			pFilter = std::make_unique<CUtf16leFilter>(&file);
 			break;
-		case CFileTextLines::UTF32_BE:
-			pFilter = new CUtf32beFilter(&file);
+		case CFileTextLines::UnicodeType::UTF32_BE:
+			pFilter = std::make_unique<CUtf32beFilter>(&file);
 			break;
-		case CFileTextLines::UTF32_LE:
-			pFilter = new CUtf32leFilter(&file);
+		case CFileTextLines::UnicodeType::UTF32_LE:
+			pFilter = std::make_unique<CUtf32leFilter>(&file);
 			break;
 		}
 
@@ -538,10 +534,10 @@ BOOL CFileTextLines::Save( const CString& sFilePath
 			pFilter->Write(L"\xfeff");
 		}
 		// cache EOLs
-		CBuffer oEncodedEol[EOL__COUNT];
-		oEncodedEol[EOL_LF] = pFilter->Encode(L"\n"); // x0a
-		oEncodedEol[EOL_CR] = pFilter->Encode(L"\r"); // x0d
-		oEncodedEol[EOL_CRLF] = pFilter->Encode(L"\r\n"); // x0d x0a
+		CBuffer oEncodedEol[static_cast<int>(EOL::_COUNT)];
+		oEncodedEol[static_cast<int>(EOL::LF)] = pFilter->Encode(L"\n"); // x0a
+		oEncodedEol[static_cast<int>(EOL::CR)] = pFilter->Encode(L"\r"); // x0d
+		oEncodedEol[static_cast<int>(EOL::CRLF)] = pFilter->Encode(L"\r\n"); // x0d x0a
 		if (bUseSVNCompatibleEOLs)
 		{
 			// when using EOLs that are supported by the svn lib,
@@ -554,25 +550,23 @@ BOOL CFileTextLines::Save( const CString& sFilePath
 			// for these special EOLs if they differ between those special ones
 			// listed below.
 			// But it will work properly for the most common EOLs LF/CR/CRLF.
-			oEncodedEol[EOL_LFCR] = oEncodedEol[EOL_CR];
-			for (int nEol = 0; nEol<EOL_NOENDING; nEol++)
+			oEncodedEol[static_cast<int>(EOL::LFCR)] = oEncodedEol[static_cast<int>(EOL::CR)];
+			for (int nEol = 0; nEol < static_cast<int>(EOL::NoEnding); nEol++)
 			{
 				if (oEncodedEol[nEol].IsEmpty())
-					oEncodedEol[nEol] = oEncodedEol[EOL_LF];
+					oEncodedEol[nEol] = oEncodedEol[static_cast<int>(EOL::LF)];
 			}
 		}
 		else
 		{
-			oEncodedEol[EOL_LFCR] = pFilter->Encode(L"\n\r");
-			oEncodedEol[EOL_VT] = pFilter->Encode(L"\v"); // x0b
-			oEncodedEol[EOL_FF] = pFilter->Encode(L"\f"); // x0c
-			oEncodedEol[EOL_NEL] = pFilter->Encode(L"\x85");
-			oEncodedEol[EOL_LS] = pFilter->Encode(L"\x2028");
-			oEncodedEol[EOL_PS] = pFilter->Encode(L"\x2029");
+			oEncodedEol[static_cast<int>(EOL::LFCR)] = pFilter->Encode(L"\n\r");
+			oEncodedEol[static_cast<int>(EOL::VT)] = pFilter->Encode(L"\v"); // x0b
+			oEncodedEol[static_cast<int>(EOL::FF)] = pFilter->Encode(L"\f"); // x0c
+			oEncodedEol[static_cast<int>(EOL::NEL)] = pFilter->Encode(L"\x85");
+			oEncodedEol[static_cast<int>(EOL::LS)] = pFilter->Encode(L"\x2028");
+			oEncodedEol[static_cast<int>(EOL::PS)] = pFilter->Encode(L"\x2029");
 		}
-		oEncodedEol[EOL_AUTOLINE] = oEncodedEol[m_SaveParams.m_LineEndings==EOL_AUTOLINE
-				? EOL_CRLF
-				: m_SaveParams.m_LineEndings];
+		oEncodedEol[static_cast<int>(EOL::AutoLine)] = oEncodedEol[static_cast<int>(m_SaveParams.m_LineEndings == EOL::AutoLine ? EOL::CRLF : m_SaveParams.m_LineEndings)];
 
 		bool bInBlockComment = false;
 		for (int i=0; i<GetCount(); i++)
@@ -587,15 +581,13 @@ BOOL CFileTextLines::Save( const CString& sFilePath
 				sLineT = sLineT.MakeLower();
 			pFilter->Write(sLineT);
 			EOL eEol = GetLineEnding(i);
-			pFilter->Write(oEncodedEol[eEol]);
+			pFilter->Write(oEncodedEol[static_cast<int>(eEol)]);
 		}
-		delete pFilter;
 		file.Close();
 	}
 	catch (CException * e)
 	{
-		e->GetErrorMessage(m_sErrorString.GetBuffer(4096), 4096);
-		m_sErrorString.ReleaseBuffer();
+		e->GetErrorMessage(CStrBuf(m_sErrorString, 4096), 4096);
 		e->Delete();
 		return FALSE;
 	}
@@ -604,7 +596,7 @@ BOOL CFileTextLines::Save( const CString& sFilePath
 
 void CFileTextLines::SetErrorString()
 {
-	m_sErrorString = CFormatMessageWrapper();
+	m_sErrorString = static_cast<LPCWSTR>(CFormatMessageWrapper());
 }
 
 void CFileTextLines::CopySettings(CFileTextLines * pFileToCopySettingsTo) const
@@ -619,25 +611,25 @@ const wchar_t * CFileTextLines::GetEncodingName(UnicodeType eEncoding)
 {
 	switch (eEncoding)
 	{
-	case ASCII:
+	case UnicodeType::ASCII:
 		return L"ASCII";
-	case BINARY:
+	case UnicodeType::BINARY:
 		return L"BINARY";
-	case UTF16_LE:
+	case UnicodeType::UTF16_LE:
 		return L"UTF-16LE";
-	case UTF16_LEBOM:
+	case UnicodeType::UTF16_LEBOM:
 		return L"UTF-16LE BOM";
-	case UTF16_BE:
+	case UnicodeType::UTF16_BE:
 		return L"UTF-16BE";
-	case UTF16_BEBOM:
+	case UnicodeType::UTF16_BEBOM:
 		return L"UTF-16BE BOM";
-	case UTF32_LE:
+	case UnicodeType::UTF32_LE:
 		return L"UTF-32LE";
-	case UTF32_BE:
+	case UnicodeType::UTF32_BE:
 		return L"UTF-32BE";
-	case UTF8:
+	case UnicodeType::UTF8:
 		return L"UTF-8";
-	case UTF8BOM:
+	case UnicodeType::UTF8BOM:
 		return L"UTF-8 BOM";
 	}
 	return L"";
@@ -722,7 +714,7 @@ bool CFileTextLines::StripComments( CString& sLine, bool bInBlockComment )
 
 void CFileTextLines::LineRegex( CString& sLine, const std::wregex& rx, const std::wstring& replacement ) const
 {
-	std::wstring str = static_cast<LPCTSTR>(sLine);
+	std::wstring str = static_cast<LPCWSTR>(sLine);
 	std::wstring str2 = std::regex_replace(str, rx, replacement);
 	sLine = str2.c_str();
 }
@@ -730,11 +722,17 @@ void CFileTextLines::LineRegex( CString& sLine, const std::wregex& rx, const std
 
 void CBuffer::ExpandToAtLeast(int nNewSize)
 {
+	ASSERT(nNewSize >= 0);
 	if (nNewSize>m_nAllocated)
 	{
-		delete [] m_pBuffer; // we don't preserve buffer content intentionally
-		nNewSize+=2048-1;
-		nNewSize&=~(1024-1);
+		Free(); // we don't preserve buffer content intentionally
+		if (INT_MAX - (2048 - 1) >= nNewSize)
+		{
+			nNewSize += 2048 - 1;
+			nNewSize &= ~(1024 - 1);
+		}
+		else
+			nNewSize = INT_MAX;
 		m_pBuffer=new BYTE[nNewSize];
 		m_nAllocated=nNewSize;
 	}
@@ -742,11 +740,12 @@ void CBuffer::ExpandToAtLeast(int nNewSize)
 
 void CBuffer::SetLength(int nUsed)
 {
+	ASSERT(nUsed >= 0);
 	ExpandToAtLeast(nUsed);
 	m_nUsed = nUsed;
 }
 
-void CBuffer::Swap(CBuffer & Src)
+void CBuffer::Swap(CBuffer& Src) noexcept
 {
 	std::swap(Src.m_nAllocated, m_nAllocated);
 	std::swap(Src.m_pBuffer, m_pBuffer);
@@ -763,73 +762,84 @@ void CBuffer::Copy(const CBuffer & Src)
 }
 
 
-
-bool CBaseFilter::Decode(/*in out*/ CBuffer & data)
+bool CAsciiFilter::Decode(std::unique_ptr<BYTE[]> data, int len)
 {
+	ASSERT(!m_pBuffer);
 	int nFlags = (m_nCodePage==CP_ACP) ? MB_PRECOMPOSED : 0;
 	// dry decode is around 8 times faster then real one, alternatively we can set buffer to max length
-	int nReadChars = MultiByteToWideChar(m_nCodePage, nFlags, static_cast<LPCSTR>(data), data.GetLength(), nullptr, 0);
-	m_oBuffer.SetLength(nReadChars*sizeof(wchar_t));
-	int ret2 = MultiByteToWideChar(m_nCodePage, nFlags, static_cast<LPCSTR>(data), data.GetLength(), static_cast<LPWSTR>(static_cast<void*>(m_oBuffer)), nReadChars);
+	int nReadChars = MultiByteToWideChar(m_nCodePage, nFlags, reinterpret_cast<LPCSTR>(data.get()), len, nullptr, 0);
+	if (!nReadChars)
+		return false;
+	m_pBuffer = new wchar_t[nReadChars];
+	int ret2 = MultiByteToWideChar(m_nCodePage, nFlags, reinterpret_cast<LPCSTR>(data.get()), len, m_pBuffer, nReadChars);
 	if (ret2 != nReadChars)
-	{
-		return FALSE;
-	}
-	data.Swap(m_oBuffer);
-	return TRUE;
+		return false;
+
+	m_iBufferLength = nReadChars;
+
+	return true;
 }
 
-const CBuffer& CBaseFilter::Encode(const CString& s)
+const CBuffer& CAsciiFilter::Encode(const CString& s)
 {
-	m_oBuffer.SetLength(s.GetLength()*3+1); // set buffer to guessed max size
-	int nConvertedLen = WideCharToMultiByte(m_nCodePage, 0, static_cast<LPCTSTR>(s), s.GetLength(), static_cast<LPSTR>(m_oBuffer), m_oBuffer.GetLength(), nullptr, nullptr);
+	if (int bufferSize; IntMult(s.GetLength(), 3, &bufferSize) != S_OK || IntAdd(bufferSize, 1, &bufferSize) != S_OK)
+		AtlThrow(E_OUTOFMEMORY);
+	else
+		m_oBuffer.SetLength(bufferSize); // set buffer to guessed max size
+	int nConvertedLen = WideCharToMultiByte(m_nCodePage, 0, static_cast<LPCWSTR>(s), s.GetLength(), static_cast<LPSTR>(m_oBuffer), m_oBuffer.GetLength(), nullptr, nullptr);
 	m_oBuffer.SetLength(nConvertedLen); // set buffer to used size
 	return m_oBuffer;
 }
 
 
-
-bool CUtf16leFilter::Decode(/*in out*/ CBuffer & /*data*/)
+bool CUtf16leFilter::Decode(std::unique_ptr<BYTE[]> data, int len)
 {
+	ASSERT(!m_pBuffer);
 	// we believe data is ok for use
-	return TRUE;
+	m_deleter = [](void* ptr) { delete[] static_cast<BYTE*>(ptr); };
+	m_pBuffer = reinterpret_cast<wchar_t*>(data.release());
+	m_iBufferLength = len / sizeof(wchar_t);
+	return true;
 }
 
 const CBuffer& CUtf16leFilter::Encode(const CString& s)
 {
-	int nNeedBytes = s.GetLength()*sizeof(TCHAR);
+	int nNeedBytes;
+	if (IntMult(s.GetLength(), sizeof(wchar_t), &nNeedBytes) != S_OK)
+		AtlThrow(E_OUTOFMEMORY);
 	m_oBuffer.SetLength(nNeedBytes);
-	memcpy(static_cast<void*>(m_oBuffer), static_cast<LPCTSTR>(s), nNeedBytes);
+	memcpy(static_cast<void*>(m_oBuffer), static_cast<LPCWSTR>(s), nNeedBytes);
 	return m_oBuffer;
 }
 
 
-
-bool CUtf16beFilter::Decode(/*in out*/ CBuffer & data)
+bool CUtf16beFilter::Decode(std::unique_ptr<BYTE[]> data, int len)
 {
-	int nNeedBytes = data.GetLength();
+	ASSERT(!m_pBuffer);
 	// make in place WORD BYTEs swap
-	auto p_qw = static_cast<UINT64*>(static_cast<void*>(data));
-	int nQwords = nNeedBytes/8;
+	auto p_qw = static_cast<UINT64*>(static_cast<void*>(data.get()));
+	int nQwords = len / 8;
 	for (int nQword = 0; nQword<nQwords; nQword++)
 	{
 		p_qw[nQword] = WordSwapBytes(p_qw[nQword]);
 	}
 	auto p_w = reinterpret_cast<wchar_t*>(p_qw);
-	int nWords = nNeedBytes/2;
+	int nWords = len / 2;
 	for (int nWord = nQwords*4; nWord<nWords; nWord++)
 	{
 		p_w[nWord] = WideCharSwap(p_w[nWord]);
 	}
-	return CUtf16leFilter::Decode(data);
+	return CUtf16leFilter::Decode(std::move(data), len);
 }
 
 const CBuffer& CUtf16beFilter::Encode(const CString& s)
 {
-	int nNeedBytes = s.GetLength()*sizeof(TCHAR);
+	int nNeedBytes;
+	if (IntMult(s.GetLength(), sizeof(wchar_t), &nNeedBytes) != S_OK)
+		AtlThrow(E_OUTOFMEMORY);
 	m_oBuffer.SetLength(nNeedBytes);
 	// copy swaping BYTE order in WORDs
-	auto p_qwIn = reinterpret_cast<const UINT64*>(static_cast<LPCTSTR>(s));
+	auto p_qwIn = reinterpret_cast<const UINT64*>(static_cast<LPCWSTR>(s));
 	auto p_qwOut = static_cast<UINT64*>(static_cast<void*>(m_oBuffer));
 	int nQwords = nNeedBytes/8;
 	for (int nQword = 0; nQword<nQwords; nQword++)
@@ -847,12 +857,12 @@ const CBuffer& CUtf16beFilter::Encode(const CString& s)
 }
 
 
-
-bool CUtf32leFilter::Decode(/*in out*/ CBuffer & data)
+bool CUtf32leFilter::Decode(std::unique_ptr<BYTE[]> data, int len)
 {
+	ASSERT(!m_pBuffer);
 	// UTF32 have four bytes per char
-	int nReadChars = data.GetLength()/4;
-	auto p32 = static_cast<UINT32*>(static_cast<void*>(data));
+	int nReadChars = len / 4;
+	auto p32 = static_cast<UINT32*>(static_cast<void*>(data.get()));
 
 	// count chars which needs surrogate pair
 	int nSurrogatePairCount = 0;
@@ -865,8 +875,11 @@ bool CUtf32leFilter::Decode(/*in out*/ CBuffer & data)
 	}
 
 	// fill buffer
-	m_oBuffer.SetLength((nReadChars+nSurrogatePairCount)*sizeof(wchar_t));
-	auto pOut = static_cast<wchar_t*>(m_oBuffer);
+	if (int bufferSize; IntAdd(nReadChars, nSurrogatePairCount, &bufferSize) != S_OK)
+		AtlThrow(E_OUTOFMEMORY);
+	else
+		m_pBuffer = new wchar_t[bufferSize]; // set buffer to guessed max size
+	auto pOut = m_pBuffer;
 	for (int i = 0; i<nReadChars; ++i, ++pOut)
 	{
 		UINT32 zChar = p32[i];
@@ -886,16 +899,19 @@ bool CUtf32leFilter::Decode(/*in out*/ CBuffer & data)
 			*pOut = static_cast<wchar_t>(zChar);
 		}
 	}
-	data.Swap(m_oBuffer);
-	return TRUE;
+	m_iBufferLength = nReadChars;
+	return true;
 }
 
 const CBuffer& CUtf32leFilter::Encode(const CString& s)
 {
 	int nInWords = s.GetLength();
-	m_oBuffer.SetLength(nInWords*2);
+	if (int bufferSize; IntMult(nInWords, 2, &bufferSize) != S_OK)
+		AtlThrow(E_OUTOFMEMORY);
+	else
+		m_oBuffer.SetLength(bufferSize);
 
-	auto p_In = static_cast<LPCTSTR>(s);
+	auto p_In = static_cast<LPCWSTR>(s);
 	auto p_Out = static_cast<UINT32*>(static_cast<void*>(m_oBuffer));
 	int nOutDword = 0;
 	for (int nInWord = 0; nInWord<nInWords; nInWord++, nOutDword++)
@@ -918,29 +934,31 @@ const CBuffer& CUtf32leFilter::Encode(const CString& s)
 		}
 		p_Out[nOutDword] = zChar;
 	}
-	m_oBuffer.SetLength(nOutDword*4); // store length reduced by surrogates
+	if (int bufferSize; IntMult(nOutDword, 4, &bufferSize) != S_OK)
+		AtlThrow(E_OUTOFMEMORY);
+	else
+		m_oBuffer.SetLength(bufferSize); // store length reduced by surrogates
 	return m_oBuffer;
 }
 
 
-
-bool CUtf32beFilter::Decode(/*in out*/ CBuffer & data)
+bool CUtf32beFilter::Decode(std::unique_ptr<BYTE[]> data, int len)
 {
 	// swap BYTEs order in DWORDs
-	auto p64 = static_cast<UINT64*>(static_cast<void*>(data));
-	int nQwords = data.GetLength()/8;
+	auto p64 = static_cast<UINT64*>(static_cast<void*>(data.get()));
+	int nQwords = len / 8;
 	for (int nQword = 0; nQword<nQwords; nQword++)
 	{
 		p64[nQword] = DwordSwapBytes(p64[nQword]);
 	}
 
 	auto p32 = reinterpret_cast<UINT32*>(p64);
-	int nDwords = data.GetLength()/4;
+	int nDwords = len / 4;
 	for (int nDword = nQwords*2; nDword<nDwords; nDword++)
 	{
 		p32[nDword] = DwordSwapBytes(p32[nDword]);
 	}
-	return CUtf32leFilter::Decode(data);
+	return CUtf32leFilter::Decode(std::move(data), len);
 }
 
 const CBuffer& CUtf32beFilter::Encode(const CString& s)

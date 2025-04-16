@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2009-2013, 2015-2020, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -30,8 +30,6 @@
 IMPLEMENT_DYNAMIC(CResolveDlg, CResizableStandAloneDialog)
 CResolveDlg::CResolveDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CResolveDlg::IDD, pParent)
-	, m_bThreadRunning(FALSE)
-	, m_bCancelled(false)
 {
 }
 
@@ -66,9 +64,7 @@ BOOL CResolveDlg::OnInitDialog()
 	m_resolveListCtrl.SetBackgroundImage(IDI_RESOLVE_BKG);
 	m_resolveListCtrl.EnableFileDrop();
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	AdjustControlSize(IDC_SELECTALL);
 
@@ -81,6 +77,7 @@ BOOL CResolveDlg::OnInitDialog()
 	if (GetExplorerHWND())
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"ResolveDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	// first start a thread to obtain the file list with the status without
 	// blocking the dialog
@@ -212,7 +209,7 @@ LRESULT CResolveDlg::OnFileDropped(WPARAM, LPARAM lParam)
 	// but only if it isn't already running - otherwise we
 	// restart the timer.
 	CTGitPath path;
-	path.SetFromWin(reinterpret_cast<LPCTSTR>(lParam));
+	path.SetFromWin(reinterpret_cast<LPCWSTR>(lParam));
 
 	// check whether the dropped file belongs to the very same repository
 	CString projectDir;

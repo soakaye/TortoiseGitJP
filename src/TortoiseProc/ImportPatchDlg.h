@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2012, 2015-2020 - TortoiseGit
+// Copyright (C) 2008-2012, 2015-2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,13 +18,11 @@
 //
 
 #pragma once
-
 #include "StandAloneDlg.h"
 #include "TGitPath.h"
 #include "PatchListCtrl.h"
 #include "SciEdit.h"
 #include "SplitterControl.h"
-#include "HistoryCombo.h"
 
 #define MSG_REBASE_UPDATE_UI	(WM_USER+151)
 
@@ -44,12 +42,12 @@ public:
 	CTGitPathList m_PathList;
 
 protected:
-	int m_CurrentItem;
+	int m_CurrentItem = 0;
 
-	volatile LONG		m_bExitThread;
-	volatile LONG 		m_bThreadRunning;
+	volatile LONG		m_bExitThread = FALSE;
+	volatile LONG 		m_bThreadRunning = FALSE;
 
-	CWinThread*			m_LoadingThread;
+	CWinThread*			m_LoadingThread = nullptr;
 
 	static UINT ThreadEntry(LPVOID pVoid)
 	{
@@ -73,9 +71,9 @@ protected:
 
 	void AddLogString(const CString& str);
 
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
-	virtual void SetTheme(bool bDark) override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
+	void SetTheme(bool bDark) override;
 
 	CMFCTabCtrl m_ctrlTabCtrl;
 
@@ -117,11 +115,11 @@ protected:
 	void UpdateOkCancelText();
 
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	virtual LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 
 	afx_msg LRESULT	OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam);
 	CComPtr<ITaskbarList3>	m_pTaskbarList;
 	afx_msg void OnBnClickedCancel();
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void OnHdnItemchangedListPatch(NMHDR *pNMHDR, LRESULT *pResult);
 };

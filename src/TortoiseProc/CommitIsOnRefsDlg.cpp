@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2020 - TortoiseGit
+// Copyright (C) 2016-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -37,10 +37,6 @@ IMPLEMENT_DYNAMIC(CCommitIsOnRefsDlg, CResizableStandAloneDialog)
 
 CCommitIsOnRefsDlg::CCommitIsOnRefsDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CCommitIsOnRefsDlg::IDD, pParent)
-	, m_bThreadRunning(FALSE)
-	, m_bRefsLoaded(false)
-	, m_bHasWC(true)
-	, m_bNonModalParentHWND(nullptr)
 {
 }
 
@@ -117,6 +113,7 @@ BOOL CCommitIsOnRefsDlg::OnInitDialog()
 	m_cSelRevBtn.AddEntry(CString(MAKEINTRESOURCE(IDS_REFLOG)));
 
 	EnableSaveRestore(L"CommitIsOnRefsDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	CImageList* imagelist = new CImageList();
 	imagelist->Create(IDB_BITMAP_REFTYPE, 16, 3, RGB(255, 255, 255));
@@ -200,7 +197,7 @@ LRESULT CCommitIsOnRefsDlg::OnClickedCancelFilter(WPARAM /*wParam*/, LPARAM /*lP
 void CCommitIsOnRefsDlg::OnBnClickedShowLog()
 {
 	CString cmd;
-	cmd.Format(L"/command:log /rev:%s", static_cast<LPCTSTR>(m_gitrev.m_CommitHash.ToString()));
+	cmd.Format(L"/command:log /rev:%s", static_cast<LPCWSTR>(m_gitrev.m_CommitHash.ToString()));
 	CAppUtils::RunTortoiseGitProc(cmd);
 }
 
@@ -290,9 +287,9 @@ void CCommitIsOnRefsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 			popup.AppendMenuIcon(eCmd_UnifiedDiff, IDS_LOG_POPUP_GNUDIFF, IDI_DIFF);
 			popup.AppendMenu(MF_SEPARATOR, NULL);
 			CString menu;
-			menu.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"..")));
+			menu.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"..")));
 			popup.AppendMenuIcon(eCmd_ViewLogRange, menu, IDI_LOG);
-			menu.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"...")));
+			menu.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"...")));
 			popup.AppendMenuIcon(eCmd_ViewLogRangeReachableFromOnlyOne, menu, IDI_LOG);
 			needSep = true;
 		}
@@ -344,14 +341,14 @@ void CCommitIsOnRefsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 		case eCmd_ViewLogRange:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"..")));
+			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"..")));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		}
 		break;
 		case eCmd_ViewLogRangeReachableFromOnlyOne:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"...")));
+			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedRefs, m_sLastSelected, L"...")));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		}
 		break;
@@ -364,7 +361,7 @@ void CCommitIsOnRefsDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 		case eCmd_DiffWC:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(selectedRefs[0]), static_cast<LPCTSTR>(GitRev::GetWorkingCopy()));
+			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(selectedRefs[0]), GitRev::GetWorkingCopyRef());
 			if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
 				sCmd += L" /alternative";
 
@@ -501,7 +498,7 @@ LRESULT CCommitIsOnRefsDlg::OnGettingRefsFinished(WPARAM, LPARAM)
 	if (!m_gitrev.GetLastErr().IsEmpty())
 	{
 		CString msg;
-		msg.Format(IDS_PROC_REFINVALID, static_cast<LPCTSTR>(m_Rev));
+		msg.Format(IDS_PROC_REFINVALID, static_cast<LPCWSTR>(m_Rev));
 		m_cRefList.ShowText(msg + L'\n' + m_gitrev.GetLastErr());
 
 		InvalidateRect(nullptr);

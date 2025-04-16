@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2017 - TortoiseGit
+// Copyright (C) 2015-2017, 2021, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2011 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -97,6 +97,20 @@ TEST(CStringUtils, RemoveAccelerators)
 	EXPECT_STREQ(L"Some & text", text6);
 }
 
+TEST(CStringUtils, GetAccellerator)
+{
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L""));
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L"&"));
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L"NoAccellerator"));
+	EXPECT_EQ(L'A', CStringUtils::GetAccellerator(L"&Accellerator"));
+	EXPECT_EQ(L'C', CStringUtils::GetAccellerator(L"Ac&cellerator"));
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L"Accellerator&"));
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L"Accellerator&&"));
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L"Some & text"));
+	EXPECT_EQ(L'\0', CStringUtils::GetAccellerator(L"&&Accellerator"));
+	EXPECT_EQ(L'L', CStringUtils::GetAccellerator(L"Acce&&&llerator"));
+	EXPECT_EQ(L'X', CStringUtils::GetAccellerator(L"Some & te&xt"));
+}
 TEST(CStringUtils, ParseEmailAddress)
 {
 	CString mail, name;
@@ -289,7 +303,7 @@ TEST(CStringUtils, StartsWithA)
 	EXPECT_TRUE(CStringUtils::StartsWith("", ""));
 	EXPECT_FALSE(CStringUtils::StartsWith("", "sometest"));
 
-	CStringA heystack = L"sometest";
+	CStringA heystack = "sometest";
 	EXPECT_TRUE(CStringUtils::StartsWith(heystack, "sometest"));
 	EXPECT_TRUE(CStringUtils::StartsWith(heystack, ""));
 	EXPECT_TRUE(CStringUtils::StartsWith(heystack, "sometes"));
@@ -335,4 +349,91 @@ TEST(CStringUtils, EndsWithI)
 	EXPECT_FALSE(CStringUtils::EndsWithI(heystack, L"someteSte"));
 	EXPECT_FALSE(CStringUtils::EndsWithI(heystack, L"text"));
 	EXPECT_FALSE(CStringUtils::EndsWithI(heystack, L"xt"));
+}
+
+TEST(CStringUtils, UnescapeGitQuotePath)
+{
+	EXPECT_STREQ(L"", CStringUtils::UnescapeGitQuotePath(L""));
+
+	EXPECT_STREQ(L"ascii.txt", CStringUtils::UnescapeGitQuotePath(L"ascii.txt"));
+	EXPECT_STREQ(L"ümlauts.txt", CStringUtils::UnescapeGitQuotePath(L"\\303\\274mlauts.txt")); 
+	EXPECT_STREQ(L"umläütß", CStringUtils::UnescapeGitQuotePath(L"uml\\303\\244\\303\\274t\\303\\237"));
+
+	// taken from Git tests:
+	EXPECT_STREQ(L"\u6FF1\u91CE/file", CStringUtils::UnescapeGitQuotePath(L"\\346\\277\\261\\351\\207\\216/file"));
+	EXPECT_STREQ(L"\u6FF1\u91CE\u7D14", CStringUtils::UnescapeGitQuotePath(L"\\346\\277\\261\\351\\207\\216\\347\\264\\224"));
+}
+
+TEST(CStringUtils, EnsureCRLF)
+{
+	EXPECT_STREQ(L"", CStringUtils::EnsureCRLF(L""));
+	EXPECT_STREQ(L"\r\n", CStringUtils::EnsureCRLF(L"\n"));
+	EXPECT_STREQ(L"\r\n", CStringUtils::EnsureCRLF(L"\r\n"));
+	EXPECT_STREQ(L"\r\n", CStringUtils::EnsureCRLF(L"\r"));
+	EXPECT_STREQ(L"Some\r\nthing", CStringUtils::EnsureCRLF(L"Some\nthing"));
+	EXPECT_STREQ(L"Some\r\nthing", CStringUtils::EnsureCRLF(L"Some\rthing"));
+	EXPECT_STREQ(L"Some\r\nthing\r\n", CStringUtils::EnsureCRLF(L"Some\nthing\n"));
+	EXPECT_STREQ(L"Some\\nthing", CStringUtils::EnsureCRLF(L"Some\\nthing"));
+	EXPECT_STREQ(L"Some\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"Some\n\nthing\n"));
+	EXPECT_STREQ(L"Some\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"Some\r\r\nthing\r"));
+	EXPECT_STREQ(L"Some\r\nthing\r\n", CStringUtils::EnsureCRLF(L"Some\r\nthing\n"));
+	EXPECT_STREQ(L"Some\r\nthing\r\n", CStringUtils::EnsureCRLF(L"Some\r\nthing\r"));
+	EXPECT_STREQ(L"\r\nSome\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"\nSome\r\n\nthing\n"));
+	EXPECT_STREQ(L"\r\nSome\r\n\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"\nSome\r\r\n\nthing\n"));
+	EXPECT_STREQ(L"\r\nSome\r\n\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"\nSome\r\r\n\rthing\n"));
+	EXPECT_STREQ(L"\r\nSome\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"\nSome\r\n\r\nthing\n"));
+	EXPECT_STREQ(L"\r\nSome\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"\nSome\r\n\rthing\r"));
+	EXPECT_STREQ(L"\r\nSome\r\n\r\n\r\nthing\r\n", CStringUtils::EnsureCRLF(L"\nSome\n\r\rthing\n"));
+}
+
+TEST(CStringUtils, TrimRightA)
+{
+	std::string_view sv1{};
+	CStringUtils::TrimRight(sv1);
+	EXPECT_EQ(0u, sv1.size());
+
+	std::string_view sv2{"Hallo "};
+	CStringUtils::TrimRight(sv2);
+	EXPECT_EQ(5u, sv2.size());
+	EXPECT_TRUE(sv2 == "Hallo");
+
+	std::string_view sv3{ " Hallo " };
+	CStringUtils::TrimRight(sv3);
+	EXPECT_EQ(6u, sv3.size());
+	EXPECT_TRUE(sv3 == " Hallo");
+
+	std::string_view sv4{ "Hallo \r\n " };
+	CStringUtils::TrimRight(sv4);
+	EXPECT_EQ(5u, sv4.size());
+	EXPECT_TRUE(sv4 == "Hallo");
+
+	std::string_view sv5{"   \n "};
+	CStringUtils::TrimRight(sv5);
+	EXPECT_EQ(0u, sv5.size());
+}
+
+TEST(CStringUtils, TrimRightW)
+{
+	std::wstring_view sv1{};
+	CStringUtils::TrimRight(sv1);
+	EXPECT_EQ(0u, sv1.size());
+
+	std::wstring_view sv2{ L"Hallo " };
+	CStringUtils::TrimRight(sv2);
+	EXPECT_EQ(5u, sv2.size());
+	EXPECT_TRUE(sv2 == L"Hallo");
+
+	std::wstring_view sv3{ L" Hallo " };
+	CStringUtils::TrimRight(sv3);
+	EXPECT_EQ(6u, sv3.size());
+	EXPECT_TRUE(sv3 == L" Hallo");
+
+	std::wstring_view sv4{ L"Hallo \r\n " };
+	CStringUtils::TrimRight(sv4);
+	EXPECT_EQ(5u, sv4.size());
+	EXPECT_TRUE(sv4 == L"Hallo");
+
+	std::wstring_view sv5{ L"   \n " };
+	CStringUtils::TrimRight(sv5);
+	EXPECT_EQ(0u, sv5.size());
 }

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2020, 2022-2024 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -52,6 +52,7 @@ public:
 	CAppUtils() = delete;
 
 public:
+#ifndef TGIT_TESTS_ONLY
 	/**
 	 * Launches the external merge program if there is one.
 	 * \return TRUE if the program could be started
@@ -98,12 +99,6 @@ public:
 	static BOOL StartTextViewer(CString file);
 
 	/**
-	 * Checks if the given file has a size of less than four, which means
-	 * an 'empty' file or just newlines, i.e. an empty diff.
-	 */
-	static BOOL CheckForEmptyDiff(const CTGitPath& sDiffPath);
-
-	/**
 	* Launch the external blame viewer
 	*/
 	static bool LaunchTortoiseBlame(
@@ -114,9 +109,16 @@ public:
 	*/
 	static bool LaunchAlternativeEditor(const CString& filename, bool uac = false);
 
+private:
+#endif
+	static CString FormatWindowTitle(const CString& urlorpath, const CString& dialogname, const CString& appname, DWORD format);
+
+public:
+#ifndef TGIT_TESTS_ONLY
 	/**
 	* Sets the title of a dialog
 	*/
+	static void SetWindowTitle(const CWnd& dialog, const CString& urlorpath);
 	static void SetWindowTitle(HWND hWnd, const CString& urlorpath, const CString& dialogname);
 
 	/**
@@ -126,11 +128,20 @@ public:
 	 * text in between _ chars is underlined
 	 */
 	static bool FormatTextInRichEditControl(CWnd * pWnd);
-	static bool FindStyleChars(const CString& sText, TCHAR stylechar, int& start, int& end);
+#endif
+	static bool FindStyleChars(const CString& sText, wchar_t stylechar, int& start, int& end);
+	static bool FindWarningsErrors(const CString& text, std::vector<CHARRANGE>& rangeErrors, std::vector<CHARRANGE>& rangeWarnings);
+#ifndef TGIT_TESTS_ONLY
+	/**
+	* highlight warnings and errors returned by git command in rich edit control colored in bold 
+	*/
+	static BOOL StyleWarningsErrors(const CString& text, CRichEditCtrl* edit);
 	/**
 	* implements URL searching with the same logic as CSciEdit::StyleURLs
 	*/
+#endif
 	static std::vector<CHARRANGE> FindURLMatches(const CString& msg);
+#ifndef TGIT_TESTS_ONLY
 	static BOOL StyleURLs(const CString& msg, CWnd* pWnd);
 
 	/**
@@ -149,7 +160,8 @@ public:
 
 	static bool Export(HWND hWnd, const CString* BashHash = nullptr, const CTGitPath* orgPath = nullptr);
 	static bool UpdateBranchDescription(const CString& branch, CString description);
-	static bool CreateBranchTag(HWND hWnd, bool isTag = true, const CString* ref = nullptr, bool switchNewBranch = false, LPCTSTR name = nullptr);
+	static bool CreateBranchTag(HWND hWnd, bool isTag = true, const CString* ref = nullptr, bool switchNewBranch = false, LPCWSTR name = nullptr);
+	static bool CreateWorktree(HWND hWnd, const CString& target = CString());
 	static bool Switch(HWND hWnd, const CString& initialRefName = CString());
 	static bool PerformSwitch(HWND hWnd, const CString& ref, bool bForce = false, const CString& sNewBranch = CString(), bool bBranchOverride = false, BOOL bTrack = 2, bool bMerge = false);
 
@@ -194,7 +206,7 @@ public:
 	static bool RebaseAfterFetch(HWND hWnd, const CString& upstream = L"", int rebase = 0, bool preserveMerges = false);
 	static bool Fetch(HWND hWnd, const CString& remoteName = L"", bool allRemotes = false);
 	static bool DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, bool allBranches, bool force, bool forceWithLease, const CString& localBranch, const CString& remote, const CString& remoteBranch, bool setUpstream, int recurseSubmodules, const CString& pushOption);
-	static bool Push(HWND hWnd, const CString& selectLocalBranch = CString());
+	static bool Push(HWND hWnd, const CString& selectLocalBranch = CString(), int pushAll = BST_INDETERMINATE);
 	static bool RequestPull(HWND hWnd, const CString& endrevision = L"", const CString& repositoryUrl = L"");
 
 	static void RemoveTrailSlash(CString &path);
@@ -221,19 +233,9 @@ public:
 
 	static int Git2CertificateCheck(git_cert *cert, int valid, const char* host, void *payload);
 
-	static int ExploreTo(HWND hwnd, CString path);
-
 	static bool DeleteRef(CWnd* parent, const CString& ref);
 
 	static void SetupBareRepoIcon(const CString& path);
-
-	enum resolve_with {
-		RESOLVE_WITH_CURRENT,
-		RESOLVE_WITH_MINE,
-		RESOLVE_WITH_THEIRS,
-	};
-
-	static int ResolveConflict(HWND hWnd, CTGitPath& path, resolve_with resolveWith);
 
 	static bool IsTGitRebaseActive(HWND hWnd);
 
@@ -243,4 +245,5 @@ private:
 	static bool OpenIgnoreFile(HWND hWnd, CIgnoreFile& file, const CString& filename);
 
 	static void DescribeConflictFile(bool mode, bool base,CString &descript);
+#endif
 };

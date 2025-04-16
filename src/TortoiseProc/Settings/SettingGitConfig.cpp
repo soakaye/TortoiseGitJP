@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -22,9 +22,9 @@
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "SettingGitConfig.h"
-#include "Settings.h"
 #include "GitAdminDir.h"
 #include "AppUtils.h"
+
 // CSettingGitConfig dialog
 
 IMPLEMENT_DYNAMIC(CSettingGitConfig, ISettingsPropPage)
@@ -124,11 +124,15 @@ BOOL CSettingGitConfig::OnInitDialog()
 	if (!CAppUtils::IsAdminLogin())
 	{
 		static_cast<CButton*>(this->GetDlgItem(IDC_EDITSYSTEMGITCONFIG))->SetShield(TRUE);
+		GetDlgItem(IDC_VIEWSYSTEMGITCONFIG)->EnableWindow(TRUE);
 		this->GetDlgItem(IDC_VIEWSYSTEMGITCONFIG)->ShowWindow(SW_SHOW);
 	}
 
-	if (PathIsDirectory(g_Git.GetGitGlobalXDGConfigPath()))
+	if (PathIsDirectory(g_Git.GetGitGlobalXDGConfig(true)))
+	{
+		GetDlgItem(IDC_EDITGLOBALXDGGITCONFIG)->EnableWindow(TRUE);
 		this->GetDlgItem(IDC_EDITGLOBALXDGGITCONFIG)->ShowWindow(SW_SHOW);
+	}
 
 	this->UpdateData(FALSE);
 
@@ -317,6 +321,11 @@ void CSettingGitConfig::OnBnClickedEdittgitconfig()
 	if (GitAdminDir::IsBareRepo(g_Git.m_CurrentDir))
 	{
 		CString tmpFile = GetTempFile();
+		if (tmpFile.IsEmpty())
+		{
+			MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+			return;
+		}
 		CTGitPath path(L".tgitconfig");
 		if (g_Git.GetOneFile(L"HEAD", path, tmpFile) == 0)
 		{
@@ -334,8 +343,13 @@ void CSettingGitConfig::OnBnClickedVieweffectivegitconfig()
 {
 	CString err;
 	CString tempfile = ::GetTempFile();
+	if (tempfile.IsEmpty())
+	{
+		MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return;
+	}
 
-	CString cmd = L"git config -l";
+	CString cmd = L"git config --show-origin -l";
 	if (g_Git.RunLogFile(cmd, tempfile, &err))
 	{
 		CMessageBox::Show(GetSafeHwnd(), L"Could not get effective git config:\n" + err, L"TortoiseGit", MB_OK);
@@ -355,8 +369,6 @@ void CSettingGitConfig::OnBnClickedEditsystemgitconfig()
 	}
 	// use alternative editor because of LineEndings
 	CAppUtils::LaunchAlternativeEditor(filename, true);
-	if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty() && PathFileExists(g_Git.GetGitProgramDataConfig()))
-		CAppUtils::LaunchAlternativeEditor(g_Git.GetGitProgramDataConfig(), true);
 }
 
 void CSettingGitConfig::OnBnClickedViewsystemgitconfig()
@@ -369,6 +381,4 @@ void CSettingGitConfig::OnBnClickedViewsystemgitconfig()
 	}
 	// use alternative editor because of LineEndings
 	CAppUtils::LaunchAlternativeEditor(filename);
-	if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty() && PathFileExists(g_Git.GetGitProgramDataConfig()))
-		CAppUtils::LaunchAlternativeEditor(g_Git.GetGitProgramDataConfig());
 }

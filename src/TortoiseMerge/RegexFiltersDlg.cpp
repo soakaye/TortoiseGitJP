@@ -1,5 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023-2025 - TortoiseGit
 // Copyright (C) 2013, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,12 +17,11 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseMerge.h"
 #include "RegexFiltersDlg.h"
 #include "RegexFilterDlg.h"
-#include <afxdialogex.h>
-
 
 // CRegexFiltersDlg dialog
 
@@ -29,7 +29,6 @@ IMPLEMENT_DYNAMIC(CRegexFiltersDlg, CStandAloneDialog)
 
 CRegexFiltersDlg::CRegexFiltersDlg(CWnd* pParent /*=nullptr*/)
 	: CStandAloneDialog(CRegexFiltersDlg::IDD, pParent)
-	, m_pIni(nullptr)
 {
 }
 
@@ -116,8 +115,6 @@ void CRegexFiltersDlg::OnBnClickedRemove()
 BOOL CRegexFiltersDlg::OnInitDialog()
 {
 	CStandAloneDialog::OnInitDialog();
-
-	SetWindowTheme(m_RegexList.GetSafeHwnd(), L"Explorer", nullptr);
 
 	SetupListControl();
 

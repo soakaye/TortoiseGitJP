@@ -13,13 +13,13 @@
 <simplesect id="git-verify-pack(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git verify-pack</emphasis> [-v|--verbose] [-s|--stat-only] [--] &lt;pack&gt;.idx &#8230;</literallayout>
+<literallayout><emphasis>git verify-pack</emphasis> [-v | --verbose] [-s | --stat-only] [--] &lt;pack&gt;.idx&#8230;</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-verify-pack(1)__description">
 <title>DESCRIPTION</title>
 <simpara>Reads given idx file for packed Git archive created with the
-<emphasis>git pack-objects</emphasis> command and verifies idx file and the
+<emphasis>git pack-objects</emphasis> command and verifies the idx file and the
 corresponding pack file.</simpara>
 </simplesect>
 <simplesect id="git-verify-pack(1)__options">
@@ -44,7 +44,7 @@ corresponding pack file.</simpara>
 </term>
 <listitem>
 <simpara>
-        After verifying the pack, show list of objects contained
+        After verifying the pack, show the list of objects contained
         in the pack and a histogram of delta chain length.
 </simpara>
 </listitem>
@@ -59,7 +59,7 @@ corresponding pack file.</simpara>
 <listitem>
 <simpara>
         Do not verify the pack contents; only show the histogram of delta
-        chain length.  With <emphasis>--verbose</emphasis>, list of objects is also shown.
+        chain length.  With <emphasis>--verbose</emphasis>, the list of objects is also shown.
 </simpara>
 </listitem>
 </varlistentry>

@@ -16,13 +16,14 @@
 <literallayout><emphasis>git checkout-index</emphasis> [-u] [-q] [-a] [-f] [-n] [--prefix=&lt;string&gt;]
                    [--stage=&lt;number&gt;|all]
                    [--temp]
+                   [--ignore-skip-worktree-bits]
                    [-z] [--stdin]
                    [--] [&lt;file&gt;&#8230;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-checkout-index(1)__description">
 <title>DESCRIPTION</title>
-<simpara>Will copy all files listed from the index to the working directory
+<simpara>Copies all listed files from the index to the working directory
 (not overwriting existing files).</simpara>
 </simplesect>
 <simplesect id="git-checkout-index(1)__options">
@@ -77,8 +78,9 @@
 </term>
 <listitem>
 <simpara>
-        checks out all files in the index.  Cannot be used
-        together with explicit filenames.
+        checks out all files in the index except for those with the
+        skip-worktree bit set (see <emphasis>--ignore-skip-worktree-bits</emphasis>).
+        Cannot be used together with explicit filenames.
 </simpara>
 </listitem>
 </varlistentry>
@@ -114,7 +116,7 @@
 <listitem>
 <simpara>
         Instead of checking out unmerged entries, copy out the
-        files from named stage.  &lt;number&gt; must be between 1 and 3.
+        files from the named stage.  &lt;number&gt; must be between 1 and 3.
         Note: --stage=all automatically implies --temp.
 </simpara>
 </listitem>
@@ -125,9 +127,20 @@
 </term>
 <listitem>
 <simpara>
-        Instead of copying the files to the working directory
+        Instead of copying the files to the working directory,
         write the content to temporary files.  The temporary name
         associations will be written to stdout.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--ignore-skip-worktree-bits
+</term>
+<listitem>
+<simpara>
+        Check out all files, including those with the skip-worktree bit
+        set.
 </simpara>
 </listitem>
 </varlistentry>
@@ -137,8 +150,8 @@
 </term>
 <listitem>
 <simpara>
-        Instead of taking list of paths from the command line,
-        read list of paths from the standard input.  Paths are
+        Instead of taking a list of paths from the command line,
+        read the list of paths from the standard input.  Paths are
         separated by LF (i.e. one path per line) by default.
 </simpara>
 </listitem>

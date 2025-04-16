@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,13 +18,12 @@
 //
 
 #pragma once
-#include "gittype.h"
 #include "AtlTime.h"
 #include "GitHash.h"
 #include "GitDll.h"
 #include "GitMailmap.h"
 
-typedef std::vector<CGitHash> GIT_REV_LIST;
+using GIT_REV_LIST = std::vector<CGitHash>;
 
 #define LOG_REV_AUTHOR_NAME		L'0'
 #define LOG_REV_AUTHOR_EMAIL	L'1'
@@ -55,7 +54,7 @@ protected:
 	CString m_sErr;
 
 public:
-	GitRev(void);
+	GitRev();
 	CString GetAuthorName() const
 	{
 		return m_AuthorName;
@@ -96,18 +95,9 @@ public:
 		return m_Body;
 	}
 
-	virtual ~GitRev(void);
+	virtual ~GitRev();
 
-	enum
-	{
-		REV_HEAD = -1,			///< head revision
-		REV_BASE = -2,			///< base revision
-		REV_WC = -3,			///< revision of the working copy
-		REV_UNSPECIFIED = -4,	///< unspecified revision
-	};
-
-	static CString GetHead() { return L"HEAD"; };
-	static CString GetWorkingCopy() { return GIT_REV_ZERO; };
+	inline constexpr static LPCWSTR GetWorkingCopyRef() { return GIT_REV_ZERO; }
 
 	CGitHash m_CommitHash;
 	GIT_REV_LIST m_ParentHash;
@@ -116,8 +106,8 @@ public:
 	inline int ParentsCount() const { return static_cast<int>(m_ParentHash.size()); }
 
 protected:
-	int ParserFromCommit(GIT_COMMIT *commit);
-	int ParserParentFromCommit(GIT_COMMIT *commit);
+	int ParserFromCommit(const GIT_COMMIT* commit);
+	int ParserParentFromCommit(const GIT_COMMIT* commit);
 
 	int ParserFromCommit(const git_commit* commit);
 	int ParserParentFromCommit(const git_commit* commit);

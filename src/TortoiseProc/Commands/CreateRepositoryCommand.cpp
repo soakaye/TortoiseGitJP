@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019, 2021 - TortoiseGit
+// Copyright (C) 2008-2019, 2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,14 +16,13 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "CreateRepositoryCommand.h"
 #include "ShellUpdater.h"
 #include "MessageBox.h"
 #include "UnicodeUtils.h"
-#include "IconExtractor.h"
 #include "CreateRepoDlg.h"
-#include "SmartHandle.h"
 #include "AppUtils.h"
 
 static bool CheckSpecialFolder(const CString& folder)
@@ -53,8 +52,8 @@ bool CreateRepositoryCommand::Execute()
 	if (CheckSpecialFolder(folder))
 	{
 		CString message;
-		message.Format(IDS_WARN_GITINIT_SPECIALFOLDER, static_cast<LPCTSTR>(folder));
-		if (CMessageBox::Show(GetExplorerHWND(), message, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)), CString(MAKEINTRESOURCE(IDS_PROCEEDBUTTON))) == 1)
+		message.Format(IDS_WARN_GITINIT_SPECIALFOLDER, static_cast<LPCWSTR>(folder));
+		if (CMessageBox::Show(GetExplorerHWND(), message, IDS_APPNAME, 1, IDI_ERROR, IDS_ABORTBUTTON, IDS_PROCEEDBUTTON) == 1)
 			return false;
 	}
 
@@ -63,13 +62,16 @@ bool CreateRepositoryCommand::Execute()
 	if(dlg.DoModal() == IDOK)
 	{
 		CString message;
-		message.Format(IDS_WARN_GITINIT_FOLDERNOTEMPTY, static_cast<LPCTSTR>(folder));
-		if (dlg.m_bBare && PathIsDirectory(folder) && !PathIsDirectoryEmpty(folder) && CMessageBox::Show(GetExplorerHWND(), message, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)), CString(MAKEINTRESOURCE(IDS_PROCEEDBUTTON))) == 1)
+		message.Format(IDS_WARN_GITINIT_FOLDERNOTEMPTY, static_cast<LPCWSTR>(folder));
+		if (dlg.m_bBare && PathIsDirectory(folder) && !PathIsDirectoryEmpty(folder) && CMessageBox::Show(GetExplorerHWND(), message, IDS_APPNAME, 1, IDI_ERROR, IDS_ABORTBUTTON, IDS_PROCEEDBUTTON) == 1)
 			return false;
 
 		git_repository_init_options options = GIT_REPOSITORY_INIT_OPTIONS_INIT;
 		options.flags = GIT_REPOSITORY_INIT_MKPATH | GIT_REPOSITORY_INIT_EXTERNAL_TEMPLATE;
 		options.flags |= dlg.m_bBare ? GIT_REPOSITORY_INIT_BARE : 0;
+		CStringA envTemplateDir = CUnicodeUtils::GetUTF8(g_Git.m_Environment.GetEnv(L"GIT_TEMPLATE_DIR"));
+		if (!envTemplateDir.IsEmpty())
+			options.template_path = envTemplateDir;
 		CAutoRepository repo;
 		if (git_repository_init_ext(repo.GetPointer(), CUnicodeUtils::GetUTF8(folder), &options))
 		{
@@ -83,7 +85,7 @@ bool CreateRepositoryCommand::Execute()
 			CAppUtils::SetupBareRepoIcon(folder);
 
 		CString str;
-		str.Format(IDS_PROC_REPOCREATED, static_cast<LPCTSTR>(folder));
+		str.Format(IDS_PROC_REPOCREATED, static_cast<LPCWSTR>(folder));
 		CMessageBox::Show(GetExplorerHWND(), str, L"TortoiseGit", MB_OK | MB_ICONINFORMATION);
 		return true;
 	}

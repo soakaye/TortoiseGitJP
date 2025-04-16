@@ -5,7 +5,7 @@
 	<sect3 id="tgit-dug-settings-hierarchical">
 		<title>The hierarchical Git configuration</title>
 		<para>
-			Git uses the concept of a hierarchical configuration (cf. <xref linkend="git-config(1)"/>). I.e. there are multiple levels; settings in higher levels override values in lower levels. The <guilabel>Effective</guilabel> tab shows you the effective values for the current scope (read-only).
+			Git uses the concept of a hierarchical configuration (cf. <gitdoclink cmd="git-config" section="1"/>). I.e. there are multiple levels; settings in higher levels override values in lower levels. The <guilabel>Effective</guilabel> tab shows you the effective values for the current scope (read-only).
 		</para>
 		<para>
 			Select any level (e.g. <guilabel>Local</guilabel> - the current repository settings stored locally in <filename>.git/config</filename>, <guilabel>Project</guilabel> - settings for the current repository stored within the repository in <filename>/.tgitconfig</filename>, <guilabel>Global</guilabel> - settings for the current user, <guilabel>System</guilabel> - settings for all users of the system) to see the values stored there.
@@ -22,6 +22,7 @@
 	<sect3 id="tgit-dug-settings-config">
 		<title>Git Config</title>
 		<?dbhh topicname="HIDD_SETTINGIT_CONFIG"?>
+		<?dbhh topicname="HIDD_FIRSTSTARTWIZARD_USER"?>
 		<para>
 			<figure id="tgit-dug-settings-git-config">
 				<title>The Settings Dialog, Git</title>
@@ -48,7 +49,7 @@
 			The variable can be set to "warn",
 			in which case git will only warn about an irreversible conversion but continue the operation.
 		</para>
-		<para><guilabel>QuotePath</guilabel> Controls the <literal>core.quotepath</literal> setting which might be interesting when you have non ASCII filenames: See <xref linkend="git-config(1)"/>.</para>
+		<para><guilabel>QuotePath</guilabel> Controls the <literal>core.quotepath</literal> setting which might be interesting when you have non ASCII filenames: See <gitdoclink cmd="git-config" section="1"/>.</para>
 		<important>
 			<para>
 				If you have problems entering/storing data please see <xref linkend="tgit-dug-settings-hierarchical"/>.
@@ -58,6 +59,7 @@
 	<sect3 id="tgit-dug-settings-remote">
 		<title>Remote</title>
 		<?dbhh topicname="HIDD_SETTINREMOTE"?>
+		<?dbhh topicname="HIDD_ADD_REMOTE"?>
 		<para>
 			<figure id="tgit-dug-settings-git-remote">
 				<title>The Settings Dialog, Git, Remote</title>
@@ -87,8 +89,8 @@
 		</para>
 		<para>
 			<guilabel>Tag</guilabel>
-			This sets <literal>remote.&lt;name&gt;.tagopt</literal> config, which controls the default tag fetching behaviour of the specified remote.
-			<option>Reachable</option>: Download tags that are reachable from remote branch heads (default behaviour).
+			This sets <literal>remote.&lt;name&gt;.tagopt</literal> config, which controls the default tag fetching behavior of the specified remote.
+			<option>Reachable</option>: Download tags that are reachable from remote branch heads (default behavior).
 			<option>None</option>: No tags are downloaded (<literal>--no-tags</literal>).
 			(git 1.9 and later) <option>All</option>: All tags as well as branches are downloaded (<literal>--tags</literal>).
 			(prior to git 1.9) <option>All tags only</option>: Only all tags are downloaded but no branches are downloaded (<literal>--tags</literal>).
@@ -97,7 +99,7 @@
 		</para>
 		<para>
 			<guilabel>Push Default</guilabel>
-			Selecting this means to always push to this remote (cf. <xref linkend="git-config(1)"/>)
+			Selecting this means to always push to this remote (cf. <gitdoclink cmd="git-config" section="1"/>)
 			Default is false.
 		</para>
 		<para>
@@ -108,7 +110,7 @@
 	</sect3>
 	<sect3 id="tgit-dug-settings-credential">
 		<title>Credential</title>
-		<?dbhh topicname="HIDD_SETTINCREDENTIAL"?>
+		<?dbhh topicname="HIDD_SETTINGSCREDENTIAL"?>
 		<para>
 			<figure id="tgit-dug-settings-git-credential">
 				<title>The Settings Dialog, Git, Credential</title>
@@ -207,7 +209,7 @@
 			Also considers the path component of URL to match the configuration context.
 		</para>
 		<para>
-			You can find more information at <xref linkend="gitcredentials(7)"/>.
+			You can find more information at <gitdoclink cmd="gitcredentials" section="7"/>.
 		</para>
 	</sect3>
 </sect2>

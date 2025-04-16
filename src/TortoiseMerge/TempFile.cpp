@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Windows shell extension for easy version control
 
-// Copyright (C) 2019 - TortoiseGit
+// Copyright (C) 2019, 2025 - TortoiseGit
 // Copyright (C) 2003-2012, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,17 +17,17 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TempFile.h"
-#include "PathUtils.h"
 #include "DirFileEnum.h"
 #include "SmartHandle.h"
 
-CTempFiles::CTempFiles(void)
+CTempFiles::CTempFiles()
 {
 }
 
-CTempFiles::~CTempFiles(void)
+CTempFiles::~CTempFiles()
 {
 	m_TempFileList.DeleteAllFiles(false, false);
 }
@@ -41,8 +41,8 @@ CTempFiles& CTempFiles::Instance()
 CTGitPath CTempFiles::ConstructTempPath(const CTGitPath& path)
 {
 	DWORD len = ::GetTempPath(0, nullptr);
-	auto temppath = std::make_unique<TCHAR[]>(len + 1);
-	auto tempF = std::make_unique<TCHAR[]>(len + 50);
+	auto temppath = std::make_unique<wchar_t[]>(len + 1);
+	auto tempF = std::make_unique<wchar_t[]>(len + 50);
 	::GetTempPath (len+1, temppath.get());
 	CTGitPath tempfile;
 	CString possibletempfile;
@@ -70,7 +70,7 @@ CTGitPath CTempFiles::ConstructTempPath(const CTGitPath& path)
 			// that's longer than MAX_PATH (in that case, we can't really do much to avoid longer paths)
 			do
 			{
-				possibletempfile.Format(L"%s%s.tsm%3.3x.tmp%s", temppath.get(), static_cast<LPCTSTR>(filename), i, static_cast<LPCTSTR>(path.GetFileExtension()));
+				possibletempfile.Format(L"%s%s.tsm%3.3x.tmp%s", temppath.get(), static_cast<LPCWSTR>(filename), i, static_cast<LPCWSTR>(path.GetFileExtension()));
 				tempfile.SetFromWin(possibletempfile);
 				filename.Truncate(std::max(0, filename.GetLength() - 1));
 			} while (   (filename.GetLength() > 4)
@@ -158,10 +158,10 @@ CTGitPath CTempFiles::GetTempDirPath(bool bRemoveAtEnd, const CTGitPath& path /*
 	return CreateTempPath (bRemoveAtEnd, path, true);
 }
 
-void CTempFiles::DeleteOldTempFiles(LPCTSTR wildCard)
+void CTempFiles::DeleteOldTempFiles(LPCWSTR wildCard)
 {
 	DWORD len = ::GetTempPath(0, nullptr);
-	auto path = std::make_unique<TCHAR[]>(len + 100);
+	auto path = std::make_unique<wchar_t[]>(len + 100);
 	len = ::GetTempPath (len+100, path.get());
 	if (len == 0)
 		return;

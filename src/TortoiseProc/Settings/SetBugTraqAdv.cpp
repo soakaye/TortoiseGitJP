@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014, 2016-2017, 2019 - TortoiseGit
+// Copyright (C) 2014, 2016-2017, 2019, 2023 - TortoiseGit
 // Copyright (C) 2008,2010,2014-2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -27,7 +27,6 @@ IMPLEMENT_DYNAMIC(CSetBugTraqAdv, CResizableStandAloneDialog)
 
 CSetBugTraqAdv::CSetBugTraqAdv(CWnd* pParent /*= nullptr*/)
 	: CResizableStandAloneDialog(CSetBugTraqAdv::IDD, pParent)
-	, m_provider_clsid(GUID_NULL)
 	, m_bEnabled(true)
 {
 }
@@ -129,7 +128,7 @@ void CSetBugTraqAdv::OnOK()
 
 	if (m_sPath.IsEmpty() || !PathIsDirectory(m_sPath) || PathIsRelative(m_sPath))
 	{
-		ShowEditBalloon(IDC_BUGTRAQPATH, static_cast<LPCTSTR>(CFormatMessageWrapper(ERROR_PATH_NOT_FOUND)), CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), TTI_ERROR);
+		ShowEditBalloon(IDC_BUGTRAQPATH, static_cast<LPCWSTR>(CFormatMessageWrapper(ERROR_PATH_NOT_FOUND)), CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), TTI_ERROR);
 		return;
 	}
 

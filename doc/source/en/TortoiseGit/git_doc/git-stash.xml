@@ -13,18 +13,21 @@
 <simplesect id="git-stash(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git stash</emphasis> list [&lt;options&gt;]
-<emphasis>git stash</emphasis> show [&lt;options&gt;] [&lt;stash&gt;]
-<emphasis>git stash</emphasis> drop [-q|--quiet] [&lt;stash&gt;]
-<emphasis>git stash</emphasis> ( pop | apply ) [--index] [-q|--quiet] [&lt;stash&gt;]
+<literallayout><emphasis>git stash</emphasis> list [&lt;log-options&gt;]
+<emphasis>git stash</emphasis> show [-u | --include-untracked | --only-untracked] [&lt;diff-options&gt;] [&lt;stash&gt;]
+<emphasis>git stash</emphasis> drop [-q | --quiet] [&lt;stash&gt;]
+<emphasis>git stash</emphasis> pop [--index] [-q | --quiet] [&lt;stash&gt;]
+<emphasis>git stash</emphasis> apply [--index] [-q | --quiet] [&lt;stash&gt;]
 <emphasis>git stash</emphasis> branch &lt;branchname&gt; [&lt;stash&gt;]
-<emphasis>git stash</emphasis> [push [-p|--patch] [-k|--[no-]keep-index] [-q|--quiet]
-             [-u|--include-untracked] [-a|--all] [-m|--message &lt;message&gt;]
+<emphasis>git stash</emphasis> [push [-p | --patch] [-S | --staged] [-k | --[no-]keep-index] [-q | --quiet]
+             [-u | --include-untracked] [-a | --all] [(-m | --message) &lt;message&gt;]
              [--pathspec-from-file=&lt;file&gt; [--pathspec-file-nul]]
              [--] [&lt;pathspec&gt;&#8230;]]
+<emphasis>git stash</emphasis> save [-p | --patch] [-S | --staged] [-k | --[no-]keep-index] [-q | --quiet]
+             [-u | --include-untracked] [-a | --all] [&lt;message&gt;]
 <emphasis>git stash</emphasis> clear
 <emphasis>git stash</emphasis> create [&lt;message&gt;]
-<emphasis>git stash</emphasis> store [-m|--message &lt;message&gt;] [-q|--quiet] &lt;commit&gt;</literallayout>
+<emphasis>git stash</emphasis> store [(-m | --message) &lt;message&gt;] [-q | --quiet] &lt;commit&gt;</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-stash(1)__description">
@@ -52,7 +55,7 @@ stash index (e.g. the integer <emphasis>n</emphasis> is equivalent to <emphasis>
 <variablelist>
 <varlistentry>
 <term>
-push [-p|--patch] [-k|--[no-]keep-index] [-u|--include-untracked] [-a|--all] [-q|--quiet] [-m|--message &lt;message&gt;] [--pathspec-from-file=&lt;file&gt; [--pathspec-file-nul]] [--] [&lt;pathspec&gt;&#8230;]
+push [-p|--patch] [-S|--staged] [-k|--[no-]keep-index] [-u|--include-untracked] [-a|--all] [-q|--quiet] [(-m|--message) &lt;message&gt;] [--pathspec-from-file=&lt;file&gt; [--pathspec-file-nul]] [--] [&lt;pathspec&gt;&#8230;]
 </term>
 <listitem>
 <simpara>
@@ -70,7 +73,7 @@ which are allowed after a double hyphen <emphasis>--</emphasis> for disambiguati
 </varlistentry>
 <varlistentry>
 <term>
-save [-p|--patch] [-k|--[no-]keep-index] [-u|--include-untracked] [-a|--all] [-q|--quiet] [&lt;message&gt;]
+save [-p|--patch] [-S|--staged] [-k|--[no-]keep-index] [-u|--include-untracked] [-a|--all] [-q|--quiet] [&lt;message&gt;]
 </term>
 <listitem>
 <simpara>
@@ -83,7 +86,7 @@ save [-p|--patch] [-k|--[no-]keep-index] [-u|--include-untracked] [-a|--all] [-q
 </varlistentry>
 <varlistentry>
 <term>
-list [&lt;options&gt;]
+list [&lt;log-options&gt;]
 </term>
 <listitem>
 <simpara>
@@ -101,7 +104,7 @@ command to control what is shown and how. See <xref linkend="git-log(1)" />.</si
 </varlistentry>
 <varlistentry>
 <term>
-show [&lt;options&gt;] [&lt;stash&gt;]
+show [-u|--include-untracked|--only-untracked] [&lt;diff-options&gt;] [&lt;stash&gt;]
 </term>
 <listitem>
 <simpara>
@@ -111,8 +114,10 @@ show [&lt;options&gt;] [&lt;stash&gt;]
         By default, the command shows the diffstat, but it will accept any
         format known to <emphasis>git diff</emphasis> (e.g., <emphasis>git stash show -p stash@{1}</emphasis>
         to view the second most recent entry in patch form).
-        You can use stash.showStat and/or stash.showPatch config variables
-        to change the default behavior.
+        If no <emphasis>&lt;diff-option&gt;</emphasis> is provided, the default behavior will be given
+        by the <emphasis>stash.showStat</emphasis>, and <emphasis>stash.showPatch</emphasis> config variables. You
+        can also use <emphasis>stash.showIncludeUntracked</emphasis> to set whether
+        <emphasis>--include-untracked</emphasis> is enabled by default.
 </simpara>
 </listitem>
 </varlistentry>
@@ -239,12 +244,28 @@ up with <emphasis>git clean</emphasis>.</simpara>
 <term>
 --include-untracked
 </term>
+<term>
+--no-include-untracked
+</term>
 <listitem>
 <simpara>
-        This option is only valid for <emphasis>push</emphasis> and <emphasis>save</emphasis> commands.
+        When used with the <emphasis>push</emphasis> and <emphasis>save</emphasis> commands,
+        all untracked files are also stashed and then cleaned up with
+        <emphasis>git clean</emphasis>.
 </simpara>
-<simpara>All untracked files are also stashed and then cleaned up with
-<emphasis>git clean</emphasis>.</simpara>
+<simpara>When used with the <emphasis>show</emphasis> command, show the untracked files in the stash
+entry as part of the diff.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--only-untracked
+</term>
+<listitem>
+<simpara>
+        This option is only valid for the <emphasis>show</emphasis> command.
+</simpara>
+<simpara>Show only the untracked files in the stash entry as part of the diff.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -298,6 +319,23 @@ worktree. See the Interactive Mode section of <xref linkend="git-add(1)" />
 to learn how to operate the <emphasis>--patch</emphasis> mode.</simpara>
 <simpara>The <emphasis>--patch</emphasis> option implies <emphasis>--keep-index</emphasis>.  You can use
 <emphasis>--no-keep-index</emphasis> to override this.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+-S
+</term>
+<term>
+--staged
+</term>
+<listitem>
+<simpara>
+        This option is only valid for <emphasis>push</emphasis> and <emphasis>save</emphasis> commands.
+</simpara>
+<simpara>Stash only the changes that are currently staged. This is similar to
+basic <emphasis>git commit</emphasis> except the state is committed to the stash instead
+of current branch.</simpara>
+<simpara>The <emphasis>--patch</emphasis> option has priority over this one.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -477,6 +515,27 @@ $ git commit foo -m 'Remaining parts'</screen>
 </varlistentry>
 <varlistentry>
 <term>
+Saving unrelated changes for future use
+</term>
+<listitem>
+<simpara>
+When you are in the middle of massive changes and you find some
+unrelated issue that you don't want to forget to fix, you can do the
+change(s), stage them, and use <emphasis>git stash push --staged</emphasis> to stash them
+out for future use. This is similar to committing the staged changes,
+only the commit ends-up being in the stash and not on the current branch.
+</simpara>
+<screen># ... hack hack hack ...
+$ git add --patch foo           # add unrelated changes to the index
+$ git stash push --staged       # save these changes to the stash
+# ... hack hack hack, finish current changes ...
+$ git commit -m 'Massive'       # commit fully tested changes
+$ git switch fixup-branch       # switch to another branch
+$ git stash pop                 # to finish work on the saved changes</screen>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 Recovering stash entries that were cleared/dropped erroneously
 </term>
 <listitem>
@@ -489,6 +548,50 @@ your repository, but not reachable any more:
 <screen>git fsck --unreachable |
 grep commit | cut -d\  -f3 |
 xargs git log --merges --no-walk --grep=WIP</screen>
+</listitem>
+</varlistentry>
+</variablelist>
+</simplesect>
+<simplesect id="git-stash(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+stash.showIncludeUntracked
+</term>
+<listitem>
+<simpara>
+        If this is set to true, the <emphasis>git stash show</emphasis> command will show
+        the untracked files of a stash entry.  Defaults to false. See
+        the description of the <emphasis>show</emphasis> command in <xref linkend="git-stash(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+stash.showPatch
+</term>
+<listitem>
+<simpara>
+        If this is set to true, the <emphasis>git stash show</emphasis> command without an
+        option will show the stash entry in patch form.  Defaults to false.
+        See the description of the <emphasis>show</emphasis> command in <xref linkend="git-stash(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+stash.showStat
+</term>
+<listitem>
+<simpara>
+        If this is set to true, the <emphasis>git stash show</emphasis> command without an
+        option will show a diffstat of the stash entry.  Defaults to true.
+        See the description of the <emphasis>show</emphasis> command in <xref linkend="git-stash(1)" />.
+</simpara>
 </listitem>
 </varlistentry>
 </variablelist>

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2021, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -29,17 +29,18 @@ enum
 	TGIT_GIT_ERROR_GET_EXIT_CODE
 };
 
-class CGitByteArray:public std::vector<BYTE>
+class CGitByteArray : private std::vector<char>
 {
 public:
-	size_t find(BYTE data, size_t start = 0) const
+	size_t find(char data, size_t start = 0) const
 	{
-		for (size_t i = start, end = size(); i < end; ++i)
+		const size_t end = size();
+		for (size_t i = start; i < end; ++i)
 			if ((*this)[i] == data)
 				return i;
 		return npos;
 	}
-	size_t RevertFind(BYTE data, size_t start = npos) const
+	size_t RevertFind(char data, size_t start = npos) const
 	{
 		if (start == npos)
 		{
@@ -56,49 +57,70 @@ public:
 	size_t findNextString(size_t start = 0) const
 	{
 		size_t pos = start;
-		size_t end = size();
+		const size_t end = size();
 		do
 		{
 			pos=find(0,pos);
-			if(pos != npos)
-				++pos;
-			else
+			if (pos == npos)
 				break;
-
+			++pos;
 			if (pos >= end)
 				return npos;
 
-		}while(at(pos)==0);
+		} while ((*this)[pos] == 0);
 
 		return pos;
 	}
-	size_t append(std::vector<BYTE> &v, size_t start = 0, size_t end = npos)
+	size_t append(const CGitByteArray& v, size_t start = 0, size_t end = npos)
 	{
 		if (end == npos)
 			end = v.size();
-		for (size_t i = start; i < end; ++i)
-			this->push_back(v[i]);
+
+		if (end <= start)
+			return 0;
+		insert(this->end(), v.cbegin() + start, v.cbegin() + end);
 		return 0;
 	}
-	void append(const BYTE* data, size_t dataSize)
+	void append(const char* data, size_t dataSize)
 	{
 		if (dataSize == 0)
 			return;
-		size_t oldsize=size();
-		resize(oldsize+dataSize);
-		memcpy(&*(begin()+oldsize),data,dataSize);
+		const size_t oldsize = size();
+		resize(oldsize + dataSize);
+		memcpy(this->data() + oldsize, data, dataSize);
 	}
+
+	operator CString()
+	{
+		if (empty())
+			return {};
+
+		if (at(size() - 1) != '\0')
+			push_back('\0');
+
+		return CUnicodeUtils::GetUnicode(data());
+	}
+
 	static const size_t npos = static_cast<size_t>(-1); // bad/missing length/position
 	static_assert(MAXSIZE_T == npos, "NPOS must equal MAXSIZE_T");
-#pragma warning(push)
-#if _MSC_VER < 1920
-#pragma warning(disable: 4309) // 'static_cast': truncation of constant value
-#endif
 	static_assert(-1 == static_cast<int>(npos), "NPOS must equal -1");
-#pragma warning(pop)
+
+	using std::vector<char>::begin;
+	using std::vector<char>::end;
+	using std::vector<char>::cbegin;
+	using std::vector<char>::cend;
+	using std::vector<char>::clear;
+	using std::vector<char>::data;
+	using std::vector<char>::empty;
+	using std::vector<char>::erase;
+	using std::vector<char>::pop_back;
+	using std::vector<char>::push_back;
+	using std::vector<char>::resize;
+	using std::vector<char>::size;
+	using std::vector<char>::operator[];
 };
 
-class CGitGuardedByteArray : public CGitByteArray
+class CGitGuardedByteArray : private CGitByteArray
 {
 private:
 	CGitGuardedByteArray(const CGitGuardedByteArray&) = delete;
@@ -107,6 +129,20 @@ public:
 	CGitGuardedByteArray() {}
 	~CGitGuardedByteArray() {}
 	CComAutoCriticalSection	m_critSec;
+
+	using CGitByteArray::begin;
+	using CGitByteArray::end;
+	using CGitByteArray::cbegin;
+	using CGitByteArray::cend;
+	using CGitByteArray::clear;
+	using CGitByteArray::data;
+	using CGitByteArray::empty;
+	using CGitByteArray::erase;
+	using CGitByteArray::pop_back;
+	using CGitByteArray::push_back;
+	using CGitByteArray::resize;
+	using CGitByteArray::size;
+	using CGitByteArray::operator[];
 };
 
 struct TGitRef
@@ -116,8 +152,8 @@ struct TGitRef
 	operator const CString&() const { return name; }
 };
 
-typedef std::vector<CString> STRING_VECTOR;
-typedef std::unordered_map<CGitHash, STRING_VECTOR> MAP_HASH_NAME;
-typedef std::map<CString, CString> MAP_STRING_STRING;
-typedef std::vector<TGitRef> REF_VECTOR;
-typedef CGitByteArray BYTE_VECTOR;
+using STRING_VECTOR = std::vector<CString>;
+using MAP_HASH_NAME = std::unordered_map<CGitHash, STRING_VECTOR>;
+using MAP_STRING_STRING = std::map<CString, CString>;
+using REF_VECTOR = std::vector<TGitRef>;
+using BYTE_VECTOR = CGitByteArray;

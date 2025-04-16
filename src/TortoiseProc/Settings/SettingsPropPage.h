@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016 - TortoiseGit
+// Copyright (C) 2016, 2023 - TortoiseGit
 // Copyright (C) 2007-2010, 2015, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -34,12 +34,12 @@ public:
 	// simple construction
 	ISettingsPropPage();
 	explicit ISettingsPropPage(UINT nIDTemplate, UINT nIDCaption = 0, DWORD dwSize = sizeof(PROPSHEETPAGE));
-	explicit ISettingsPropPage(LPCTSTR lpszTemplateName, UINT nIDCaption = 0, DWORD dwSize = sizeof(PROPSHEETPAGE));
+	explicit ISettingsPropPage(LPCWSTR lpszTemplateName, UINT nIDCaption = 0, DWORD dwSize = sizeof(PROPSHEETPAGE));
 
 	// extended construction
 	ISettingsPropPage(UINT nIDTemplate, UINT nIDCaption,
 		UINT nIDHeaderTitle, UINT nIDHeaderSubTitle = 0, DWORD dwSize = sizeof(PROPSHEETPAGE));
-	ISettingsPropPage(LPCTSTR lpszTemplateName, UINT nIDCaption,
+	ISettingsPropPage(LPCWSTR lpszTemplateName, UINT nIDCaption,
 		UINT nIDHeaderTitle, UINT nIDHeaderSubTitle = 0, DWORD dwSize = sizeof(PROPSHEETPAGE));
 
 	virtual ~ISettingsPropPage();
@@ -77,7 +77,7 @@ protected:
 
 protected:
 
-	SettingsRestart m_restart;
+	SettingsRestart m_restart = Restart_None;
 	CToolTips		m_tooltips;
 
 	/**

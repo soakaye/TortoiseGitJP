@@ -56,7 +56,7 @@
 			<term>Create Library</term>
 			<listitem>
 				<para>
-					On Windows 7 you can create a Library in which to group working copies
+					You can create a Library in which to group working copies
 					which are scattered in various places on your system.
 				</para>
 			</listitem>
@@ -192,12 +192,23 @@
 			If there are some paths on your computer where you just don't want
 			TortoiseGit's context menu to appear at all, you can list them in
 			the box at the bottom.
+			A trailing <literal>*</literal> is treated as a wildcard character matching
+			any characters. Additionally, a path ending with <literal>\</literal> will
+			match a folder and all its files and subfolders.
+			<emphasis>Please note:</emphasis> <literal>*</literal> cannot be used as a wildcard
+			character within a path.
 		</para>
 		<para>
 			If you right click and drag folder/file in Windows Explorer,
 			a context menu will be shown when you drop. It provides some TortoiseGit actions.
 			You can uncheck <guibutton>Enable drag context menu</guibutton>
 			to prevent from carelessly clicking the TortoiseGit actions.
+		</para>
+		<para>
+			There's a different settings page for the Windows 11 context menu.
+			That page also has a button to register the TortoiseGit entries in
+			the context menu. You only have to do this if TortoiseGit was installed
+			as a different user.
 		</para>
 	</sect3>
 
@@ -229,6 +240,24 @@
 		</para>
 		<variablelist>
 			<varlistentry>
+				<term>Default limitation of log messages</term>
+				<listitem>
+					<para>
+						Limits the number of log messages that TortoiseGit loads and displays when you first select
+						<menuchoice>
+							<guimenu>TortoiseGit</guimenu>
+							<guimenuitem>Show log...</guimenuitem>
+						</menuchoice> (cf. <xref linkend="tgit-dug-showlog"/>).
+						The number of log messages can be limited by a fixed number of revisions to display,
+						it can remember the last selected date when the Log Dialog is opened again,
+						it can be limited to the last N year(s)/month(s)/week(s),
+						or just be unlimited (i.e., all revisions are shown; this is the default).
+						When a default limitation is active, the <guilabel>From</guilabel> label has a blueish background in the Revision Log dialog.
+						By opening the context menu on the <guilabel>From</guilabel> date picker, you can configure the default limit or disable the default limit for the current dialog.
+					</para>
+				</listitem>
+			</varlistentry>
+			<varlistentry>
 				<term>Font for log messages</term>
 				<listitem>
 					<para>
@@ -253,18 +282,6 @@
 				<listitem>
 					<para>
 						An asterisk is inserted as the prefix of log message in Log dialog.
-					</para>
-				</listitem>
-			</varlistentry>
-			<varlistentry>
-				<term>apply <literal>--topo-order</literal></term>
-				<listitem>
-					<para>
-						Normally log entries/commits are ordered in descending order of the commit date.
-						<literal>--topo-order</literal> makes the commits appear in topological order (i.e. descendant
-						commits are shown before their parents). Not using this option, might break
-						the graph in the log dialog. However, this option is slower, because all
-						log entries have to be processed before displaying them.
 					</para>
 				</listitem>
 			</varlistentry>
@@ -366,7 +383,7 @@
 				<term>Show describe in log</term>
 				<listitem>
 					<para>
-						Shows describe above commit message in in Log dialog.
+						Shows describe above commit message in the Log dialog.
 						For example, <literal>v0.21.0-589-gdeadc43</literal> refers to the commit
 						<literal>deadc43</literal> that is 589 commits ahead the tag <literal>v0.21.0</literal>.
 						Note: Describe may take longer to run if the commit
@@ -571,7 +588,7 @@
 				<term>Select items automatically</term>
 				<listitem>
 					<para>
-						The normal behaviour in the commit dialog is for all modified
+						The normal behavior in the commit dialog is for all modified
 						(versioned) items to be selected for commit automatically.
 						If you prefer to start with nothing selected and pick the
 						items for commit manually, uncheck this box.

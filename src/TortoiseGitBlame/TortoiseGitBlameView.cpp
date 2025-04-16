@@ -1,6 +1,6 @@
 ﻿// TortoiseGitBlame - a Viewer for Git Blames
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // Copyright (C)2003 Don HO <donho@altern.org>
@@ -42,7 +42,7 @@
 #include "DPIAware.h"
 #include "Theme.h"
 #include "DarkModeHelper.h"
-
+#include "Lexilla.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -122,29 +122,6 @@ END_MESSAGE_MAP()
 // CTortoiseGitBlameView construction/destruction
 
 CTortoiseGitBlameView::CTortoiseGitBlameView()
-	: bIgnoreEOL(false)
-	, bIgnoreSpaces(false)
-	, bIgnoreAllSpaces(false)
-	, m_MouseLine(-1)
-	, m_bMatchCase(false)
-	, hInstance(nullptr)
-	, hResource(nullptr)
-	, currentDialog(nullptr)
-	, m_blamewidth(0)
-	, m_revwidth(0)
-	, m_logidwidth(0)
-	, m_datewidth(0)
-	, m_authorwidth(0)
-	, m_filenameWidth(0)
-	, m_originalLineNumberWidth(0)
-	, m_linewidth(0)
-	, m_SelectedLine(-1)
-	, m_bShowLine(true)
-	, m_pFindDialog(nullptr)
-	, m_themeCallbackId(0)
-#ifdef USE_TEMPFILENAME
-	, m_Buffer(nullptr)
-#endif
 {
 	m_colorage = !!theApp.GetInt(L"ColorAge", !CTheme::Instance().IsHighContrastMode());
 	m_bLexer = !!theApp.GetInt(L"EnableLexer", !CTheme::Instance().IsHighContrastMode());
@@ -195,62 +172,62 @@ CTortoiseGitBlameView::~CTortoiseGitBlameView()
 struct EncodingUnit
 {
 	int id;
-	char *name;
+	const wchar_t* name;
 };
 
 static EncodingUnit	encodings[]	= {
-		{1250,	"windows-1250"},																	//IDM_FORMAT_WIN_1250
-		{1251,	"windows-1251"},																	//IDM_FORMAT_WIN_1251
-		{1252,	"windows-1252"},																	//IDM_FORMAT_WIN_1252
-		{1253,	"windows-1253"},																	//IDM_FORMAT_WIN_1253
-		{1254,	"windows-1254"},																	//IDM_FORMAT_WIN_1254
-		{1255,	"windows-1255"},																	//IDM_FORMAT_WIN_1255
-		{1256,	"windows-1256"},																	//IDM_FORMAT_WIN_1256
-		{1257,	"windows-1257"},																	//IDM_FORMAT_WIN_1257
-		{1258,	"windows-1258"},																	//IDM_FORMAT_WIN_1258
-		{28591,	"latin1	ISO_8859-1 ISO-8859-1 CP819	IBM819 csISOLatin1 iso-ir-100 l1"},				//IDM_FORMAT_ISO_8859_1
-		{28592,	"latin2	ISO_8859-2 ISO-8859-2 csISOLatin2 iso-ir-101 l2"},							//IDM_FORMAT_ISO_8859_2
-		{28593,	"latin3	ISO_8859-3 ISO-8859-3 csISOLatin3 iso-ir-109 l3"},							//IDM_FORMAT_ISO_8859_3
-		{28594,	"latin4	ISO_8859-4 ISO-8859-4 csISOLatin4 iso-ir-110 l4"},							//IDM_FORMAT_ISO_8859_4
-		{28595,	"cyrillic ISO_8859-5 ISO-8859-5	csISOLatinCyrillic iso-ir-144"},					//IDM_FORMAT_ISO_8859_5
-		{28596,	"arabic	ISO_8859-6 ISO-8859-6 csISOLatinArabic iso-ir-127 ASMO-708 ECMA-114"},		//IDM_FORMAT_ISO_8859_6
-		{28597,	"greek ISO_8859-7 ISO-8859-7 csISOLatinGreek greek8	iso-ir-126 ELOT_928	ECMA-118"},	//IDM_FORMAT_ISO_8859_7
-		{28598,	"hebrew	ISO_8859-8 ISO-8859-8 csISOLatinHebrew iso-ir-138"},						//IDM_FORMAT_ISO_8859_8
-		{28599,	"latin5	ISO_8859-9 ISO-8859-9 csISOLatin5 iso-ir-148 l5"},							//IDM_FORMAT_ISO_8859_9
-		{28600,	"latin6	ISO_8859-10	ISO-8859-10	csISOLatin6	iso-ir-157 l6"},						//IDM_FORMAT_ISO_8859_10
-		{28601,	"ISO_8859-11 ISO-8859-11"},															//IDM_FORMAT_ISO_8859_11
-		{28603,	"ISO_8859-13 ISO-8859-13"},															//IDM_FORMAT_ISO_8859_13
-		{28604,	"iso-celtic	latin8 ISO_8859-14 ISO-8859-14 18 iso-ir-199"},							//IDM_FORMAT_ISO_8859_14
-		{28605,	"Latin-9 ISO_8859-15 ISO-8859-15"},													//IDM_FORMAT_ISO_8859_15
-		{28606,	"latin10 ISO_8859-16 ISO-8859-16 110 iso-ir-226"},									//IDM_FORMAT_ISO_8859_16
-		{437,	"IBM437	cp437 437 csPC8CodePage437"},												//IDM_FORMAT_DOS_437
-		{720,	"IBM720	cp720 oem720 720"},															//IDM_FORMAT_DOS_720
-		{737,	"IBM737	cp737 oem737 737"},															//IDM_FORMAT_DOS_737
-		{775,	"IBM775	cp775 oem775 775"},															//IDM_FORMAT_DOS_775
-		{850,	"IBM850	cp850 oem850 850"},															//IDM_FORMAT_DOS_850
-		{852,	"IBM852	cp852 oem852 852"},															//IDM_FORMAT_DOS_852
-		{855,	"IBM855	cp855 oem855 855 csIBM855"},												//IDM_FORMAT_DOS_855
-		{857,	"IBM857	cp857 oem857 857"},															//IDM_FORMAT_DOS_857
-		{858,	"IBM858	cp858 oem858 858"},															//IDM_FORMAT_DOS_858
-		{860,	"IBM860	cp860 oem860 860"},															//IDM_FORMAT_DOS_860
-		{861,	"IBM861	cp861 oem861 861"},															//IDM_FORMAT_DOS_861
-		{862,	"IBM862	cp862 oem862 862"},															//IDM_FORMAT_DOS_862
-		{863,	"IBM863	cp863 oem863 863"},															//IDM_FORMAT_DOS_863
-		{865,	"IBM865	cp865 oem865 865"},															//IDM_FORMAT_DOS_865
-		{866,	"IBM866	cp866 oem866 866"},															//IDM_FORMAT_DOS_866
-		{869,	"IBM869	cp869 oem869 869"},															//IDM_FORMAT_DOS_869
-		{950,	"big5 csBig5"},																		//IDM_FORMAT_BIG5
-		{936,	"gb2312	gbk	csGB2312"},																//IDM_FORMAT_GB2312
-		{932,	"Shift_JIS MS_Kanji	csShiftJIS csWindows31J"},										//IDM_FORMAT_SHIFT_JIS
-		{949,	"windows-949 korean"},																//IDM_FORMAT_KOREAN_WIN
-		{51949,	"euc-kr	csEUCKR"},																	//IDM_FORMAT_EUC_KR
-		{874,	"tis-620"},																			//IDM_FORMAT_TIS_620
-		{10007,	"x-mac-cyrillic	xmaccyrillic"},														//IDM_FORMAT_MAC_CYRILLIC
-		{21866,	"koi8_u"},																			//IDM_FORMAT_KOI8U_CYRILLIC
-		{20866,	"koi8_r	csKOI8R"},																	//IDM_FORMAT_KOI8R_CYRILLIC
-		{65001,	"UTF-8"},																			//IDM_FORMAT_UTF8
-		{1200,	"UTF-16 LE"},																		//IDM_FORMAT_UTF16LE
-		{1201,	"UTF-16 BE"},																		//IDM_FORMAT_UTF16BE
+		{1250,	L"windows-1250"},																		//IDM_FORMAT_WIN_1250
+		{1251,	L"windows-1251"},																		//IDM_FORMAT_WIN_1251
+		{1252,	L"windows-1252"},																		//IDM_FORMAT_WIN_1252
+		{1253,	L"windows-1253"},																		//IDM_FORMAT_WIN_1253
+		{1254,	L"windows-1254"},																		//IDM_FORMAT_WIN_1254
+		{1255,	L"windows-1255"},																		//IDM_FORMAT_WIN_1255
+		{1256,	L"windows-1256"},																		//IDM_FORMAT_WIN_1256
+		{1257,	L"windows-1257"},																		//IDM_FORMAT_WIN_1257
+		{1258,	L"windows-1258"},																		//IDM_FORMAT_WIN_1258
+		{28591,	L"latin1	ISO_8859-1 ISO-8859-1 CP819	IBM819 csISOLatin1 iso-ir-100 l1"},				//IDM_FORMAT_ISO_8859_1
+		{28592,	L"latin2	ISO_8859-2 ISO-8859-2 csISOLatin2 iso-ir-101 l2"},							//IDM_FORMAT_ISO_8859_2
+		{28593,	L"latin3	ISO_8859-3 ISO-8859-3 csISOLatin3 iso-ir-109 l3"},							//IDM_FORMAT_ISO_8859_3
+		{28594,	L"latin4	ISO_8859-4 ISO-8859-4 csISOLatin4 iso-ir-110 l4"},							//IDM_FORMAT_ISO_8859_4
+		{28595,	L"cyrillic ISO_8859-5 ISO-8859-5	csISOLatinCyrillic iso-ir-144"},					//IDM_FORMAT_ISO_8859_5
+		{28596,	L"arabic	ISO_8859-6 ISO-8859-6 csISOLatinArabic iso-ir-127 ASMO-708 ECMA-114"},		//IDM_FORMAT_ISO_8859_6
+		{28597,	L"greek ISO_8859-7 ISO-8859-7 csISOLatinGreek greek8	iso-ir-126 ELOT_928	ECMA-118"},	//IDM_FORMAT_ISO_8859_7
+		{28598,	L"hebrew	ISO_8859-8 ISO-8859-8 csISOLatinHebrew iso-ir-138"},						//IDM_FORMAT_ISO_8859_8
+		{28599,	L"latin5	ISO_8859-9 ISO-8859-9 csISOLatin5 iso-ir-148 l5"},							//IDM_FORMAT_ISO_8859_9
+		{28600,	L"latin6	ISO_8859-10	ISO-8859-10	csISOLatin6	iso-ir-157 l6"},						//IDM_FORMAT_ISO_8859_10
+		{28601,	L"ISO_8859-11 ISO-8859-11"},															//IDM_FORMAT_ISO_8859_11
+		{28603,	L"ISO_8859-13 ISO-8859-13"},															//IDM_FORMAT_ISO_8859_13
+		{28604,	L"iso-celtic	latin8 ISO_8859-14 ISO-8859-14 18 iso-ir-199"},							//IDM_FORMAT_ISO_8859_14
+		{28605,	L"Latin-9 ISO_8859-15 ISO-8859-15"},													//IDM_FORMAT_ISO_8859_15
+		{28606,	L"latin10 ISO_8859-16 ISO-8859-16 110 iso-ir-226"},										//IDM_FORMAT_ISO_8859_16
+		{437,	L"IBM437	cp437 437 csPC8CodePage437"},												//IDM_FORMAT_DOS_437
+		{720,	L"IBM720	cp720 oem720 720"},															//IDM_FORMAT_DOS_720
+		{737,	L"IBM737	cp737 oem737 737"},															//IDM_FORMAT_DOS_737
+		{775,	L"IBM775	cp775 oem775 775"},															//IDM_FORMAT_DOS_775
+		{850,	L"IBM850	cp850 oem850 850"},															//IDM_FORMAT_DOS_850
+		{852,	L"IBM852	cp852 oem852 852"},															//IDM_FORMAT_DOS_852
+		{855,	L"IBM855	cp855 oem855 855 csIBM855"},												//IDM_FORMAT_DOS_855
+		{857,	L"IBM857	cp857 oem857 857"},															//IDM_FORMAT_DOS_857
+		{858,	L"IBM858	cp858 oem858 858"},															//IDM_FORMAT_DOS_858
+		{860,	L"IBM860	cp860 oem860 860"},															//IDM_FORMAT_DOS_860
+		{861,	L"IBM861	cp861 oem861 861"},															//IDM_FORMAT_DOS_861
+		{862,	L"IBM862	cp862 oem862 862"},															//IDM_FORMAT_DOS_862
+		{863,	L"IBM863	cp863 oem863 863"},															//IDM_FORMAT_DOS_863
+		{865,	L"IBM865	cp865 oem865 865"},															//IDM_FORMAT_DOS_865
+		{866,	L"IBM866	cp866 oem866 866"},															//IDM_FORMAT_DOS_866
+		{869,	L"IBM869	cp869 oem869 869"},															//IDM_FORMAT_DOS_869
+		{950,	L"big5 csBig5"},																		//IDM_FORMAT_BIG5
+		{936,	L"gb2312	gbk	csGB2312"},																//IDM_FORMAT_GB2312
+		{932,	L"Shift_JIS MS_Kanji	csShiftJIS csWindows31J"},										//IDM_FORMAT_SHIFT_JIS
+		{949,	L"windows-949 korean"},																	//IDM_FORMAT_KOREAN_WIN
+		{51949,	L"euc-kr	csEUCKR"},																	//IDM_FORMAT_EUC_KR
+		{874,	L"tis-620"},																			//IDM_FORMAT_TIS_620
+		{10007,	L"x-mac-cyrillic	xmaccyrillic"},														//IDM_FORMAT_MAC_CYRILLIC
+		{21866,	L"koi8_u"},																				//IDM_FORMAT_KOI8U_CYRILLIC
+		{20866,	L"koi8_r	csKOI8R"},																	//IDM_FORMAT_KOI8R_CYRILLIC
+		{65001,	L"UTF-8"},																				//IDM_FORMAT_UTF8
+		{1200,	L"UTF-16 LE"},																			//IDM_FORMAT_UTF16LE
+		{1201,	L"UTF-16 BE"},																			//IDM_FORMAT_UTF16BE
 };
 void CTortoiseGitBlameView::OnChangeEncode(UINT nId)
 {
@@ -261,7 +238,7 @@ int CTortoiseGitBlameView::OnCreate(LPCREATESTRUCT lpcs)
 {
 	CRect rect,rect1;
 	this->GetWindowRect(&rect1);
-	rect.left = m_blamewidth + CDPIAware::Instance().ScaleX(LOCATOR_WIDTH);
+	rect.left = m_blamewidth + CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH);
 	rect.right=rect.Width();
 	rect.top=0;
 	rect.bottom=rect.Height();
@@ -326,9 +303,10 @@ int CTortoiseGitBlameView::GetLineUnderCursor(CPoint point)
 	auto line = static_cast<int>(SendEditor(SCI_DOCLINEFROMVISIBLE, firstvisibleline));
 	auto linesonscreen = static_cast<int>(SendEditor(SCI_LINESONSCREEN)) + 1;
 	auto height = static_cast<int>(SendEditor(SCI_TEXTHEIGHT));
+	const auto linesTotal = static_cast<int>(SendEditor(SCI_GETLINECOUNT));
 
 	int i = 0, y = 0;
-	for (i = line; y <= point.y && i < (line + linesonscreen); ++i)
+	for (i = line; y <= point.y && i < (line + linesonscreen) && i < linesTotal; ++i)
 	{
 		auto wrapcount = static_cast<int>(SendEditor(SCI_WRAPCOUNT, i));
 		if (wrapcount > 1)
@@ -410,7 +388,7 @@ void CTortoiseGitBlameView::OnRButtonUp(UINT /*nFlags*/, CPoint point)
 		}
 		catch (const char* msg)
 		{
-			MessageBox(L"Could not get files of parents.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+			MessageBox(L"Could not get files of parents.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 		}
 
 		// blame previous
@@ -699,7 +677,7 @@ void CTortoiseGitBlameView::OnFindNext()
 bool CTortoiseGitBlameView::GotoLine(int line)
 {
 	--line;
-	int numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
+	const int numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
 	if (line < 0 || numberOfLines == 0)
 		return false;
 	if (line >= numberOfLines)
@@ -758,7 +736,7 @@ void CTortoiseGitBlameView::CopyToClipboard()
 		GetLogList()->CopySelectionToClipBoard();
 	else if (wnd)
 	{
-		if (CString(wnd->GetRuntimeClass()->m_lpszClassName) == L"CMFCPropertyGridCtrl")
+		if (strcmp(wnd->GetRuntimeClass()->m_lpszClassName, "CMFCPropertyGridCtrl") == 0)
 		{
 			auto grid = static_cast<CMFCPropertyGridCtrl*>(wnd);
 			if (grid->GetCurSel() && !grid->GetCurSel()->IsGroup())
@@ -783,7 +761,7 @@ void CTortoiseGitBlameView::SetTheme(bool bDark)
 
 LONG CTortoiseGitBlameView::GetBlameWidth()
 {
-	LONG blamewidth = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH) + CDPIAware::Instance().ScaleX(BLAMESPACE);
+	LONG blamewidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 	SIZE width;
 	CreateFont();
 	HDC hDC = this->GetDC()->m_hDC;
@@ -791,66 +769,66 @@ LONG CTortoiseGitBlameView::GetBlameWidth()
 
 	if (!m_bShowLogID)
 	{
-		CString shortHash('f', g_Git.GetShortHASHLength());
+		CString shortHash(L'f', g_Git.GetShortHASHLength());
 		::GetTextExtentPoint32(hDC, shortHash, g_Git.GetShortHASHLength(), &width);
-		m_revwidth = width.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		m_revwidth = width.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 		blamewidth += m_revwidth;
 	}
 	else
 	{
-		auto length = static_cast<int>(std::ceil(std::log10(GetLogList()->GetItemCount() + 1)));
+		const auto length = static_cast<int>(std::ceil(std::log10(GetLogList()->GetItemCount() + 1)));
 		m_sLogIDFormat.Format(L"%%%dd", length);
 		::GetTextExtentPoint32(hDC, CString(L'8', length), length, &width);
-		m_logidwidth = width.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		m_logidwidth = width.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 		blamewidth += m_logidwidth;
 	}
 	if (m_bShowDate)
 	{
 		SIZE maxwidth = {0};
 
-		auto numberOfLines = m_data.GetNumberOfLines();
+		const auto numberOfLines = m_data.GetNumberOfLines();
 		for (size_t i = 0; i < numberOfLines; ++i)
 		{
 			::GetTextExtentPoint32(hDC, m_data.GetDate(i), m_data.GetDate(i).GetLength(), &width);
 			if (width.cx > maxwidth.cx)
 				maxwidth = width;
 		}
-		m_datewidth = maxwidth.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		m_datewidth = maxwidth.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 		blamewidth += m_datewidth;
 	}
 	if ( m_bShowAuthor)
 	{
 		SIZE maxwidth = {0};
 
-		size_t numberOfLines = m_data.GetNumberOfLines();
+		const size_t numberOfLines = m_data.GetNumberOfLines();
 		for (size_t i = 0; i < numberOfLines; ++i)
 		{
 			::GetTextExtentPoint32(hDC,m_data.GetAuthor(i) , m_data.GetAuthor(i).GetLength(), &width);
 			if (width.cx > maxwidth.cx)
 				maxwidth = width;
 		}
-		m_authorwidth = maxwidth.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		m_authorwidth = maxwidth.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 		blamewidth += m_authorwidth;
 	}
 	if (m_bShowFilename)
 	{
 		SIZE maxwidth = {0};
 
-		size_t numberOfLines = m_data.GetNumberOfLines();
+		const size_t numberOfLines = m_data.GetNumberOfLines();
 		for (size_t i = 0; i < numberOfLines; ++i)
 		{
 			::GetTextExtentPoint32(hDC, m_data.GetFilename(i), m_data.GetFilename(i).GetLength(), &width);
 			if (width.cx > maxwidth.cx)
 				maxwidth = width;
 		}
-		m_filenameWidth = maxwidth.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		m_filenameWidth = maxwidth.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 		blamewidth += m_filenameWidth;
 	}
 	if (m_bShowOriginalLineNumber)
 	{
 		SIZE maxwidth = {0};
 
-		size_t numberOfLines = m_data.GetNumberOfLines();
+		const size_t numberOfLines = m_data.GetNumberOfLines();
 		CString str;
 		for (size_t i = 0; i < numberOfLines; ++i)
 		{
@@ -859,7 +837,7 @@ LONG CTortoiseGitBlameView::GetBlameWidth()
 			if (width.cx > maxwidth.cx)
 				maxwidth = width;
 		}
-		m_originalLineNumberWidth = maxwidth.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		m_originalLineNumberWidth = maxwidth.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 		blamewidth += m_originalLineNumberWidth;
 	}
 	::SelectObject(hDC, oldfont);
@@ -883,7 +861,7 @@ void CTortoiseGitBlameView::CreateNewFont(bool resize)
 	m_font.DeleteObject();
 	LOGFONT lf = { 0 };
 	lf.lfWeight = 400;
-	lf.lfHeight = -CDPIAware::Instance().PointsToPixelsY(static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\BlameFontSize", 10))) - static_cast<int>(SendEditor(SCI_GETZOOM));
+	lf.lfHeight = -CDPIAware::Instance().PointsToPixelsY(GetSafeHwnd(), static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\BlameFontSize", 10))) - static_cast<int>(SendEditor(SCI_GETZOOM));
 	lf.lfCharSet = DEFAULT_CHARSET;
 	CRegStdString fontname = CRegStdString(L"Software\\TortoiseGit\\BlameFontName", L"Consolas");
 	wcsncpy_s(lf.lfFaceName, static_cast<std::wstring>(fontname).c_str(), _TRUNCATE);
@@ -915,7 +893,7 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 	int linesonscreen = static_cast<int>(SendEditor(SCI_LINESONSCREEN)) + 1;
 	int height = static_cast<int>(SendEditor(SCI_TEXTHEIGHT));
 	int Y = 0;
-	TCHAR buf[MAX_PATH] = {0};
+	wchar_t buf[MAX_PATH] = { 0 };
 	std::fill_n(buf, _countof(buf) - 1, L' ');
 	CGitHash oldHash;
 	CString oldFile;
@@ -933,7 +911,8 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 		oldfont = static_cast<HFONT>(::SelectObject(hDC, m_font.GetSafeHandle()));
 		::SetBkColor(hDC, m_windowcolor);
 		::SetTextColor(hDC, m_textcolor);
-		if (!hash.IsEmpty() && hash == m_SelectedHash)
+		bool hashMatches = !hash.IsEmpty() && m_selectedHashes.contains(hash);
+		if (hashMatches)
 		{
 			::SetBkColor(hDC, m_selectedauthorcolor);
 			::SetTextColor(hDC, m_texthighlightcolor);
@@ -942,11 +921,11 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 		if (m_MouseLine == i)
 			::SetBkColor(hDC, m_mouserevcolor);
 
-		if ((!hash.IsEmpty() && hash == m_SelectedHash) || m_MouseLine == i)
+		if (hashMatches || m_MouseLine == i)
 		{
 			auto old = ::GetTextColor(hDC);
 			::SetTextColor(hDC, ::GetBkColor(hDC));
-			RECT rc2 = { CDPIAware::Instance().ScaleX(LOCATOR_WIDTH), Y, m_blamewidth + CDPIAware::Instance().ScaleX(LOCATOR_WIDTH), Y + (wrapcount * height) };
+			RECT rc2 = { CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH), Y, m_blamewidth + CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH), Y + (wrapcount * height) };
 			for (int j = 0; j < wrapcount; ++j)
 				::ExtTextOut(hDC, 0, Y + (j * height), ETO_CLIPPED, &rc2, buf, _countof(buf) - 1, 0);
 			::SetTextColor(hDC, old);
@@ -957,7 +936,7 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 		{
 			RECT rc;
 			rc.top = static_cast<LONG>(Y);
-			rc.left = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH) + CDPIAware::Instance().ScaleX(BLAMESPACE);
+			rc.left = CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), BLAMESPACE);
 			rc.bottom = static_cast<LONG>(Y + height);
 			rc.right = m_blamewidth;
 
@@ -977,7 +956,7 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 					CString str;
 					str.Format(m_sLogIDFormat, GetLogList()->GetItemCount() - m_lineToLogIndex[i]);
 					if (m_lineToLogIndex[i] < 0)
-						str = "0";
+						str = L"0";
 					::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, str, str.GetLength(), 0);
 				}
 				rc.left += m_logidwidth;
@@ -1018,7 +997,7 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 			brush.lbStyle = BS_SOLID;
 			HPEN pen = ExtCreatePen(PS_SOLID | PS_GEOMETRIC, 2, &brush, 0, nullptr);
 			HGDIOBJ hPenOld = SelectObject(hDC, pen);
-			RECT rc2 = { CDPIAware::Instance().ScaleX(LOCATOR_WIDTH), Y + 1, m_blamewidth, Y + (wrapcount * height) - 1};
+			RECT rc2 = { CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH), Y + 1, m_blamewidth, Y + (wrapcount * height) - 1 };
 			::MoveToEx(hDC, rc2.left, rc2.top, nullptr);
 			::LineTo(hDC, rc2.right, rc2.top);
 			::LineTo(hDC, rc2.right, rc2.bottom);
@@ -1045,12 +1024,12 @@ void CTortoiseGitBlameView::DrawLocatorBar(HDC hDC)
 	RECT rc;
 	this->GetClientRect(&rc);
 
-	rc.right = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH);
+	rc.right = CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOCATOR_WIDTH);
 
 	RECT lineRect = rc;
 	LONG height = rc.bottom-rc.top;
 
-	auto numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
+	const auto numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
 	// draw the colored bar
 	for (int currentLine = 0; currentLine < numberOfLines; ++currentLine)
 	{
@@ -1083,7 +1062,7 @@ void CTortoiseGitBlameView::DrawLocatorBar(HDC hDC)
 void CTortoiseGitBlameView::SetupLexer(CString filename)
 {
 	int start = filename.ReverseFind(L'.');
-	SendEditor(SCI_SETLEXER, SCLEX_NULL);
+	SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(nullptr));
 	if (!m_bLexer)
 		return;
 	if (start > 0)
@@ -1091,12 +1070,12 @@ void CTortoiseGitBlameView::SetupLexer(CString filename)
 		//wcscpy_s(line, 20, lineptr+1);
 		//_wcslwr_s(line, 20);
 		CString ext=filename.Right(filename.GetLength()-start-1);
-		const TCHAR* line = ext;
+		const wchar_t* line = ext;
 
 		if ((wcscmp(line, L"py") == 0) ||
 			(wcscmp(line, L"pyw") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_PYTHON);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("python")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"and assert break class continue def del elif \
 else except exec finally for from global if import in is lambda None \
 not or pass print raise return try while yield").GetBuffer()));
@@ -1126,7 +1105,7 @@ not or pass print raise return try while yield").GetBuffer()));
 			(wcscmp(line, L"dlg") == 0) ||
 			(wcscmp(line, L"mak") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"and and_eq asm auto bitand bitor bool break \
 case catch char class compl const const_cast continue \
 default delete do double dynamic_cast else enum explicit export extern false float for \
@@ -1149,7 +1128,7 @@ var verbatim verbinclude version warning weakgroup $ @ \\ & < > # { }").GetBuffe
 		}
 		if (wcscmp(line, L"cs") == 0)
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"abstract as base bool break byte case catch char checked class \
 const continue decimal default delegate do double else enum \
 event explicit extern false finally fixed float for foreach goto if \
@@ -1163,7 +1142,7 @@ unchecked unsafe ushort using virtual void while").GetBuffer()));
 		if ((wcscmp(line, L"rc") == 0) ||
 			(wcscmp(line, L"rc2") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"ACCELERATORS ALT AUTO3STATE AUTOCHECKBOX AUTORADIOBUTTON \
 BEGIN BITMAP BLOCK BUTTON CAPTION CHARACTERISTICS CHECKBOX CLASS \
 COMBOBOX CONTROL CTEXT CURSOR DEFPUSHBUTTON DIALOG DIALOGEX DISCARDABLE \
@@ -1176,7 +1155,7 @@ STRINGTABLE STYLE TEXTINCLUDE VALUE VERSION VERSIONINFO VIRTKEY").GetBuffer()));
 		if ((wcscmp(line, L"idl") == 0) ||
 			(wcscmp(line, L"odl") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"aggregatable allocate appobject arrays async async_uuid \
 auto_handle \
 bindable boolean broadcast byte byte_count \
@@ -1213,7 +1192,7 @@ v1_enum vararg version void wchar_t wire_marshal").GetBuffer()));
 		}
 		if (wcscmp(line, L"java") == 0)
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"abstract assert boolean break byte case catch char class \
 const continue default do double else extends final finally float for future \
 generic goto if implements import inner instanceof int interface long \
@@ -1224,7 +1203,7 @@ transient try var void volatile while").GetBuffer()));
 		}
 		if (wcscmp(line, L"js") == 0)
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"abstract boolean break byte case catch char class \
 const continue debugger default delete do double else enum export extends \
 final finally float for function goto if implements import in instanceof \
@@ -1237,7 +1216,7 @@ transient try typeof var void volatile while with").GetBuffer()));
 			(wcscmp(line, L"dpr") == 0) ||
 			(wcscmp(line, L"pp") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_PASCAL);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("pascal")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"and array as begin case class const constructor \
 destructor div do downto else end except file finally \
 for function goto if implementation in inherited \
@@ -1251,7 +1230,7 @@ until uses var while with xor").GetBuffer()));
 			(wcscmp(line, L"asc") == 0) ||
 			(wcscmp(line, L"jsfl") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_CPP);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"add and break case catch class continue default delete do \
 dynamic else eq extends false finally for function ge get gt if implements import in \
 instanceof interface intrinsic le lt ne new not null or private public return \
@@ -1289,7 +1268,7 @@ targetPath tellTarget toggleHighQuality trace unescape unloadMovie unLoadMovieNu
 			(wcscmp(line, L"htd") == 0) ||
 			(wcscmp(line, L"wxs") == 0))
 		{
-			SendEditor(SCI_SETLEXER, SCLEX_HTML);
+			SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("hypertext")));
 			SendEditor(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>(m_TextView.StringForControl(L"a abbr acronym address applet area b base basefont \
 bdo big blockquote body br button caption center \
 cite code col colgroup dd del dfn dir div dl dt em \
@@ -1467,7 +1446,7 @@ xor virtual while __file__ __line__ __sleep __wakeup").GetBuffer()));
 	}
 	else
 	{
-		SendEditor(SCI_SETLEXER, SCLEX_CPP);
+		SendEditor(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(CreateLexer("cpp")));
 		SetupCppLexer();
 	}
 	SendEditor(SCI_COLOURISE, 0, -1);
@@ -1497,25 +1476,25 @@ int CTortoiseGitBlameView::GetEncode(unsigned char *buff, int size, int *bomoffs
 	CFileTextLines textlines;
 	CFileTextLines::UnicodeType type = textlines.CheckUnicodeType(buff, size);
 
-	if(type == CFileTextLines::UTF8BOM)
+	if (type == CFileTextLines::UnicodeType::UTF8BOM)
 	{
 		*bomoffset = 3;
 		return CP_UTF8;
 	}
-	if(type == CFileTextLines::UTF8)
+	if (type == CFileTextLines::UnicodeType::UTF8)
 		return CP_UTF8;
 
-	if(type == CFileTextLines::UTF16_LE)
+	if (type == CFileTextLines::UnicodeType::UTF16_LE)
 		return 1200;
-	if (type == CFileTextLines::UTF16_LEBOM)
+	if (type == CFileTextLines::UnicodeType::UTF16_LEBOM)
 	{
 		*bomoffset = 2;
 		return 1200;
 	}
 
-	if(type == CFileTextLines::UTF16_BE)
+	if (type == CFileTextLines::UnicodeType::UTF16_BE)
 		return 1201;
-	if (type == CFileTextLines::UTF16_BEBOM)
+	if (type == CFileTextLines::UnicodeType::UTF16_BEBOM)
 	{
 		*bomoffset = 2;
 		return 1201;
@@ -1536,9 +1515,9 @@ void CTortoiseGitBlameView::MapLineToLogIndex()
 	std::vector<int> lineToLogIndex;
 
 
-	size_t numberOfLines = m_data.GetNumberOfLines();
+	const size_t numberOfLines = m_data.GetNumberOfLines();
 	lineToLogIndex.reserve(numberOfLines);
-	size_t logSize = this->GetLogData()->size();
+	const size_t logSize = this->GetLogData()->size();
 	for (size_t j = 0; j < numberOfLines; ++j)
 	{
 		CGitHash& hash = m_data.GetHash(j);
@@ -1579,7 +1558,7 @@ void CTortoiseGitBlameView::UpdateInfo(int Encode)
 
 	int encoding = m_data.UpdateEncoding(Encode);
 
-	auto numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
+	const auto numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
 	int longestLine = 0;
 	int longestLineLen = 0;
 	if (numberOfLines > 0)
@@ -1587,7 +1566,7 @@ void CTortoiseGitBlameView::UpdateInfo(int Encode)
 		CStringA text;
 		for (int i = 0; i < numberOfLines; ++i)
 		{
-			auto lineLen = m_data.GetUtf8Line(i).GetLength();
+			const auto lineLen = m_data.GetUtf8Line(i).GetLength();
 			if (longestLineLen < lineLen)
 			{
 				longestLineLen = lineLen;
@@ -1746,33 +1725,50 @@ void CTortoiseGitBlameView::OnSciPainted(NMHDR *,LRESULT *)
 
 void CTortoiseGitBlameView::OnLButtonDown(UINT nFlags,CPoint point)
 {
-	int line = GetLineUnderCursor(point);
+	const int line = GetLineUnderCursor(point);
 	if (static_cast<size_t>(line) < m_data.GetNumberOfLines())
 	{
 		SetSelectedLine(line);
-		if (m_data.GetHash(line) != m_SelectedHash)
+		bool found = m_selectedHashes.contains(m_data.GetHash(line));
+		if (nFlags == 9)
 		{
-			m_SelectedHash = m_data.GetHash(line);
-
-			int logIndex = m_lineToLogIndex[line];
-			if (logIndex >= 0)
-			{
-				this->GetLogList()->SetItemState(logIndex, LVIS_SELECTED, LVIS_SELECTED);
-				this->GetLogList()->EnsureVisible(logIndex, FALSE);
-			}
+			if (!found)
+				m_selectedHashes.insert(m_data.GetHash(line));
 			else
-			{
-				GitRevLoglist* pRev = m_data.GetRev(line, GetLogData()->m_pLogCache->m_HashMap);
-				this->GetDocument()->GetMainFrame()->m_wndProperties.UpdateProperties(pRev);
-			}
+				m_selectedHashes.erase(m_data.GetHash(line));
+		}
+		else if (!found || m_selectedHashes.size() > 1)
+		{
+			m_selectedHashes.clear();
+			m_selectedHashes.insert(m_data.GetHash(line));
 		}
 		else
+			m_selectedHashes.clear();
+
+		if (m_selectedHashes.size() != 1)
+			GetDocument()->GetMainFrame()->m_wndProperties.UpdateProperties(nullptr);
+		else if (!m_selectedHashes.empty())
 		{
-			m_SelectedHash.Empty();
+			auto pRev = m_data.GetRev(line, GetLogData()->m_pLogCache->m_HashMap);
+			GetDocument()->GetMainFrame()->m_wndProperties.UpdateProperties(pRev);
 		}
+		m_bBlockUpdates = true;
+		{
+			const int logSize = static_cast<int>(GetLogData()->size());
+			for (int i = 0; i < logSize; ++i)
+			{
+				if (!m_selectedHashes.contains((*GetLogData())[i]))
+					GetLogList()->SetItemState(i, 0, LVIS_SELECTED);
+				else
+					GetLogList()->SetItemState(i, LVIS_SELECTED, LVIS_SELECTED);
+			}
+			if (int logIndex = m_lineToLogIndex[line]; logIndex >= 0)
+				GetLogList()->EnsureVisible(logIndex, FALSE);
+		}
+		m_bBlockUpdates = false;
+
 		this->Invalidate();
 		this->m_TextView.Invalidate();
-
 	}
 	else
 	{
@@ -1809,30 +1805,34 @@ void CTortoiseGitBlameView::OnSciGetBkColor(NMHDR* hdr, LRESULT* /*result*/)
 
 	if (notification->line < static_cast<Sci_Position>(m_data.GetNumberOfLines()))
 	{
-		if (m_data.GetHash(notification->line) == this->m_SelectedHash)
+		if (m_selectedHashes.contains(m_data.GetHash(notification->line)))
 			notification->lParam = m_selectedauthorcolor;
 		else
 			notification->lParam = GetLineColor(notification->line);
 	}
 }
 
-void CTortoiseGitBlameView::FocusOn(GitRevLoglist* pRev)
+void CTortoiseGitBlameView::FocusOn(std::unordered_set<CGitHash>&& pRevs, GitRevLoglist* selected)
 {
-	this->GetDocument()->GetMainFrame()->m_wndProperties.UpdateProperties(pRev);
+	if (m_bBlockUpdates)
+		return;
 
-	this->Invalidate();
-
-	if (m_SelectedHash != pRev->m_CommitHash) {
-		m_SelectedHash = pRev->m_CommitHash;
-		int line = m_data.FindFirstLine(m_SelectedHash, 0);
-		if (line >= 0)
-		{
+	SendEditor(SCI_SETEMPTYSELECTION, SendEditor(SCI_GETCURRENTPOS));
+	if (selected && !m_selectedHashes.contains(selected->m_CommitHash))
+	{
+		if (int line = m_data.FindFirstLine(selected->m_CommitHash, 0); line >= 0)
 			GotoLine(line + 1);
-			m_TextView.Invalidate();
-			return;
-		}
-		SendEditor(SCI_SETSEL, INT_MAX, -1);
 	}
+
+	m_selectedHashes.swap(pRevs);
+
+	if (m_selectedHashes.size() != 1)
+		GetDocument()->GetMainFrame()->m_wndProperties.UpdateProperties(nullptr);
+	else if (selected && !m_selectedHashes.empty())
+		GetDocument()->GetMainFrame()->m_wndProperties.UpdateProperties(selected);
+
+	m_TextView.Invalidate();
+	this->Invalidate();
 }
 
 void CTortoiseGitBlameView::OnMouseHover(UINT /*nFlags*/, CPoint point)
@@ -1869,14 +1869,14 @@ void CTortoiseGitBlameView::OnMouseHover(UINT /*nFlags*/, CPoint point)
 
 			CString filename;
 			if ((m_bShowCompleteLog && m_bFollowRenames && !m_bOnlyFirstParent) || !BlameIsLimitedToOneFilename(m_dwDetectMovedOrCopiedLines) || m_bBlameOutputContainsOtherFilenames)
-				filename.Format(L"%s: %s\n", static_cast<LPCTSTR>(m_sFileName), static_cast<LPCTSTR>(m_data.GetFilename(line)));
+				filename.Format(L"%s: %s\n", static_cast<LPCWSTR>(m_sFileName), static_cast<LPCWSTR>(m_data.GetFilename(line)));
 
 			CString str;
-			str.Format(L"%s: %s\n%s%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",	static_cast<LPCTSTR>(m_sRev), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()), static_cast<LPCTSTR>(filename),
-																	static_cast<LPCTSTR>(m_sAuthor), static_cast<LPCTSTR>(pRev->GetAuthorName()), static_cast<LPCTSTR>(pRev->GetAuthorEmail()),
-																	static_cast<LPCTSTR>(m_sDate), static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(pRev->GetAuthorDate(), m_DateFormat, true, m_bRelativeTimes)),
-																	static_cast<LPCTSTR>(m_sMessage), static_cast<LPCTSTR>(pRev->GetSubject()),
-																	iline <= maxLine ? static_cast<LPCTSTR>(body) : (body.Left(pos) + L"\n..."));
+			str.Format(L"%s: %s\n%s%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",	static_cast<LPCWSTR>(m_sRev), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()), static_cast<LPCWSTR>(filename),
+																	static_cast<LPCWSTR>(m_sAuthor), static_cast<LPCWSTR>(pRev->GetAuthorName()), static_cast<LPCWSTR>(pRev->GetAuthorEmail()),
+																	static_cast<LPCWSTR>(m_sDate), static_cast<LPCWSTR>(CLoglistUtils::FormatDateAndTime(pRev->GetAuthorDate(), m_DateFormat, true, m_bRelativeTimes)),
+																	static_cast<LPCWSTR>(m_sMessage), static_cast<LPCWSTR>(pRev->GetSubject()),
+																	iline <= maxLine ? static_cast<LPCWSTR>(body) : static_cast<LPCWSTR>((body.Left(pos) + L"\n...")));
 
 			if (str.GetLength() > 8000)
 			{
@@ -1932,12 +1932,13 @@ void CTortoiseGitBlameView::OnEditFind()
 	m_pFindDialog=new CFindReplaceDialog();
 
 	CString oneline = m_sFindText;
-	if (auto selstart = m_TextView.Call(SCI_GETSELECTIONSTART), selend = m_TextView.Call(SCI_GETSELECTIONEND); selstart != selend)
+	if (auto selstart = static_cast<Sci_Position>(m_TextView.Call(SCI_GETSELECTIONSTART)), selend = static_cast<Sci_Position>(m_TextView.Call(SCI_GETSELECTIONEND)); selstart != selend && selend - selstart < INT_MAX)
 	{
-		auto linebuf = std::make_unique<char[]>(selend - selstart + 1);
-		Sci_TextRange range = { static_cast<Sci_PositionCR>(selstart), static_cast<Sci_PositionCR>(selend), linebuf.get() };
-		if (m_TextView.Call(SCI_GETTEXTRANGE, 0, reinterpret_cast<LPARAM>(&range)) > 0)
-			oneline = m_TextView.StringFromControl(linebuf.get());
+		CStringA selText;
+		Sci_TextRangeFull range = { selstart, selend, selText.GetBuffer(SafeSizeToInt(selend - selstart)) };
+		selText.ReleaseBufferSetLength(SafeSizeToInt(m_TextView.Call(SCI_GETTEXTRANGEFULL, 0, reinterpret_cast<LPARAM>(&range))));
+		if (!selText.IsEmpty())
+			oneline = m_TextView.StringFromControl(selText);
 	}
 
 	DWORD flags = FR_DOWN | FR_HIDEWHOLEWORD;
@@ -1945,7 +1946,12 @@ void CTortoiseGitBlameView::OnEditFind()
 		flags |= FR_MATCHCASE;
 
 	m_pFindDialog->Create(TRUE, oneline, nullptr, flags, this);
+
+	BOOL cloak = TRUE;
+	DwmSetWindowAttribute(m_hWnd, DWMWA_CLOAK, &cloak, sizeof(cloak)); // hide the window until we're ready
 	CTheme::Instance().SetThemeForDialog(m_pFindDialog->GetSafeHwnd(), CTheme::Instance().IsDarkTheme());
+	cloak = FALSE;
+	DwmSetWindowAttribute(m_hWnd, DWMWA_CLOAK, &cloak, sizeof(cloak)); // hide the window until we're ready
 }
 
 void CTortoiseGitBlameView::OnEditGoto()
@@ -1989,14 +1995,14 @@ LRESULT CTortoiseGitBlameView::OnFindDialogMessage(WPARAM /*wParam*/, LPARAM /*l
 void CTortoiseGitBlameView::OnViewNext()
 {
 	int startline = static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE));
-	int line = m_data.FindNextLine(this->m_SelectedHash, startline, false);
+	int line = m_data.FindNextLine(m_selectedHashes, startline, false);
 	if(line >= 0)
 		SendEditor(SCI_LINESCROLL, 0, line - startline);
 }
 void CTortoiseGitBlameView::OnViewPrev()
 {
 	int startline = static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE));
-	int line = m_data.FindNextLine(this->m_SelectedHash, startline, true);
+	int line = m_data.FindNextLine(m_selectedHashes, startline, true);
 	if(line >= 0)
 		SendEditor(SCI_LINESCROLL, 0, line - startline + 1);
 }
@@ -2295,7 +2301,7 @@ void CTortoiseGitBlameView::OnUpdateViewCopyToClipboard(CCmdUI *pCmdUI)
 		pCmdUI->Enable(GetLogList()->GetSelectedCount() > 0);
 	else if (wnd)
 	{
-		if (CString(wnd->GetRuntimeClass()->m_lpszClassName) == L"CMFCPropertyGridCtrl")
+		if (strcmp(wnd->GetRuntimeClass()->m_lpszClassName, "CMFCPropertyGridCtrl") == 0)
 		{
 			auto grid = static_cast<CMFCPropertyGridCtrl*>(wnd);
 			pCmdUI->Enable(grid->GetCurSel() && !grid->GetCurSel()->IsGroup() && !CString(grid->GetCurSel()->GetValue()).IsEmpty());

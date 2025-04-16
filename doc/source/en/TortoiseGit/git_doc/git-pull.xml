@@ -18,13 +18,16 @@
 </simplesect>
 <simplesect id="git-pull(1)__description">
 <title>DESCRIPTION</title>
-<simpara>Incorporates changes from a remote repository into the current
-branch.  In its default mode, <emphasis>git pull</emphasis> is shorthand for
-<emphasis>git fetch</emphasis> followed by <emphasis>git merge FETCH_HEAD</emphasis>.</simpara>
-<simpara>More precisely, <emphasis>git pull</emphasis> runs <emphasis>git fetch</emphasis> with the given
-parameters and calls <emphasis>git merge</emphasis> to merge the retrieved branch
-heads into the current branch.
-With <emphasis>--rebase</emphasis>, it runs <emphasis>git rebase</emphasis> instead of <emphasis>git merge</emphasis>.</simpara>
+<simpara>Incorporates changes from a remote repository into the current branch.
+If the current branch is behind the remote, then by default it will
+fast-forward the current branch to match the remote.  If the current
+branch and the remote have diverged, the user needs to specify how to
+reconcile the divergent branches with <emphasis>--rebase</emphasis> or <emphasis>--no-rebase</emphasis> (or
+the corresponding configuration option in <emphasis>pull.rebase</emphasis>).</simpara>
+<simpara>More precisely, <emphasis>git pull</emphasis> runs <emphasis>git fetch</emphasis> with the given parameters
+and then depending on configuration options or command line flags,
+will call either <emphasis>git rebase</emphasis> or <emphasis>git merge</emphasis> to reconcile diverging
+branches.</simpara>
 <simpara>&lt;repository&gt; should be the name of a remote repository as
 passed to <xref linkend="git-fetch(1)" />.  &lt;refspec&gt; can name an
 arbitrary remote ref (for example, the name of a tag) or even
@@ -93,7 +96,7 @@ pulling or stash them away with <xref linkend="git-stash(1)" />.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---[no-]recurse-submodules[=yes|on-demand|no]
+--[no-]recurse-submodules[=(yes|on-demand|no)]
 </term>
 <listitem>
 <simpara>
@@ -121,6 +124,7 @@ pulling or stash them away with <xref linkend="git-stash(1)" />.</simpara>
 <simpara>
         Perform the merge and commit the result. This option can
         be used to override --no-commit.
+        Only useful when merging.
 </simpara>
 <simpara>With --no-commit perform the merge and stop just before creating
 a merge commit, to give the user a chance to inspect and further
@@ -172,18 +176,28 @@ set to <emphasis>no</emphasis> at the beginning of them.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--ff-only
+</term>
+<listitem>
+<simpara>
+        Only update to the new history if there is no divergent local
+        history.  This is the default when no method for reconciling
+        divergent histories is provided (via the --rebase=* flags).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 --ff
 </term>
 <term>
 --no-ff
 </term>
-<term>
---ff-only
-</term>
 <listitem>
 <simpara>
-        Specifies how a merge is handled when the merged-in history is
-        already a descendant of the current history.  <emphasis>--ff</emphasis> is the
+        When merging rather than rebasing, specifies how a merge is
+        handled when the merged-in history is already a descendant of
+        the current history.  If merging is requested, <emphasis>--ff</emphasis> is the
         default unless merging an annotated (and possibly signed) tag
         that is not stored in its natural place in the <emphasis>refs/tags/</emphasis>
         hierarchy, in which case <emphasis>--no-ff</emphasis> is assumed.
@@ -194,8 +208,6 @@ merge commit).  When not possible (when the merged-in history is not a
 descendant of the current history), create a merge commit.</simpara>
 <simpara>With <emphasis>--no-ff</emphasis>, create a merge commit in all cases, even when the merge
 could instead be resolved as a fast-forward.</simpara>
-<simpara>With <emphasis>--ff-only</emphasis>, resolve the merge as a fast-forward when possible.
-When not possible, refuse to merge and exit with a non-zero status.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -230,6 +242,7 @@ When not possible, refuse to merge and exit with a non-zero status.</simpara>
         In addition to branch names, populate the log message with
         one-line descriptions from at most &lt;n&gt; actual commits that are being
         merged. See also <xref linkend="git-fmt-merge-msg(1)" />.
+        Only useful when merging.
 </simpara>
 <simpara>With --no-log do not list one-line descriptions from the
 actual commits being merged.</simpara>
@@ -237,10 +250,10 @@ actual commits being merged.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---signoff
+<emphasis>--signoff</emphasis>
 </term>
 <term>
---no-signoff
+<emphasis>--no-signoff</emphasis>
 </term>
 <listitem>
 <simpara>
@@ -250,12 +263,12 @@ actual commits being merged.</simpara>
         the committer has the rights to submit the work under the
         project's license or agrees to some contributor representation,
         such as a Developer Certificate of Origin.
-        (See <ulink url="http://developercertificate.org">http://developercertificate.org</ulink> for the one used by the
+        (See <ulink url="https://developercertificate.org">https://developercertificate.org</ulink> for the one used by the
         Linux kernel and Git projects.)  Consult the documentation or
         leadership of the project to which you're contributing to
         understand how the signoffs are used in that project.
 </simpara>
-<simpara>The --no-signoff option can be used to countermand an earlier --signoff
+<simpara>The <emphasis>--no-signoff</emphasis> option can be used to countermand an earlier <emphasis>--signoff</emphasis>
 option on the command line.</simpara>
 </listitem>
 </varlistentry>
@@ -298,16 +311,19 @@ merge.</simpara>
 <simpara>With --no-squash perform the merge and commit the result. This
 option can be used to override --squash.</simpara>
 <simpara>With --squash, --commit is not allowed, and will fail.</simpara>
+<simpara>Only useful when merging.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
 <term>
---no-verify
+--[no-]verify
 </term>
 <listitem>
 <simpara>
-        This option bypasses the pre-merge and commit-msg hooks.
+        By default, the pre-merge and commit-msg hooks are run.
+        When <emphasis>--no-verify</emphasis> is given, these are bypassed.
         See also <xref linkend="githooks(5)" />.
+        Only useful when merging.
 </simpara>
 </listitem>
 </varlistentry>
@@ -323,8 +339,8 @@ option can be used to override --squash.</simpara>
         Use the given merge strategy; can be supplied more than
         once to specify them in the order they should be tried.
         If there is no <emphasis>-s</emphasis> option, a built-in list of strategies
-        is used instead (<emphasis>git merge-recursive</emphasis> when merging a single
-        head, <emphasis>git merge-octopus</emphasis> otherwise).
+        is used instead (<emphasis>ort</emphasis> when merging a single head,
+        <emphasis>octopus</emphasis> otherwise).
 </simpara>
 </listitem>
 </varlistentry>
@@ -357,6 +373,7 @@ option can be used to override --squash.</simpara>
         a trusted key.  If the tip commit of the side branch is not signed
         with a valid key, the merge is aborted.
 </simpara>
+<simpara>Only useful when merging.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -383,7 +400,8 @@ option can be used to override --squash.</simpara>
 <listitem>
 <simpara>
         Automatically create a temporary stash entry before the operation
-        begins, and apply it after the operation ends.  This means
+        begins, record it in the ref <emphasis>MERGE_AUTOSTASH</emphasis>
+        and apply it after the operation ends.  This means
         that you can run the operation on a dirty worktree.  However, use
         with care: the final stash application after a successful
         merge might result in non-trivial conflicts.
@@ -403,6 +421,7 @@ option can be used to override --squash.</simpara>
         a very rare occasion, no configuration variable to enable
         this by default exists and will not be added.
 </simpara>
+<simpara>Only useful when merging.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -410,7 +429,7 @@ option can be used to override --squash.</simpara>
 -r
 </term>
 <term>
---rebase[=false|true|merges|preserve|interactive]
+--rebase[=(false|true|merges|interactive)]
 </term>
 <listitem>
 <simpara>
@@ -423,10 +442,7 @@ option can be used to override --squash.</simpara>
 <simpara>When set to <emphasis>merges</emphasis>, rebase using <emphasis>git rebase --rebase-merges</emphasis> so that
 the local merge commits are included in the rebase (see
 <xref linkend="git-rebase(1)" /> for details).</simpara>
-<simpara>When set to <emphasis>preserve</emphasis> (deprecated in favor of <emphasis>merges</emphasis>), rebase with the
-<emphasis>--preserve-merges</emphasis> option passed to <emphasis>git rebase</emphasis> so that locally created
-merge commits will not be flattened.</simpara>
-<simpara>When false, merge the current branch into the upstream branch.</simpara>
+<simpara>When false, merge the upstream branch into the current branch.</simpara>
 <simpara>When <emphasis>interactive</emphasis>, enable the interactive mode of rebase.</simpara>
 <simpara>See <emphasis>pull.rebase</emphasis>, <emphasis>branch.&lt;name&gt;.rebase</emphasis> and <emphasis>branch.autoSetupRebase</emphasis> in
 <xref linkend="git-config(1)" /> if you want to make <emphasis>git pull</emphasis> always use
@@ -443,7 +459,7 @@ unless you have read <xref linkend="git-rebase(1)" /> carefully.</simpara></note
 </term>
 <listitem>
 <simpara>
-        Override earlier --rebase.
+        This is shorthand for --rebase=false.
 </simpara>
 </listitem>
 </varlistentry>
@@ -454,11 +470,13 @@ unless you have read <xref linkend="git-rebase(1)" /> carefully.</simpara></note
 <variablelist>
 <varlistentry>
 <term>
---all
+--[no-]all
 </term>
 <listitem>
 <simpara>
-        Fetch all remotes.
+        Fetch all remotes, except for the ones that has the
+        <emphasis>remote.&lt;name&gt;.skipFetchAll</emphasis> configuration variable set.
+        This overrides the configuration variable fetch.all`.
 </simpara>
 </listitem>
 </varlistentry>
@@ -474,6 +492,17 @@ unless you have read <xref linkend="git-rebase(1)" /> carefully.</simpara></note
         Append ref names and object names of fetched refs to the
         existing contents of <emphasis>.git/FETCH_HEAD</emphasis>.  Without this
         option old data in <emphasis>.git/FETCH_HEAD</emphasis> will be overwritten.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--atomic
+</term>
+<listitem>
+<simpara>
+        Use an atomic transaction to update local refs. Either all refs are
+        updated, or on error, no refs are updated.
 </simpara>
 </listitem>
 </varlistentry>
@@ -516,7 +545,7 @@ unless you have read <xref linkend="git-rebase(1)" /> carefully.</simpara></note
 </varlistentry>
 <varlistentry>
 <term>
---shallow-exclude=&lt;revision&gt;
+--shallow-exclude=&lt;ref&gt;
 </term>
 <listitem>
 <simpara>
@@ -548,7 +577,7 @@ the current repository has the same history as the source repository.</simpara>
 <simpara>
         By default when fetching from a shallow repository,
         <emphasis>git fetch</emphasis> refuses refs that require updating
-        .git/shallow. This option updates .git/shallow and accept such
+        .git/shallow. This option updates .git/shallow and accepts such
         refs.
 </simpara>
 </listitem>
@@ -572,8 +601,24 @@ commits reachable from any of the given commits.</simpara>
 <simpara>The argument to this option may be a glob on ref names, a ref, or the (possibly
 abbreviated) SHA-1 of a commit. Specifying a glob is equivalent to specifying
 this option multiple times, one for each matching ref name.</simpara>
-<simpara>See also the <emphasis>fetch.negotiationAlgorithm</emphasis> configuration variable
-documented in <xref linkend="git-config(1)" />.</simpara>
+<simpara>See also the <emphasis>fetch.negotiationAlgorithm</emphasis> and <emphasis>push.negotiate</emphasis>
+configuration variables documented in <xref linkend="git-config(1)" />, and the
+<emphasis>--negotiate-only</emphasis> option below.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--negotiate-only
+</term>
+<listitem>
+<simpara>
+        Do not fetch anything from the server, and instead print the
+        ancestors of the provided <emphasis>--negotiation-tip=*</emphasis> arguments,
+        which we have in common with the server.
+</simpara>
+<simpara>This is incompatible with <emphasis>--recurse-submodules=[yes|on-demand]</emphasis>.
+Internally this is used to implement the <emphasis>push.negotiate</emphasis> option, see
+<xref linkend="git-config(1)" />.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -588,6 +633,19 @@ documented in <xref linkend="git-config(1)" />.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--porcelain
+</term>
+<listitem>
+<simpara>
+        Print the output to standard output in an easy-to-parse format for
+        scripts. See section OUTPUT in <xref linkend="git-fetch(1)" /> for details.
+</simpara>
+<simpara>This is incompatible with <emphasis>--recurse-submodules=[yes|on-demand]</emphasis> and takes
+precedence over the <emphasis>fetch.output</emphasis> config option.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 -f
 </term>
 <term>
@@ -595,7 +653,7 @@ documented in <xref linkend="git-config(1)" />.</simpara>
 </term>
 <listitem>
 <simpara>
-        When <emphasis>git fetch</emphasis> is used with <emphasis>&lt;src&gt;:&lt;dst&gt;</emphasis> refspec it may
+        When <emphasis>git fetch</emphasis> is used with <emphasis>&lt;src&gt;:&lt;dst&gt;</emphasis> refspec, it may
         refuse to update the local branch as discussed
         in the <emphasis>&lt;refspec&gt;</emphasis> part of the <xref linkend="git-fetch(1)" />
         documentation.
@@ -613,6 +671,18 @@ documented in <xref linkend="git-config(1)" />.</simpara>
 <listitem>
 <simpara>
         Keep downloaded pack.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--prefetch
+</term>
+<listitem>
+<simpara>
+        Modify the configured refspec to place all refs into the
+        <emphasis>refs/prefetch/</emphasis> namespace. See the <emphasis>prefetch</emphasis> task in
+        <xref linkend="git-maintenance(1)" />.
 </simpara>
 </listitem>
 </varlistentry>
@@ -761,6 +831,9 @@ default fetches are performed sequentially, not in parallel.</simpara>
         unknown ones, is server-specific.
         When multiple <emphasis>--server-option=&lt;option&gt;</emphasis> are given, they are all
         sent to the other side in the order listed on the command line.
+        When no <emphasis>--server-option=&lt;option&gt;</emphasis> is given from the command line,
+        the values of configuration variable <emphasis>remote.&lt;name&gt;.serverOption</emphasis>
+        are used instead.
 </simpara>
 </listitem>
 </varlistentry>
@@ -844,13 +917,14 @@ default fetches are performed sequentially, not in parallel.</simpara>
 </simpara>
 <simpara>The format of a &lt;refspec&gt; parameter is an optional plus
 <emphasis>+</emphasis>, followed by the source &lt;src&gt;, followed
-by a colon <emphasis>:</emphasis>, followed by the destination ref &lt;dst&gt;.
+by a colon <emphasis>:</emphasis>, followed by the destination &lt;dst&gt;.
 The colon can be omitted when &lt;dst&gt; is empty.  &lt;src&gt; is
-typically a ref, but it can also be a fully spelled hex object
+typically a ref, or a glob pattern with a single <emphasis>*</emphasis> that is used
+to match a set of refs, but it can also be a fully spelled hex object
 name.</simpara>
 <simpara>A &lt;refspec&gt; may contain a <emphasis>*</emphasis> in its &lt;src&gt; to indicate a simple pattern
 match. Such a refspec functions like a glob that matches any ref with the
-same prefix. A pattern &lt;refspec&gt; must have a <emphasis>*</emphasis> in both the &lt;src&gt; and
+pattern. A pattern &lt;refspec&gt; must have one and only one <emphasis>*</emphasis> in both the &lt;src&gt; and
 &lt;dst&gt;. It will map refs to the destination by replacing the <emphasis>*</emphasis> with the
 contents matched from the source.</simpara>
 <simpara>If a refspec is prefixed by <emphasis>^</emphasis>, it will be interpreted as a negative
@@ -883,20 +957,20 @@ refspec (or <emphasis>--force</emphasis>).</simpara>
 <simpara>Unlike when pushing with <xref linkend="git-push(1)" />, any updates outside of
 <emphasis>refs/{tags,heads}/*</emphasis> will be accepted without <emphasis>+</emphasis> in the refspec (or
 <emphasis>--force</emphasis>), whether that's swapping e.g. a tree object for a blob, or
-a commit for another commit that's doesn't have the previous commit as
+a commit for another commit that doesn't have the previous commit as
 an ancestor etc.</simpara>
 <simpara>Unlike when pushing with <xref linkend="git-push(1)" />, there is no
 configuration which'll amend these rules, and nothing like a
 <emphasis>pre-fetch</emphasis> hook analogous to the <emphasis>pre-receive</emphasis> hook.</simpara>
 <simpara>As with pushing with <xref linkend="git-push(1)" />, all of the rules described
 above about what's not allowed as an update can be overridden by
-adding an the optional leading <emphasis>+</emphasis> to a refspec (or using <emphasis>--force</emphasis>
+adding an optional leading <emphasis>+</emphasis> to a refspec (or using the <emphasis>--force</emphasis>
 command line option). The only exception to this is that no amount of
 forcing will make the <emphasis>refs/heads/*</emphasis> namespace accept a non-commit
 object.</simpara>
 <note><simpara>When the remote branch you want to fetch is known to
 be rewound and rebased regularly, it is expected that
-its new tip will not be descendant of its previous tip
+its new tip will not be a descendant of its previous tip
 (as stored in your remote-tracking branch the last time
 you fetched).  You would want
 to use the <emphasis>+</emphasis> sign to indicate non-fast-forward updates
@@ -932,31 +1006,31 @@ is often useful.</simpara></note>
 address of the remote server, and the path to the repository.
 Depending on the transport protocol, some of this information may be
 absent.</simpara>
-<simpara>Git supports ssh, git, http, and https protocols (in addition, ftp,
+<simpara>Git supports ssh, git, http, and https protocols (in addition, ftp
 and ftps can be used for fetching, but this is inefficient and
-deprecated; do not use it).</simpara>
-<simpara>The native transport (i.e. git:// URL) does no authentication and
+deprecated; do not use them).</simpara>
+<simpara>The native transport (i.e. <emphasis>git://</emphasis> URL) does no authentication and
 should be used with caution on unsecured networks.</simpara>
 <simpara>The following syntaxes may be used with them:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-ssh://&#91;user@&#93;host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>ssh://[&lt;user&gt;@]&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-git://host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>git://&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-http&#91;s&#93;://host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>http[s]://&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-ftp&#91;s&#93;://host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>ftp[s]://&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
@@ -964,7 +1038,7 @@ ftp&#91;s&#93;://host.xz&#91;:port&#93;/path/to/repo.git/
 <itemizedlist>
 <listitem>
 <simpara>
-&#91;user@&#93;host.xz:path/to/repo.git/
+<emphasis>[&lt;user&gt;@]&lt;host&gt;:/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
@@ -973,21 +1047,21 @@ first colon. This helps differentiate a local path that contains a
 colon. For example the local path <emphasis>foo:bar</emphasis> could be specified as an
 absolute path or <emphasis>./foo:bar</emphasis> to avoid being misinterpreted as an ssh
 url.</simpara>
-<simpara>The ssh and git protocols additionally support ~username expansion:</simpara>
+<simpara>The ssh and git protocols additionally support <emphasis>~&lt;username&gt;</emphasis> expansion:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-ssh://&#91;user@&#93;host.xz&#91;:port&#93;/~&#91;user&#93;/path/to/repo.git/
+<emphasis>ssh://[&lt;user&gt;@]&lt;host&gt;[:&lt;port&gt;]/~&lt;user&gt;/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-git://host.xz&#91;:port&#93;/~&#91;user&#93;/path/to/repo.git/
+<emphasis>git://&lt;host&gt;[:&lt;port&gt;]/~&lt;user&gt;/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-&#91;user@&#93;host.xz:/~&#91;user&#93;/path/to/repo.git/
+<emphasis>[&lt;user&gt;@]&lt;host&gt;:~&lt;user&gt;/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
@@ -996,17 +1070,17 @@ syntaxes may be used:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-/path/to/repo.git/
+<emphasis>/path/to/repo.git/</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-file:///path/to/repo.git/
+<emphasis>file:///path/to/repo.git/</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
 <simpara>These two syntaxes are mostly equivalent, except when cloning, when
-the former implies --local option. See <xref linkend="git-clone(1)" /> for
+the former implies <emphasis>--local</emphasis> option. See <xref linkend="git-clone(1)" /> for
 details.</simpara>
 <simpara><emphasis>git clone</emphasis>, <emphasis>git fetch</emphasis> and <emphasis>git pull</emphasis>, but not <emphasis>git push</emphasis>, will also
 accept a suitable bundle file. See <xref linkend="git-bundle(1)" />.</simpara>
@@ -1017,19 +1091,21 @@ may be used:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-&lt;transport&gt;::&lt;address&gt;
+<emphasis>&lt;transport&gt;::&lt;address&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
-<simpara>where &lt;address&gt; may be a path, a server and path, or an arbitrary
+<simpara>where <emphasis>&lt;address&gt;</emphasis> may be a path, a server and path, or an arbitrary
 URL-like string recognized by the specific remote helper being
 invoked. See <xref linkend="gitremote-helpers(7)" /> for details.</simpara>
 <simpara>If there are a large number of similarly-named remote repositories and
 you want to use a different format for them (such that the URLs you
 use will be rewritten into URLs that work), you can create a
 configuration section of the form:</simpara>
-<screen>        [url "&lt;actual url base&gt;"]
-                insteadOf = &lt;other url base&gt;</screen>
+<blockquote>
+<literallayout>        [url "<emphasis>&lt;actual-url-base&gt;</emphasis>"]
+                insteadOf = <emphasis>&lt;other-url-base&gt;</emphasis></literallayout>
+</blockquote>
 <simpara>For example, with this:</simpara>
 <screen>        [url "git://git.host.xz/"]
                 insteadOf = host.xz:/path/to/
@@ -1038,8 +1114,10 @@ configuration section of the form:</simpara>
 rewritten in any context that takes a URL to be "git://git.host.xz/repo.git".</simpara>
 <simpara>If you want to rewrite URLs for push only, you can create a
 configuration section of the form:</simpara>
-<screen>        [url "&lt;actual url base&gt;"]
-                pushInsteadOf = &lt;other url base&gt;</screen>
+<blockquote>
+<literallayout>        [url "<emphasis>&lt;actual-url-base&gt;</emphasis>"]
+                pushInsteadOf = <emphasis>&lt;other-url-base&gt;</emphasis></literallayout>
+</blockquote>
 <simpara>For example, with this:</simpara>
 <screen>        [url "ssh://example.org/"]
                 pushInsteadOf = git://example.org/</screen>
@@ -1080,12 +1158,14 @@ of this remote will be used by default when you do
 not provide a refspec on the command line.  The entry in the
 config file would appear like this:</simpara>
 <screen>        [remote "&lt;name&gt;"]
-                url = &lt;url&gt;
+                url = &lt;URL&gt;
                 pushurl = &lt;pushurl&gt;
                 push = &lt;refspec&gt;
                 fetch = &lt;refspec&gt;</screen>
 <simpara>The <emphasis>&lt;pushurl&gt;</emphasis> is used for pushes only. It is optional and defaults
-to <emphasis>&lt;url&gt;</emphasis>.</simpara>
+to <emphasis>&lt;URL&gt;</emphasis>. Pushing to a remote affects all defined pushurls or all
+defined urls if no pushurls are defined. Fetch, however, will only
+fetch from the first defined url if multiple urls are defined.</simpara>
 </section>
 <section id="git-pull(1)__named_file_in_emphasis_git_dir_remotes_emphasis">
 <title>Named file in <emphasis>$GIT_DIR/remotes</emphasis></title>
@@ -1095,7 +1175,7 @@ in this file will be used to access the repository.  The refspec
 in this file will be used as default when you do not
 provide a refspec on the command line.  This file should have the
 following format:</simpara>
-<screen>        URL: one of the above URL format
+<screen>        URL: one of the above URL formats
         Push: &lt;refspec&gt;
         Pull: &lt;refspec&gt;</screen>
 <simpara><emphasis>Push:</emphasis> lines are used by <emphasis>git push</emphasis> and
@@ -1109,8 +1189,8 @@ be specified for additional branch mappings.</simpara>
 file in <emphasis>$GIT_DIR/branches</emphasis>.
 The URL in this file will be used to access the repository.
 This file should have the following format:</simpara>
-<screen>        &lt;url&gt;#&lt;head&gt;</screen>
-<simpara><emphasis>&lt;url&gt;</emphasis> is required; <emphasis>#&lt;head&gt;</emphasis> is optional.</simpara>
+<screen>        &lt;URL&gt;#&lt;head&gt;</screen>
+<simpara><emphasis>&lt;URL&gt;</emphasis> is required; <emphasis>#&lt;head&gt;</emphasis> is optional.</simpara>
 <simpara>Depending on the operation, git will use one of the following
 refspecs, if you don't provide one on the command line.
 <emphasis>&lt;branch&gt;</emphasis> is the name of this file in <emphasis>$GIT_DIR/branches</emphasis> and
@@ -1130,38 +1210,32 @@ arguments to <emphasis>git merge</emphasis> and/or <emphasis>git pull</emphasis>
 <variablelist>
 <varlistentry>
 <term>
-resolve
+ort
 </term>
 <listitem>
 <simpara>
-        This can only resolve two heads (i.e. the current branch
-        and another branch you pulled from) using a 3-way merge
-        algorithm.  It tries to carefully detect criss-cross
-        merge ambiguities and is considered generally safe and
-        fast.
+        This is the default merge strategy when pulling or merging one
+        branch.  This strategy can only resolve two heads using a
+        3-way merge algorithm.  When there is more than one common
+        ancestor that can be used for 3-way merge, it creates a merged
+        tree of the common ancestors and uses that as the reference
+        tree for the 3-way merge.  This has been reported to result in
+        fewer merge conflicts without causing mismerges by tests done
+        on actual merge commits taken from Linux 2.6 kernel
+        development history.  Additionally this strategy can detect
+        and handle merges involving renames.  It does not make use of
+        detected copies.  The name for this algorithm is an acronym
+        ("Ostensibly Recursive's Twin") and came from the fact that it
+        was written as a replacement for the previous default
+        algorithm, <emphasis>recursive</emphasis>.
 </simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-recursive
-</term>
-<listitem>
-<simpara>
-        This can only resolve two heads using a 3-way merge
-        algorithm.  When there is more than one common
-        ancestor that can be used for 3-way merge, it creates a
-        merged tree of the common ancestors and uses that as
-        the reference tree for the 3-way merge.  This has been
-        reported to result in fewer merge conflicts without
-        causing mismerges by tests done on actual merge commits
-        taken from Linux 2.6 kernel development history.
-        Additionally this can detect and handle merges involving
-        renames, but currently cannot make use of detected
-        copies.  This is the default merge strategy when pulling
-        or merging one branch.
-</simpara>
-<simpara>The <emphasis>recursive</emphasis> strategy can take the following options:</simpara>
+<simpara>In the case where the path is a submodule, if the submodule commit used on
+one side of the merge is a descendant of the submodule commit used on the
+other side of the merge, Git attempts to fast-forward to the
+descendant. Otherwise, Git will treat this case as a conflict, suggesting
+as a resolution a submodule commit that is descendant of the conflicting
+ones, if one exists.</simpara>
+<simpara>The <emphasis>ort</emphasis> strategy can take the following options:</simpara>
 <variablelist>
 <varlistentry>
 <term>
@@ -1187,33 +1261,6 @@ theirs
 <simpara>
         This is the opposite of <emphasis>ours</emphasis>; note that, unlike <emphasis>ours</emphasis>, there is
         no <emphasis>theirs</emphasis> merge strategy to confuse this merge option with.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-patience
-</term>
-<listitem>
-<simpara>
-        With this option, <emphasis>merge-recursive</emphasis> spends a little extra time
-        to avoid mismerges that sometimes occur due to unimportant
-        matching lines (e.g., braces from distinct functions).  Use
-        this when the branches to be merged have diverged wildly.
-        See also <xref linkend="git-diff(1)" /> <emphasis>--patience</emphasis>.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-diff-algorithm=[patience|minimal|histogram|myers]
-</term>
-<listitem>
-<simpara>
-        Tells <emphasis>merge-recursive</emphasis> to use a different diff algorithm, which
-        can help avoid mismerges that occur due to unimportant matching
-        lines (such as braces from distinct functions).  See also
-        <xref linkend="git-diff(1)" /> <emphasis>--diff-algorithm</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1266,7 +1313,7 @@ renormalize
 <listitem>
 <simpara>
         This runs a virtual check-out and check-in of all three stages
-        of a file when resolving a three-way merge.  This option is
+        of any file which needs a three-way merge.  This option is
         meant to be used when merging branches with different clean
         filters or end-of-line normalization rules.  See "Merging
         branches with differing checkin/checkout attributes" in
@@ -1282,18 +1329,6 @@ no-renormalize
 <simpara>
         Disables the <emphasis>renormalize</emphasis> option.  This overrides the
         <emphasis>merge.renormalize</emphasis> configuration variable.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-no-renames
-</term>
-<listitem>
-<simpara>
-        Turn off rename detection. This overrides the <emphasis>merge.renames</emphasis>
-        configuration variable.
-        See also <xref linkend="git-diff(1)" /> <emphasis>--no-renames</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1339,6 +1374,84 @@ subtree[=&lt;path&gt;]
 </varlistentry>
 <varlistentry>
 <term>
+recursive
+</term>
+<listitem>
+<simpara>
+        This can only resolve two heads using a 3-way merge
+        algorithm.  When there is more than one common
+        ancestor that can be used for 3-way merge, it creates a
+        merged tree of the common ancestors and uses that as
+        the reference tree for the 3-way merge.  This has been
+        reported to result in fewer merge conflicts without
+        causing mismerges by tests done on actual merge commits
+        taken from Linux 2.6 kernel development history.
+        Additionally this can detect and handle merges involving
+        renames.  It does not make use of detected copies.  This was
+        the default strategy for resolving two heads from Git v0.99.9k
+        until v2.33.0.
+</simpara>
+<simpara>For a path that is a submodule, the same caution as <emphasis>ort</emphasis> applies to this
+strategy.</simpara>
+<simpara>The <emphasis>recursive</emphasis> strategy takes the same options as <emphasis>ort</emphasis>.  However,
+there are three additional options that <emphasis>ort</emphasis> ignores (not documented
+above) that are potentially useful with the <emphasis>recursive</emphasis> strategy:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+patience
+</term>
+<listitem>
+<simpara>
+        Deprecated synonym for <emphasis>diff-algorithm=patience</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+diff-algorithm=[patience|minimal|histogram|myers]
+</term>
+<listitem>
+<simpara>
+        Use a different diff algorithm while merging, which can help
+        avoid mismerges that occur due to unimportant matching lines
+        (such as braces from distinct functions).  See also
+        <xref linkend="git-diff(1)" /> <emphasis>--diff-algorithm</emphasis>.  Note that <emphasis>ort</emphasis>
+        specifically uses <emphasis>diff-algorithm=histogram</emphasis>, while <emphasis>recursive</emphasis>
+        defaults to the <emphasis>diff.algorithm</emphasis> config setting.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+no-renames
+</term>
+<listitem>
+<simpara>
+        Turn off rename detection. This overrides the <emphasis>merge.renames</emphasis>
+        configuration variable.
+        See also <xref linkend="git-diff(1)" /> <emphasis>--no-renames</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+resolve
+</term>
+<listitem>
+<simpara>
+        This can only resolve two heads (i.e. the current branch
+        and another branch you pulled from) using a 3-way merge
+        algorithm.  It tries to carefully detect criss-cross
+        merge ambiguities.  It does not handle renames.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 octopus
 </term>
 <listitem>
@@ -1372,7 +1485,7 @@ subtree
 </term>
 <listitem>
 <simpara>
-        This is a modified recursive strategy. When merging trees A and
+        This is a modified <emphasis>ort</emphasis> strategy. When merging trees A and
         B, if B corresponds to a subtree of A, B is first adjusted to
         match the tree structure of A, instead of reading the trees at
         the same level. This adjustment is also done to the common
@@ -1381,7 +1494,7 @@ subtree
 </listitem>
 </varlistentry>
 </variablelist>
-<simpara>With the strategies that use 3-way merge (including the default, <emphasis>recursive</emphasis>),
+<simpara>With the strategies that use 3-way merge (including the default, <emphasis>ort</emphasis>),
 if a change is made on both branches, but later reverted on one of the
 branches, that change will be present in the merged result; some people find
 this behavior confusing.  It occurs because only the heads and the merge base

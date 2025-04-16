@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2020 - TortoiseGit
+// Copyright (C) 2013-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -55,15 +55,6 @@ enum IDGITRCLH
 
 CGitRefCompareList::CGitRefCompareList()
 	: CHintCtrl<CListCtrl>()
-	, colRef(0)
-	, colRefType(0)
-	, colChange(0)
-	, colOldHash(0)
-	, colOldMessage(0)
-	, colNewHash(0)
-	, colNewMessage(0)
-	, m_bAscending(false)
-	, m_nSortedColumn(-1)
 {
 	m_bSortLogical = !CRegDWORD(L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoStrCmpLogical", 0, false, HKEY_CURRENT_USER);
 	if (m_bSortLogical)
@@ -83,13 +74,11 @@ void CGitRefCompareList::Init()
 	colNewMessage = InsertColumn(index++,CString(MAKEINTRESOURCE(IDS_NEWMESSAGE)));
 	for (int i = 0; i < index; ++i)
 		SetColumnWidth(i, LVSCW_AUTOSIZE_USEHEADER);
-	SetColumnWidth(colRef, CDPIAware::Instance().ScaleX(130));
+	SetColumnWidth(colRef, CDPIAware::Instance().ScaleX(GetSafeHwnd(), 130));
 
 	CImageList *imagelist = new CImageList();
 	imagelist->Create(IDB_BITMAP_REFTYPE, 16, 3, RGB(255, 255, 255));
 	SetImageList(imagelist, LVSIL_SMALL);
-
-	SetWindowTheme(m_hWnd, L"Explorer", nullptr);
 }
 
 int CGitRefCompareList::AddEntry(git_repository* repo, const CString& ref, const CGitHash* oldHash, const CGitHash* newHash)
@@ -215,39 +204,32 @@ void CGitRefCompareList::Show()
 
 	if (m_nSortedColumn >= 0)
 	{
-		auto predicate = [](bool sortLogical, int sortColumn, const RefEntry& e1, const RefEntry& e2)
+		const auto predicate = [sortColumn=m_nSortedColumn, sortLogical=!!m_bSortLogical](const RefEntry& e1, const RefEntry& e2)
 		{
 			switch (sortColumn)
 			{
 			case 0:
 				return StringComparePredicate(sortLogical, e1.shortName, e2.shortName);
-				break;
 			case 1:
 				return StringComparePredicate(false, RefTypeString(e1.refType), RefTypeString(e2.refType));
-				break;
 			case 2:
 				return StringComparePredicate(false, e1.change, e2.change);
-				break;
 			case 3:
 				return e1.oldHash.Compare(e2.oldHash) < 0;
-				break;
 			case 4:
 				return StringComparePredicate(sortLogical, e1.oldMessage, e2.oldMessage);
-				break;
 			case 5:
 				return e1.newHash.Compare(e2.newHash) < 0;
-				break;
 			case 6:
 				return StringComparePredicate(sortLogical, e1.newMessage, e2.newMessage);
-				break;
 			}
 			return false;
 		};
 
 		if (m_bAscending)
-			std::stable_sort(m_RefList.begin(), m_RefList.end(), std::bind(predicate, m_bSortLogical, m_nSortedColumn, std::placeholders::_1, std::placeholders::_2));
+			std::stable_sort(m_RefList.begin(), m_RefList.end(), [&predicate](const auto& first, const auto& second) { return predicate(first, second); });
 		else
-			std::stable_sort(m_RefList.begin(), m_RefList.end(), std::bind(predicate, m_bSortLogical, m_nSortedColumn, std::placeholders::_2, std::placeholders::_1));
+			std::stable_sort(m_RefList.begin(), m_RefList.end(), [&predicate](const auto& first, const auto& second) { return predicate(second, first); });
 	}
 	else
 		std::sort(m_RefList.begin(), m_RefList.end(), SortPredicate);
@@ -342,11 +324,11 @@ void CGitRefCompareList::OnContextMenu(CWnd *pWnd, CPoint point)
 
 void CGitRefCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 {
-	int selIndex = GetSelectionMark();
+	const int selIndex = GetSelectionMark();
 	if (selIndex < 0)
 		return;
 
-	int index = static_cast<int>(GetItemData(selIndex));
+	const int index = static_cast<int>(GetItemData(selIndex));
 	if (index < 0 || static_cast<size_t>(index) >= m_RefList.size())
 		return;
 
@@ -358,19 +340,19 @@ void CGitRefCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 	CString logStr;
 	if (!oldHash.IsEmpty())
 	{
-		logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(oldHash));
+		logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(oldHash));
 		popup.AppendMenuIcon(IDGITRCL_OLDLOG, logStr, IDI_LOG);
 	}
 	if (!newHash.IsEmpty() && oldHash != newHash)
 	{
-		logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(newHash));
+		logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(newHash));
 		popup.AppendMenuIcon(IDGITRCL_NEWLOG, logStr, IDI_LOG);
 	}
 	if (!oldHash.IsEmpty() && !newHash.IsEmpty() && oldHash != newHash)
 		popup.AppendMenuIcon(IDGITRCL_COMPARE, IDS_LOG_POPUP_COMPAREWITHPREVIOUS, IDI_DIFF);
 	popup.AppendMenuIcon(IDGITRCL_REFLOG, IDS_MENUREFLOG, IDI_LOG);
 
-	int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
+	const int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 	AfxGetApp()->DoWaitCursor(1);
 	switch (cmd)
 	{
@@ -378,14 +360,14 @@ void CGitRefCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 		case IDGITRCL_NEWLOG:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /endrev:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), cmd == IDGITRCL_OLDLOG ? static_cast<LPCTSTR>(oldHash) : static_cast<LPCTSTR>(newHash));
+			sCmd.Format(L"/command:log /path:\"%s\" /endrev:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), cmd == IDGITRCL_OLDLOG ? static_cast<LPCWSTR>(oldHash) : static_cast<LPCWSTR>(newHash));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 			break;
 		}
 		case IDGITRCL_COMPARE:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:\"%s\" /revision2:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(oldHash), static_cast<LPCTSTR>(newHash));
+			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:\"%s\" /revision2:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(oldHash), static_cast<LPCWSTR>(newHash));
 			if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
 				sCmd += L" /alternative";
 			CAppUtils::RunTortoiseGitProc(sCmd);
@@ -394,7 +376,7 @@ void CGitRefCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 		case IDGITRCL_REFLOG:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:reflog /path:\"%s\" /ref:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(refName));
+			sCmd.Format(L"/command:reflog /path:\"%s\" /ref:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(refName));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 			break;
 		}
@@ -416,7 +398,7 @@ void CGitRefCompareList::OnContextMenuHeader(CWnd * /*pWnd*/, CPoint point)
 	{
 		AppendMenuChecked(popup, IDS_HIDEUNCHANGED, IDGITRCLH_HIDEUNCHANGED, m_bHideUnchanged);
 
-		int selection = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
+		const int selection = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 		switch (selection)
 		{
 			case IDGITRCLH_HIDEUNCHANGED:

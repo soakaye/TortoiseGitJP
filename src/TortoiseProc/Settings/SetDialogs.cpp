@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2020, 2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,10 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
-#include "SetMainPage.h"
-#include "AppUtils.h"
 #include "SetDialogs.h"
 
 IMPLEMENT_DYNAMIC(CSetDialogs, ISettingsPropPage)
@@ -280,7 +279,7 @@ void CSetDialogs::OnCbnSelchangeDefaultlogscale()
 {
 	UpdateData();
 	int sel = m_cDefaultLogsScale.GetCurSel();
-	if (sel > 1 && (m_sDefaultLogs.IsEmpty() || _wtol(static_cast<LPCTSTR>(m_sDefaultLogs)) == 0))
+	if (sel > 1 && (m_sDefaultLogs.IsEmpty() || _wtol(static_cast<LPCWSTR>(m_sDefaultLogs)) == 0))
 		m_sDefaultLogs.Format(L"%ld", static_cast<DWORD>(m_regDefaultLogs));
 	else if (sel <= 1)
 		m_sDefaultLogs.Empty();
@@ -305,7 +304,7 @@ BOOL CSetDialogs::OnApply()
 	int sel = m_cDefaultLogsScale.GetCurSel();
 	Store(sel > 0 ? sel : 0, m_regDefaultLogsScale);
 
-	int val = _wtol(static_cast<LPCTSTR>(m_sDefaultLogs));
+	int val = _wtol(static_cast<LPCWSTR>(m_sDefaultLogs));
 	if (sel > 1 && val > 0)
 		Store(val, m_regDefaultLogs);
 

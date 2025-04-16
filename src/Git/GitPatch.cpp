@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2012-2013, 2015-2019 - TortoiseGit
+// Copyright (C) 2012-2013, 2015-2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2010-2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,25 +17,20 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "resource.h"
 #include "GitPatch.h"
-#include "UnicodeUtils.h"
 #include "SysProgressDlg.h"
 #include "DirFileEnum.h"
 #include "GitAdminDir.h"
-#include "StringUtils.h"
-
+#include "GitRev.h"
+#include "TempFile.h"
 #include "AppUtils.h"
 
 #define STRIP_LIMIT 10
 
 GitPatch::GitPatch()
-	: m_nStrip(0)
-	, m_bSuccessfullyPatched(false)
-	, m_nRejected(0)
-	, m_pProgDlg(nullptr)
-	, m_patch()
 {
 }
 
@@ -89,7 +84,6 @@ int GitPatch::Init(const CString& patchfile, const CString& targetpath, CSysProg
 
 	if ((m_nRejected > (static_cast<int>(m_filePaths.size()) / 3)) && !m_testPath.IsEmpty())
 	{
-		++m_nStrip;
 		for (m_nStrip = 0; m_nStrip < STRIP_LIMIT; ++m_nStrip)
 		{
 			if (std::any_of(m_filePaths.cbegin(), m_filePaths.cend(), [this](auto& filepath) { return Strip(filepath.path).IsEmpty(); }))
@@ -136,7 +130,7 @@ bool GitPatch::PatchFile(int nIndex, CString &datapath)
 		pr.path = m_patch.GetFilename(nIndex);
 
 	if (m_pProgDlg)
-		m_pProgDlg->FormatPathLine(2, IDS_PATCH_PATHINGFILE, static_cast<LPCTSTR>(pr.path));
+		m_pProgDlg->FormatPathLine(2, IDS_PATCH_PATHINGFILE, static_cast<LPCWSTR>(pr.path));
 
 	//first, do a "dry run" of patching against the file in place...
 	if (!m_patch.PatchFile(m_nStrip, nIndex, datapath, sTempFile))
@@ -147,28 +141,28 @@ bool GitPatch::PatchFile(int nIndex, CString &datapath)
 		CString sVersion = m_patch.GetRevision(nIndex);
 
 		CString sBaseFile;
-		if ((sVersion.GetLength() >= 7 && wcsncmp(sVersion, GIT_REV_ZERO, sVersion.GetLength()) == 0) || sFilePath == L"NUL")
+		if ((sVersion.GetLength() >= 7 && wcsncmp(sVersion, GitRev::GetWorkingCopyRef(), sVersion.GetLength()) == 0) || sFilePath == L"NUL")
 			sBaseFile = CTempFiles::Instance().GetTempFilePathString();
 		else
 		{
 			if (sVersion.IsEmpty())
 			{
-				m_errorStr.Format(IDS_ERR_MAINFRAME_FILECONFLICTNOVERSION, static_cast<LPCTSTR>(sFilePath));
+				m_errorStr.Format(IDS_ERR_MAINFRAME_FILECONFLICTNOVERSION, static_cast<LPCWSTR>(sFilePath));
 				return false; // cannot apply patch which does not apply cleanly w/o git information in patch file.
 			}
 			sBaseFile = CTempFiles::Instance().GetTempFilePathString();
 			if (!CAppUtils::GetVersionedFile(sFilePath, sVersion, sBaseFile, m_pProgDlg))
 			{
-				m_errorStr.FormatMessage(IDS_ERR_MAINFRAME_FILEVERSIONNOTFOUND, static_cast<LPCTSTR>(sVersion), static_cast<LPCTSTR>(sFilePath));
+				m_errorStr.FormatMessage(IDS_ERR_MAINFRAME_FILEVERSIONNOTFOUND, static_cast<LPCWSTR>(sVersion), static_cast<LPCWSTR>(sFilePath));
 
 				return false;
 			}
 		}
 
 		if (m_pProgDlg)
-			m_pProgDlg->FormatPathLine(2, IDS_PATCH_PATHINGFILE, static_cast<LPCTSTR>(pr.path));
+			m_pProgDlg->FormatPathLine(2, IDS_PATCH_PATHINGFILE, static_cast<LPCWSTR>(pr.path));
 
-		int patchtry = m_patch.PatchFile(m_nStrip, nIndex, datapath, sTempFile, sBaseFile, true);
+		const int patchtry = m_patch.PatchFile(m_nStrip, nIndex, datapath, sTempFile, sBaseFile, true);
 
 		if (patchtry == TRUE)
 		{
@@ -182,13 +176,13 @@ bool GitPatch::PatchFile(int nIndex, CString &datapath)
 			pr.rejectsPath = m_patch.GetErrorMessage();
 		}
 
-		TRACE(L"comparing %s and %s\nagainst the base file %s\n", static_cast<LPCTSTR>(sTempFile), static_cast<LPCTSTR>(sFilePath), static_cast<LPCTSTR>(sBaseFile));
+		TRACE(L"comparing %s and %s\nagainst the base file %s\n", static_cast<LPCWSTR>(sTempFile), static_cast<LPCWSTR>(sFilePath), static_cast<LPCWSTR>(sBaseFile));
 	}
 	else
 	{
 		//"dry run" was successful, so save the patched file somewhere...
 		pr.rejects = 0;
-		TRACE(L"comparing %s\nwith the patched result %s\n", static_cast<LPCTSTR>(sFilePath), static_cast<LPCTSTR>(sTempFile));
+		TRACE(L"comparing %s\nwith the patched result %s\n", static_cast<LPCWSTR>(sFilePath), static_cast<LPCWSTR>(sTempFile));
 	}
 
 	pr.resultPath = sTempFile;
@@ -272,15 +266,14 @@ CString GitPatch::CheckPatchPath(const CString& path)
 			return upperpath;
 	}
 	// still no match found. So try sub folders
-	bool isDir = false;
-	CString subpath;
 	CDirFileEnum filefinder(path);
-	while (filefinder.NextFile(subpath, &isDir))
+	while (auto file = filefinder.NextFile())
 	{
 		if (progress.HasUserCancelled())
 			return path;
-		if (!isDir)
+		if (!file->IsDirectory())
 			continue;
+		CString subpath = file->GetFilePath();
 		if (GitAdminDir::IsAdminDirPath(subpath))
 			continue;
 		progress.SetLine(2, subpath, true);
@@ -367,7 +360,7 @@ CString GitPatch::Strip(const CString& filename) const
 			//       "ts/my-working-copy/dir/file.txt"
 			//          "my-working-copy/dir/file.txt"
 			//                          "dir/file.txt"
-			int p = s.FindOneOf(L"/\\");
+			const int p = s.FindOneOf(L"/\\");
 			if (p < 0)
 			{
 				s.Empty();

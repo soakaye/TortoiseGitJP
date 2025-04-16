@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2011, 2013, 2015-2020 TortoiseGit
+// Copyright (C) 2009-2011, 2013, 2015-2020, 2023-2024 TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -48,22 +48,23 @@ void CRefLogList::InsertRefLogColumn()
 		IDS_STATUSLIST_COLDATE,
 	};
 
-	auto columnWidth = CDPIAware::Instance().ScaleX(ICONITEMBORDER + 16 * 4);
-	static int with[] =
+	auto columnWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), ICONITEMBORDER + 16 * 4);
+	static int columnWidths[] =
 	{
 		columnWidth,
 		columnWidth,
 		columnWidth,
-		CDPIAware::Instance().ScaleX(LOGLIST_MESSAGE_MIN),
+		CDPIAware::Instance().ScaleX(GetSafeHwnd(), LOGLIST_MESSAGE_MIN),
 		columnWidth,
 	};
+	static_assert(_countof(normal) == _countof(columnWidths));
 	m_dwDefaultColumns = 0xFFFF;
 
 	SetRedraw(false);
 
 	m_ColumnManager.SetNames(normal, _countof(normal));
 	constexpr int columnVersion = 6; // adjust when changing number/names/etc. of columns
-	m_ColumnManager.ReadSettings(m_dwDefaultColumns, 0, m_ColumnRegKey + L"loglist", columnVersion, _countof(normal), with);
+	m_ColumnManager.ReadSettings(m_dwDefaultColumns, 0, m_ColumnRegKey + L"loglist", columnVersion, _countof(normal), columnWidths);
 
 	SetRedraw(true);
 }
@@ -108,15 +109,15 @@ void CRefLogList::OnLvnGetdispinfoLoglist(NMHDR *pNMHDR, LRESULT *pResult)
 		break;
 	case REFLOG_ACTION:
 		if (pLogEntry)
-			lstrcpyn(pItem->pszText, static_cast<LPCTSTR>(pLogEntry->m_RefAction), pItem->cchTextMax - 1);
+			lstrcpyn(pItem->pszText, static_cast<LPCWSTR>(pLogEntry->m_RefAction), pItem->cchTextMax - 1);
 		break;
 	case REFLOG_MESSAGE:
 		if (pLogEntry)
-			lstrcpyn(pItem->pszText, static_cast<LPCTSTR>(pLogEntry->GetSubject().Trim()), pItem->cchTextMax - 1);
+			lstrcpyn(pItem->pszText, static_cast<LPCWSTR>(pLogEntry->GetSubject().Trim()), pItem->cchTextMax - 1);
 		break;
 	case REFLOG_DATE:
 		if (pLogEntry)
-			lstrcpyn(pItem->pszText, static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(pLogEntry->GetCommitterDate(), m_DateFormat, true, m_bRelativeTimes)), pItem->cchTextMax - 1);
+			lstrcpyn(pItem->pszText, static_cast<LPCWSTR>(CLoglistUtils::FormatDateAndTime(pLogEntry->GetCommitterDate(), m_DateFormat, true, m_bRelativeTimes)), pItem->cchTextMax - 1);
 		break;
 
 	default:
@@ -130,7 +131,7 @@ void CRefLogList::OnNMDblclkLoglist(NMHDR* /*pNMHDR*/, LRESULT* pResult)
 	*pResult = 0;
 
 	POSITION pos = GetFirstSelectedItemPosition();
-	int indexNext = GetNextSelectedItem(pos);
+	const int indexNext = GetNextSelectedItem(pos);
 	if (indexNext < 0)
 		return;
 
@@ -139,7 +140,7 @@ void CRefLogList::OnNMDblclkLoglist(NMHDR* /*pNMHDR*/, LRESULT* pResult)
 		return;
 
 	CString cmdline;
-	cmdline.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCTSTR>(g_Git.CombinePath(m_Path)), static_cast<LPCTSTR>(pSelLogEntry->m_CommitHash.ToString()));
+	cmdline.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCWSTR>(g_Git.CombinePath(m_Path)), static_cast<LPCWSTR>(pSelLogEntry->m_CommitHash.ToString()));
 	CAppUtils::RunTortoiseGitProc(cmdline);
 }
 
@@ -174,9 +175,9 @@ void CRefLogList::CopySelectionToClipBoard(int toCopy)
 			if (toCopy == ID_COPYCLIPBOARDFULL)
 			{
 				sClipdata.AppendFormat(L"%s: %s\r\n%s: %s\r\n%s: %s%s%s\r\n",
-									static_cast<LPCTSTR>(sRev), static_cast<LPCTSTR>(pLogEntry->m_CommitHash.ToString()),
-									static_cast<LPCTSTR>(sDate), static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(pLogEntry->GetCommitterDate(), m_DateFormat, true, m_bRelativeTimes)),
-									static_cast<LPCTSTR>(sMessage), static_cast<LPCTSTR>(pLogEntry->m_RefAction), pLogEntry->m_RefAction.IsEmpty() ? L"" : L": ", static_cast<LPCTSTR>(pLogEntry->GetSubjectBody(true)));
+									static_cast<LPCWSTR>(sRev), static_cast<LPCWSTR>(pLogEntry->m_CommitHash.ToString()),
+									static_cast<LPCWSTR>(sDate), static_cast<LPCWSTR>(CLoglistUtils::FormatDateAndTime(pLogEntry->GetCommitterDate(), m_DateFormat, true, m_bRelativeTimes)),
+									static_cast<LPCWSTR>(sMessage), static_cast<LPCWSTR>(pLogEntry->m_RefAction), pLogEntry->m_RefAction.IsEmpty() ? L"" : L": ", static_cast<LPCWSTR>(pLogEntry->GetSubjectBody(true)));
 			}
 			else if (toCopy == ID_COPYCLIPBOARDMESSAGES)
 			{

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2017 - TortoiseGit
+// Copyright (C) 2015-2017, 2021, 2024-2025 - TortoiseGit
 // Copyright (C) 2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,11 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include <VersionHelpers.h>
-#ifndef _WIN32_WINNT_WIN10
-#define _WIN32_WINNT_WIN10 0x0A00
-#endif
 
 /**
  * \ingroup Utils
@@ -30,14 +27,16 @@
 class SysInfo
 {
 private:
-	SysInfo(void);
-	~SysInfo(void);
+	SysInfo();
+	~SysInfo();
 	// prevent cloning
 	SysInfo(const SysInfo&) = delete;
 	SysInfo& operator=(const SysInfo&) = delete;
+
+	bool m_bIsWindows11OrLater;
+
 public:
 	static const SysInfo& Instance();
 
-	bool			IsWin8OrLater() const { return IsWindows8OrGreater(); }
-	bool			IsWin10() const { return IsWindowsVersionOrGreater(HIBYTE(_WIN32_WINNT_WIN10), LOBYTE(_WIN32_WINNT_WIN10), 0); }
+	bool			IsWin11OrLater() const { return m_bIsWindows11OrLater; }
 };

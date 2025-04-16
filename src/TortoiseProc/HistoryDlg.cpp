@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2021, 2023-2025 - TortoiseGit
 // Copyright (C) 2003-2008,2011 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -19,14 +20,11 @@
 
 #include "stdafx.h"
 #include "TortoiseProc.h"
-#include "registry.h"
 #include "HistoryDlg.h"
-
 
 IMPLEMENT_DYNAMIC(CHistoryDlg, CResizableStandAloneDialog)
 CHistoryDlg::CHistoryDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CHistoryDlg::IDD, pParent)
-	, m_history(nullptr)
 {
 }
 
@@ -50,10 +48,17 @@ END_MESSAGE_MAP()
 
 void CHistoryDlg::OnBnClickedOk()
 {
-	int pos = m_List.GetCurSel();
-	if (pos != LB_ERR)
+	int selCount = m_List.GetSelCount();
+	if (selCount > 0)
 	{
-		m_SelectedText = m_history->GetEntry(pos);
+		auto selectedIndexes = std::make_unique<int[]>(selCount);
+		m_List.GetSelItems(selCount, selectedIndexes.get());
+		for (int i = 0; i < selCount; ++i)
+		{
+			if (i > 0)
+				m_SelectedText += L"\n\n";
+			m_SelectedText += m_history->GetEntry(selectedIndexes.get()[i]);
+		}
 	}
 	else
 		m_SelectedText.Empty();
@@ -84,6 +89,7 @@ BOOL CHistoryDlg::OnInitDialog()
 	AddAnchor(IDOK, BOTTOM_RIGHT);
 	AddAnchor(IDCANCEL, BOTTOM_RIGHT);
 	EnableSaveRestore(L"HistoryDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 	m_List.SetFocus();
 	return FALSE;
 }

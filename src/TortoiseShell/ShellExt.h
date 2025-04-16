@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2018-2021 - TortoiseGit
-// Copyright (C) 2003-2012, 2014 - TortoiseSVN
+// Copyright (C) 2018-2023 - TortoiseGit
+// Copyright (C) 2003-2012, 2014, 2021-2022 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 #pragma once
-
+#include <wrl/client.h>
 #include "Globals.h"
 #include "registry.h"
 #include "resource.h"
@@ -28,7 +28,9 @@
 #include "GitFolderStatus.h"
 #include "IconBitmapUtils.h"
 #include "MenuInfo.h"
+#include "ExplorerCommand.h"
 
+class CExplorerCommand;
 extern	volatile LONG		g_cRefThisDll;			// Reference count of this DLL.
 extern	HINSTANCE			g_hmodThisDll;			// Instance handle for this DLL
 extern	ShellCache			g_ShellCache;			// caching of registry entries, ...
@@ -49,11 +51,11 @@ extern bool					g_lockedovlloaded;
 extern bool					g_addedovlloaded;
 extern bool					g_ignoredovlloaded;
 extern bool					g_unversionedovlloaded;
-extern LPCTSTR				g_MenuIDString;
+extern LPCWSTR				g_MenuIDString;
 
 extern	void				LoadLangDll();
 extern  CComCriticalSection	g_csGlobalCOMGuard;
-typedef CComCritSecLock<CComCriticalSection> AutoLocker;
+using AutoLocker = CComCritSecLock<CComCriticalSection>;
 
 // The actual OLE Shell context menu handler
 /**
@@ -68,13 +70,16 @@ class CShellExt : public IContextMenu3,
 							IShellExtInit,
 							IShellIconOverlayIdentifier,
 							IShellPropSheetExt,
-							ICopyHookW
-
+							ICopyHookW,
+							IExplorerCommand,
+							IObjectWithSite
 {
+	friend class CExplorerCommand;
+
 protected:
 
-	FileState m_State;
-	volatile ULONG	m_cRef;
+	FileState m_State = FileStateInvalid;
+	volatile ULONG m_cRef = 0;
 	//std::map<int,std::string> verbMap;
 	std::map<UINT_PTR, UINT_PTR>	myIDMap;
 	std::map<UINT_PTR, UINT_PTR>	mySubMenuMap;
@@ -82,37 +87,40 @@ protected:
 	std::map<UINT_PTR, std::wstring> myVerbsIDMap;
 	std::wstring folder_;
 	std::vector<std::wstring> files_;
-	DWORD itemStates;				///< see the globals.h file for the ITEMIS_* defines
-	DWORD itemStatesFolder;			///< used for states of the folder_ (folder background and/or drop target folder)
+	DWORD itemStates = 0;				///< see the globals.h file for the ITEMIS_* defines
+	DWORD itemStatesFolder = 0;			///< used for states of the folder_ (folder background and/or drop target folder)
 	std::wstring uuidSource;
 	std::wstring uuidTarget;
-	int space;
-	TCHAR stringtablebuffer[255];
+	int space = 0;
+	wchar_t stringtablebuffer[255]{};
 	std::wstring ignoredprops;
 	CRegStdString		regDiffLater;
 
 	GitFolderStatus		m_CachedStatus;		// status cache
 	CRemoteCacheLink	m_remoteCacheLink;
 	IconBitmapUtils		m_iconBitmapUtils;
+	Microsoft::WRL::ComPtr<IUnknown> m_site;
+	std::vector<Microsoft::WRL::ComPtr<CExplorerCommand>> m_explorerCommands;
 
 #define MAKESTRING(ID) LoadStringEx(g_hResInst, ID, stringtablebuffer, _countof(stringtablebuffer), static_cast<WORD>(CRegStdDWORD(L"Software\\TortoiseGit\\LanguageID", MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT))))
 private:
 	void			InsertGitMenu(BOOL istop, HMENU menu, UINT pos, UINT_PTR id, UINT stringid, UINT icon, UINT idCmdFirst, GitCommands com, UINT uFlags);
 	bool			InsertLFSSubmenu(UINT& idCmd, UINT idCmdFirst, HMENU hMenu, HMENU subMenu, UINT& indexMenu, int& indexSubMenu, unsigned __int64 topmenu, bool bShowIcons, UINT uFlags);
 	bool			InsertIgnoreSubmenus(UINT &idCmd, UINT idCmdFirst, HMENU hMenu, HMENU subMenu, UINT &indexMenu, int &indexSubMenu, unsigned __int64 topmenu, bool bShowIcons, UINT uFlags);
-	std::wstring	WriteFileListToTempFile(bool bFoldersOnly);
-	bool			WriteClipboardPathsToTempFile(std::wstring& tempfile);
-	LPCTSTR			GetMenuTextFromResource(int id);
+	static std::wstring WriteFileListToTempFile(bool bFoldersOnly, const std::vector<std::wstring>& files, const std::wstring folder);
+	static bool			WriteClipboardPathsToTempFile(std::wstring& tempfile);
+	LPCWSTR			GetMenuTextFromResource(int id);
 	bool			ShouldInsertItem(const MenuInfo& pair) const;
 	bool			ShouldEnableMenu(const YesNoPair& pair) const;
 	void			TweakMenu(HMENU menu);
-	void			AddPathCommand(tstring& gitCmd, LPCTSTR command, bool bFilesAllowed);
-	void			AddPathFileCommand(tstring& gitCmd, LPCTSTR command, bool bFoldersOnly);
-	void			AddPathFileDropCommand(tstring& gitCmd, LPCTSTR command);
+	static void AddPathCommand(std::wstring& gitCmd, LPCWSTR command, bool bFilesAllowed, const std::vector<std::wstring>& files, const std::wstring folder);
+	static void AddPathFileCommand(std::wstring& gitCmd, LPCWSTR command, const std::vector<std::wstring>& files, const std::wstring folder, bool bFoldersOnly);
+	static void AddPathFileDropCommand(std::wstring& gitCmd, LPCWSTR command, const std::vector<std::wstring>& files, const std::wstring folder);
 	STDMETHODIMP	QueryDropContext(UINT uFlags, UINT idCmdFirst, HMENU hMenu, UINT &indexMenu);
 	bool			IsIllegalFolder(const std::wstring& folder);
-	static void		RunCommand(const tstring& path, const tstring& command, LPCTSTR errorMessage);
-
+	static void RunCommand(const std::wstring& path, const std::wstring& command, LPCWSTR errorMessage, Microsoft::WRL::ComPtr<IUnknown> site);
+	static void InvokeCommand(int cmd, const std::wstring& appDir, const std::wstring uuidSource, HWND hParent, DWORD itemStates, DWORD itemStatesFolder, const std::vector<std::wstring>& paths, const std::wstring& folder, CRegStdString& regDiffLater, Microsoft::WRL::ComPtr<IUnknown> site);
+	static std::wstring ExplorerViewPath(const Microsoft::WRL::ComPtr<IUnknown>& site);
 public:
 	CShellExt(FileState state);
 	virtual ~CShellExt();
@@ -156,7 +164,7 @@ public:
 	//@{
 	STDMETHODIMP	GetClassID(CLSID *pclsid) override;
 	STDMETHODIMP	Load(LPCOLESTR pszFileName, DWORD dwMode) override;
-	STDMETHODIMP	IsDirty(void) override { return S_OK; };
+	STDMETHODIMP	IsDirty() override { return S_OK; };
 	STDMETHODIMP	Save(LPCOLESTR /*pszFileName*/, BOOL /*fRemember*/)  override { return S_OK; };
 	STDMETHODIMP	SaveCompleted(LPCOLESTR /*pszFileName*/) override { return S_OK; };
 	STDMETHODIMP	GetCurFile(LPOLESTR * /*ppszFileName*/) override { return S_OK; };
@@ -183,6 +191,28 @@ public:
 	 * ICopyHook members
 	 */
 	//@{
-	STDMETHODIMP_(UINT) CopyCallback(HWND hWnd, UINT wFunc, UINT wFlags, LPCTSTR pszSrcFile, DWORD dwSrcAttribs, LPCTSTR pszDestFile, DWORD dwDestAttribs) override;
+	STDMETHODIMP_(UINT) CopyCallback(HWND hWnd, UINT wFunc, UINT wFlags, LPCWSTR pszSrcFile, DWORD dwSrcAttribs, LPCWSTR pszDestFile, DWORD dwDestAttribs) override;
+	//@}
+
+	/** \name IExplorerCommand
+	 * IExplorerCommand members
+	 */
+	//@{
+	HRESULT STDMETHODCALLTYPE GetTitle(IShellItemArray* psiItemArray, LPWSTR* ppszName) override;
+	HRESULT STDMETHODCALLTYPE GetIcon(IShellItemArray* psiItemArray, LPWSTR* ppszIcon) override;
+	HRESULT STDMETHODCALLTYPE GetToolTip(IShellItemArray* psiItemArray, LPWSTR* ppszInfotip) override;
+	HRESULT STDMETHODCALLTYPE GetCanonicalName(GUID* pguidCommandName) override;
+	HRESULT STDMETHODCALLTYPE GetState(IShellItemArray* psiItemArray, BOOL fOkToBeSlow, EXPCMDSTATE* pCmdState) override;
+	HRESULT STDMETHODCALLTYPE Invoke(IShellItemArray* psiItemArray, IBindCtx* pbc) override;
+	HRESULT STDMETHODCALLTYPE GetFlags(EXPCMDFLAGS* pFlags) override;
+	HRESULT STDMETHODCALLTYPE EnumSubCommands(IEnumExplorerCommand** ppEnum) override;
+	//@}
+
+	/** \name IObjectWithSite
+	 * IObjectWithSite members
+	 */
+	//@{
+	HRESULT STDMETHODCALLTYPE SetSite(IUnknown* pUnkSite) override;
+	HRESULT STDMETHODCALLTYPE GetSite(REFIID riid, void** ppvSite) override;
 	//@}
 };

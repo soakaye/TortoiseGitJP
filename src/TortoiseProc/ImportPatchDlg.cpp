@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2020, 2023-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -36,10 +36,6 @@ IMPLEMENT_DYNAMIC(CImportPatchDlg, CResizableStandAloneDialog)
 
 CImportPatchDlg::CImportPatchDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CImportPatchDlg::IDD, pParent)
-	, m_LoadingThread(FALSE)
-	, m_CurrentItem(0)
-	, m_bExitThread(FALSE)
-	, m_bThreadRunning(FALSE)
 	, m_b3Way(BST_CHECKED)
 	, m_bIgnoreSpace(BST_CHECKED)
 	, m_bAddSignedOffBy(BST_UNCHECKED)
@@ -93,7 +89,7 @@ void CImportPatchDlg::SetSplitterRange()
 		m_ctrlTabCtrl.GetWindowRect(rcMiddle);
 		ScreenToClient(rcMiddle);
 		if (rcMiddle.Height() && rcMiddle.Width())
-			m_wndSplitter.SetRange(rcTop.top + CDPIAware::Instance().ScaleY(160), rcMiddle.bottom - CDPIAware::Instance().ScaleY(160));
+			m_wndSplitter.SetRange(rcTop.top + CDPIAware::Instance().ScaleY(GetSafeHwnd(), 160), rcMiddle.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), 160));
 	}
 }
 
@@ -107,7 +103,7 @@ BOOL CImportPatchDlg::OnInitDialog()
 	// were running elevated. It's OK to make the call all the time, since if we're
 	// not elevated, this is a no-op.
 	CHANGEFILTERSTRUCT cfs = { sizeof(CHANGEFILTERSTRUCT) };
-	typedef BOOL STDAPICALLTYPE ChangeWindowMessageFilterExDFN(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
+	using ChangeWindowMessageFilterExDFN = BOOL(STDAPICALLTYPE)(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
 	CAutoLibrary hUser = AtlLoadSystemLibraryUsingFullPath(L"user32.dll");
 	if (hUser)
 	{
@@ -185,7 +181,7 @@ BOOL CImportPatchDlg::OnInitDialog()
 	}
 	m_cList.SetColumnWidth(0, LVSCW_AUTOSIZE);
 
-	DWORD yPos = CDPIAware::Instance().ScaleY(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\AMDlgSizer"));
+	DWORD yPos = CDPIAware::Instance().ScaleY(GetSafeHwnd(), CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\AMDlgSizer"));
 	RECT rcDlg, rcLogMsg, rcFileList;
 	GetClientRect(&rcDlg);
 	m_cList.GetWindowRect(&rcLogMsg);
@@ -198,7 +194,7 @@ BOOL CImportPatchDlg::OnInitDialog()
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
 		int delta = yPos - rectSplitter.top;
-		if ((rcLogMsg.bottom + delta > rcLogMsg.top) && (rcLogMsg.bottom + delta < rcFileList.bottom - CDPIAware::Instance().ScaleY(30)))
+		if ((rcLogMsg.bottom + delta > rcLogMsg.top) && (rcLogMsg.bottom + delta < rcFileList.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), 30)))
 		{
 			m_wndSplitter.SetWindowPos(nullptr, 0, yPos, 0, 0, SWP_NOSIZE);
 			DoSize(delta);
@@ -207,13 +203,13 @@ BOOL CImportPatchDlg::OnInitDialog()
 
 	CAppUtils::SetListCtrlBackgroundImage(m_cList.GetSafeHwnd(), IDI_IMPORTPATHCES_BKG);
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	EnableSaveRestore(L"ImportDlg");
 
 	SetSplitterRange();
+
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	return TRUE;
 }
@@ -254,7 +250,7 @@ void CImportPatchDlg::OnBnClickedButtonAdd()
 {
 	CFileDialog dlg(TRUE, nullptr, nullptr, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ALLOWMULTISELECT, CString(MAKEINTRESOURCE(IDS_PATCHFILEFILTER)));
 	dlg.m_ofn.nMaxFile = 65536;
-	TCHAR path[65536] = { 0 };
+	wchar_t path[65536] = { 0 };
 	dlg.m_ofn.lpstrFile = path;
 	INT_PTR ret = dlg.DoModal();
 	SetCurrentDirectory(g_Git.m_CurrentDir);
@@ -439,8 +435,7 @@ UINT CImportPatchDlg::PatchThread()
 
 			if(this->m_bKeepCR)
 				cmd += L"--keep-cr ";
-
-			cmd += L'"';
+			cmd += L"-- \"";
 			cmd += m_cList.GetItemText(i,0);
 			cmd += L'"';
 
@@ -467,7 +462,7 @@ UINT CImportPatchDlg::PatchThread()
 		else
 		{
 			CString sMessage;
-			sMessage.Format(IDS_PROC_SKIPPATCH, static_cast<LPCTSTR>(m_cList.GetItemText(i, 0)));
+			sMessage.Format(IDS_PROC_SKIPPATCH, static_cast<LPCWSTR>(m_cList.GetItemText(i, 0)));
 			AddLogString(sMessage);
 			m_cList.SetItemData(i, CPatchListCtrl::STATUS_APPLY_SKIP);
 		}
@@ -590,7 +585,7 @@ void CImportPatchDlg::SaveSplitterPos()
 		RECT rectSplitter;
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		regPos = CDPIAware::Instance().UnscaleY(rectSplitter.top);
+		regPos = CDPIAware::Instance().UnscaleY(GetSafeHwnd(), rectSplitter.top);
 	}
 }
 
@@ -630,13 +625,21 @@ void CImportPatchDlg::OnBnClickedCancel()
 	{
 		CTGitPath path;
 		path.SetFromWin(g_Git.m_CurrentDir);
-		if(path.HasRebaseApply())
-			if (CMessageBox::Show(GetSafeHwnd(), IDS_PROC_APPLYPATCH_GITAMACTIVE, IDS_APPNAME, MB_YESNO | MB_ICONQUESTION) == IDYES)
+		if (path.HasRebaseApply())
+		{
+			const UINT result = CMessageBox::Show(GetSafeHwnd(), IDS_PROC_APPLYPATCH_GITAMACTIVE, IDS_APPNAME, MB_YESNOCANCEL | MB_ICONQUESTION);
+			switch(result)
 			{
-				CString output;
-				if (g_Git.Run(L"git.exe am --abort", &output, CP_UTF8))
+			case IDYES:
+				if (CString output; g_Git.Run(L"git.exe am --abort", &output, CP_UTF8))
 					MessageBox(output, L"TortoiseGit", MB_OK | MB_ICONERROR);
+				[[fallthrough]];
+			case IDNO:
+				break;
+			case IDCANCEL:
+				return;
 			}
+		}
 		OnCancel();
 	}
 }
@@ -660,7 +663,7 @@ BOOL CImportPatchDlg::PreTranslateMessage(MSG* pMsg)
 		case VK_ESCAPE:
 		case VK_CANCEL:
 			{
-				TCHAR buff[129];
+				wchar_t buff[129];
 				::GetClassName(pMsg->hwnd, buff, _countof(buff) - 1);
 
 				/* Use MSFTEDIT_CLASS http://msdn.microsoft.com/en-us/library/bb531344.aspx */
@@ -694,7 +697,7 @@ void CImportPatchDlg::OnHdnItemchangedListPatch(NMHDR * /*pNMHDR*/, LRESULT *pRe
 		if(selected>=0&& selected< m_cList.GetItemCount())
 		{
 			CString str = m_cList.GetItemText(selected,0);
-			m_PatchCtrl.LoadFromFile(str);
+			m_PatchCtrl.LoadFromFile(str, IDS_ERR_FILE_TOOBIG);
 
 		}
 		else

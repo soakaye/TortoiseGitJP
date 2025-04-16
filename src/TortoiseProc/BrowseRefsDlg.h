@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -36,12 +36,9 @@ class CBrowseRefsDlgFilter;
 class CShadowTree
 {
 public:
-	typedef std::map<CString,CShadowTree> TShadowTreeMap;
+	using TShadowTreeMap = std::map<CString, CShadowTree>;
 
-	CShadowTree()
-	: m_hTree(nullptr)
-	, m_pParent(nullptr)
-	{}
+	CShadowTree() = default;
 
 	CShadowTree*	GetNextSub(CString& nameLeft, bool bCreateIfNotExist);
 
@@ -86,17 +83,19 @@ public:
 	CString			m_csRefName;
 	CString			m_csUpstream;
 	CString			m_csRefHash;
-	CTime			m_csDate;
+	CTime			m_csAuthorDate;
+	CString			m_csCommitter;
+	CTime			m_csCommitterDate;
 	CString			m_csAuthor;
 	CString			m_csSubject;
 	CString			m_csDescription;
 
-	HTREEITEM		m_hTree;
+	HTREEITEM		m_hTree = nullptr;
 
 	TShadowTreeMap	m_ShadowTree;
-	CShadowTree*	m_pParent;
+	CShadowTree*	m_pParent = nullptr;
 };
-typedef std::vector<CShadowTree*> VectorPShadowTree;
+using VectorPShadowTree = std::vector<CShadowTree*>;
 
 class CBrowseRefsDlg : public CResizableStandAloneDialog
 {
@@ -140,9 +139,11 @@ public:
 	{
 		eCol_Name,
 		eCol_Upstream,
-		eCol_Date,
+		eCol_AuthorDate,
 		eCol_Msg,
 		eCol_LastAuthor,
+		eCol_CommitterDate,
+		eCol_LastCommitter,
 		eCol_Hash,
 		eCol_Description,
 	};
@@ -151,12 +152,12 @@ public:
 	enum { IDD = IDD_BROWSE_REFS };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
 	afx_msg void OnBnClickedOk();
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 
 	CString			GetSelectedRef(bool onlyIfLeaf, bool pickFirstSelIfMultiSel = false);
 
@@ -180,14 +181,14 @@ protected:
 	CShadowTree*	GetTreeEntry(HTREEITEM treeItem);
 
 private:
-	bool			m_bHasWC;
+	bool			m_bHasWC = true;
 
 	CString			m_cmdPath;
 
 	STRING_VECTOR	remotes;
 
 	CShadowTree		m_TreeRoot;
-	CShadowTree*	m_pListCtrlRoot;
+	CShadowTree*	m_pListCtrlRoot = nullptr;
 	CGestureEnabledControlTmpl<CTreeCtrl>	m_RefTreeCtrl;
 	CGestureEnabledControlTmpl<CResizableColumnsListCtrl<CListCtrl>>	m_ListRefLeafs;
 
@@ -200,8 +201,8 @@ private:
 	afx_msg LRESULT OnClickedCancelFilter(WPARAM wParam, LPARAM lParam);
 	CComboBox		m_cBranchFilter;
 
-	int				m_currSortCol;
-	bool			m_currSortDesc;
+	int				m_currSortCol = 0;
+	bool			m_currSortDesc = false;
 	CRegDWORD		m_regCurrSortCol;
 	CRegDWORD		m_regCurrSortDesc;
 	afx_msg void OnTvnSelchangedTreeRef(NMHDR *pNMHDR, LRESULT *pResult);
@@ -215,7 +216,7 @@ private:
 
 	bool		AreAllFrom(VectorPShadowTree& leafs, const wchar_t* from);
 	void		ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPShadowTree& selectedLeafs);
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL		PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void OnLvnColumnclickListRefLeafs(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnDestroy();
 	afx_msg void OnNMDblclkListRefLeafs(NMHDR *pNMHDR, LRESULT *pResult);
@@ -231,15 +232,15 @@ private:
 
 	CString	m_sLastSelected;
 	CString m_initialRef;
-	int		m_pickRef_Kind;
+	int		m_pickRef_Kind = gPickRef_All;
 	CString m_pickedRef;
-	bool	m_bWantPick;
-	bool	m_bPickOne;
-	bool	m_bShowRangeOptionWithTwoRefs;
-	bool	m_bPickedRefSet;
+	bool	m_bWantPick = false;
+	bool	m_bPickOne = false;
+	bool	m_bShowRangeOptionWithTwoRefs = false;
+	bool	m_bPickedRefSet = false;
 
-	DWORD	m_DateFormat;		// DATE_SHORTDATE or DATE_LONGDATE
-	bool	m_bRelativeTimes;	// Show relative times
+	DWORD	m_DateFormat = DATE_SHORTDATE;		// DATE_SHORTDATE or DATE_LONGDATE
+	bool	m_bRelativeTimes = false;	// Show relative times
 
 public:
 	static CString	PickRef(bool returnAsHash = false, CString initialRef = CString(), int pickRef_Kind = gPickRef_All, bool pickMultipleRefs = false, bool showRangeOptionWithTwoRefs = true);

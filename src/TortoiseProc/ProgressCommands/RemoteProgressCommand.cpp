@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2013-2016, 2018-2022, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,9 +17,11 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "stdafx.h"
+#include "resource.h"
 #include "RemoteProgressCommand.h"
 #include "../TortoiseShell/resource.h"
 #include "AppUtils.h"
+#include "git2/sys/errors.h"
 
 int RemoteProgressCommand::RemoteProgressCallback(const char* str, int len, void* data)
 {
@@ -68,11 +70,11 @@ int RemoteProgressCommand::RemoteUpdatetipsCallback(const char* refname, const g
 					change.Format(IDS_REWINDN, behind);
 				else
 				{
-					git_commit* oldCommit, * newCommit;
+					CAutoCommit oldCommit, newCommit;
 					git_time_t oldTime = 0, newTime = 0;
-					if (!git_commit_lookup(&oldCommit, ptr->repo, oldOid))
+					if (!git_commit_lookup(oldCommit.GetPointer(), ptr->repo, oldOid))
 						oldTime = git_commit_committer(oldCommit)->when.time;
-					if (!git_commit_lookup(&newCommit, ptr->repo, newOid))
+					if (!git_commit_lookup(newCommit.GetPointer(), ptr->repo, newOid))
 						newTime = git_commit_committer(newCommit)->when.time;
 					if (oldTime < newTime)
 						change.LoadString(IDS_SUBMODULEDIFF_NEWERTIME);
@@ -100,7 +102,7 @@ RemoteProgressCommand::RefUpdateNotificationData::RefUpdateNotificationData(cons
 	m_NewHash = newOid;
 	m_OldHash = oldOid;
 	sActionColumnText.LoadString(IDS_GITACTION_UPDATE_REF);
-	sPathColumnText.Format(L"%s\t %s -> %s (%s)", static_cast<LPCTSTR>(str), static_cast<LPCTSTR>(m_OldHash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCTSTR>(m_NewHash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCTSTR>(change));
+	sPathColumnText.Format(L"%s\t %s -> %s (%s)", static_cast<LPCWSTR>(str), static_cast<LPCWSTR>(m_OldHash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCWSTR>(m_NewHash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCWSTR>(change));
 }
 
 void RemoteProgressCommand::RefUpdateNotificationData::GetContextMenu(CIconMenu& popup, CGitProgressList::ContextMenuActionList& actions)

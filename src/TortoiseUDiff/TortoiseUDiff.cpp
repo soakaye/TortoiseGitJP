@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2020 - TortoiseGit
+// Copyright (C) 2011-2023 - TortoiseGit
 // Copyright (C) 2003-2008, 2010-2012, 2014-2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -27,6 +27,10 @@
 #include "Monitor.h"
 #include "../version.h"
 #include "../Utils/CrashReport.h"
+#pragma warning(push)
+#pragma warning(disable: 4458)
+#include <GdiPlus.h>
+#pragma warning(pop)
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
 
@@ -34,9 +38,9 @@
 
 HINSTANCE hResource; // the resource dll
 
-int APIENTRY _tWinMain(HINSTANCE hInstance,
+int APIENTRY wWinMain(HINSTANCE hInstance,
 					 HINSTANCE /*hPrevInstance*/,
-					 LPTSTR    lpCmdLine,
+					 LPWSTR    lpCmdLine,
 					 int       /*nCmdShow*/)
 {
 	SetDllDirectory(L"");
@@ -46,8 +50,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	MSG msg;
 	HACCEL hAccelTable;
 
-#if ENABLE_CRASHHANLDER
-	CCrashReportTGit crasher(L"TortoiseGitUDiff " _T(APP_X64_STRING), TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD, TGIT_VERDATE);
+#if ENABLE_CRASHHANLDER && !_M_ARM64
+	CCrashReportTGit crasher(L"TortoiseGitUDiff " TEXT(APP_X64_STRING), TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD, TGIT_VERDATE);
 	CCrashReport::Instance().AddUserInfoToReport(L"CommandLine", GetCommandLine());
 #endif
 
@@ -74,9 +78,11 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	};
 	InitCommonControlsEx(&used);
 
-	CAutoLibrary hSciLexerDll = ::LoadLibrary(L"SciLexer_tgit.dll");
-	if (!hSciLexerDll)
-		return -1;
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	ULONG_PTR gdiplusToken;
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
+
+	SCOPE_EXIT { Gdiplus::GdiplusShutdown(gdiplusToken); };
 
 	CMainWindow mainWindow(hResource);
 	mainWindow.SetRegistryPath(L"Software\\TortoiseGit\\UDiffViewerWindowPos_" + GetMonitorSetupHash());
@@ -84,7 +90,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 		mainWindow.SetTitle(parser.GetVal(L"title"));
 	else if (parser.HasVal(L"patchfile"))
 		mainWindow.SetTitle(parser.GetVal(L"patchfile"));
-	else if (lpCmdLine[0])
+	else if (lpCmdLine[0] && !parser.HasKey(L"p"))
 	{
 		// remove double quotes
 		std::wstring path = lpCmdLine;
@@ -109,7 +115,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 		GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &oldMode);
 		SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), oldMode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT));
 
-		bLoadedSuccessfully = mainWindow.LoadFile(GetStdHandle(STD_INPUT_HANDLE));
+		bLoadedSuccessfully = mainWindow.LoadFile(GetStdHandle(STD_INPUT_HANDLE), parser.HasKey(L"p"));
 	}
 	else if (parser.HasVal(L"patchfile"))
 		bLoadedSuccessfully = mainWindow.LoadFile(parser.GetVal(L"patchfile"));
@@ -138,6 +144,5 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			DispatchMessage(&msg);
 		}
 	}
-
 	return static_cast<int>(msg.wParam);
 }

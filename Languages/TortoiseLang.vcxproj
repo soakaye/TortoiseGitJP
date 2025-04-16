@@ -1,6 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
@@ -8,6 +12,10 @@
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
@@ -36,9 +44,16 @@
   <PropertyGroup>
     <OutDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)..\bin\$(Configuration)\Languages\</OutDir>
     <OutDir Condition="'$(Platform)'=='x64'">$(SolutionDir)..\bin\$(Configuration)64\Languages\</OutDir>
-    <NMakeBuildCommandLine>build-lang.cmd "$(OutDir)"</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>build-lang.cmd "$(OutDir)"</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>build-lang.cmd "$(OutDir)" clean</NMakeCleanCommandLine>
+    <OutDir Condition="'$(Platform)'=='ARM64'">$(SolutionDir)..\bin\$(Configuration)ARM64\Languages\</OutDir>
+    <ExeDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)..\bin\$(Configuration)\Languages\</ExeDir>
+    <ExeDir Condition="'$(Platform)'=='x64'">$(SolutionDir)..\bin\$(Configuration)64\Languages\</ExeDir>
+    <ExeDir Condition="'$(Platform)'=='ARM64' AND ('$(PROCESSOR_ARCHITECTURE)'=='AMD64' OR '$(PROCESSOR_ARCHITEW6432)'=='AMD64')">$(SolutionDir)..\bin\$(Configuration)64\Languages\</ExeDir>
+    <ExeDir Condition="'$(Platform)'=='ARM64' AND ('$(PROCESSOR_ARCHITECTURE)'=='$(Platform)' OR '$(PROCESSOR_ARCHITEW6432)'=='$(Platform)')">$(SolutionDir)..\bin\$(Configuration)ARM64\Languages\</ExeDir>
+    <ExeDir Condition="'$(ExeDir)'==''">$(SolutionDir)..\bin\$(Configuration)\Languages\</ExeDir>
+    <NMakeBuildCommandLine>build-lang.cmd "$(OutDir)" "$(ExeDir)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>build-lang.cmd "$(OutDir)" "$(ExeDir)"</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>build-lang.cmd "$(OutDir)" "$(ExeDir)" clean</NMakeCleanCommandLine>
+    <ResolveNuGetPackages>false</ResolveNuGetPackages>  
   </PropertyGroup>
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>
@@ -75,6 +90,8 @@
     <None Include="Tortoise_sr%40Cyrl.po" />
     <None Include="Tortoise_sr%40latin.po" />
     <None Include="Tortoise_sv.po" />
+    <None Include="Tortoise_ta_IN.po" />
+    <None Include="Tortoise_th.po" />
     <None Include="Tortoise_tr.po" />
     <None Include="Tortoise_uk.po" />
     <None Include="Tortoise_vi.po" />

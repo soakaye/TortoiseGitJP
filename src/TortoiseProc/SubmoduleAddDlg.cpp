@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2017 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2017, 2021-2022, 2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -61,6 +61,7 @@ BEGIN_MESSAGE_MAP(CSubmoduleAddDlg, CHorizontalResizableStandAloneDialog)
 	ON_COMMAND(IDC_BRANCH_CHECK,		OnBranchCheck)
 	ON_BN_CLICKED(IDC_PUTTYKEYFILE_BROWSE, OnBnClickedPuttykeyfileBrowse)
 	ON_BN_CLICKED(IDC_PUTTYKEY_AUTOLOAD, OnBnClickedPuttykeyAutoload)
+	ON_NOTIFY_EX(CBEN_ENDEDIT, IDC_COMBOBOXEX_REPOSITORY, OnRepoEndEdit)
 END_MESSAGE_MAP()
 
 
@@ -92,10 +93,9 @@ BOOL CSubmoduleAddDlg::OnInitDialog()
 	AddOthersToAnchor();
 
 	EnableSaveRestore(L"SubmoduleAddDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.CombinePath(m_strPath).TrimRight('\\'), sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.CombinePath(m_strPath).TrimRight('\\'));
 
 	m_Repository.SetURLHistory(true);
 	m_Repository.SetCaseSensitive(TRUE);
@@ -104,7 +104,15 @@ BOOL CSubmoduleAddDlg::OnInitDialog()
 	m_Repository.LoadHistory(L"Software\\TortoiseGit\\History\\SubModuleRepoURLS", L"url");
 	m_PathCtrl.LoadHistory(L"Software\\TortoiseGit\\History\\SubModulePath", L"url");
 	m_PathCtrl.SetWindowText(m_strPath);
-	m_Repository.SetCurSel(0);
+
+	CString str = CAppUtils::GetClipboardLink(L"git clone ");
+	str.Trim();
+	if (str.GetLength() > 2 && (str[0] == L'"' && str[str.GetLength() - 1] == L'"' || str[0] == L'\'' && str[str.GetLength() - 1] == L'\''))
+		str = str.Mid(1, str.GetLength() - 2);
+	if (!str.IsEmpty())
+		m_Repository.SetWindowText(str);
+	else
+		m_Repository.SetCurSel(0);
 
 	m_PuttyKeyCombo.SetPathHistory(TRUE);
 	m_PuttyKeyCombo.LoadHistory(L"Software\\TortoiseGit\\History\\puttykey", L"key");
@@ -141,6 +149,15 @@ void CSubmoduleAddDlg::OnPathBrowse()
 	this->m_PathCtrl.GetWindowTextW(strDirectory);
 	if (browseFolder.Show(GetSafeHwnd(), strDirectory,g_Git.m_CurrentDir) == CBrowseFolder::OK)
 	{
+		CString strUrl;
+		m_Repository.GetWindowTextW(strUrl);
+		if (CString repoName = CPathUtils::GetFileNameFromPath(strUrl); !repoName.IsEmpty())
+		{
+			if (CStringUtils::EndsWith(repoName, L".git"))
+				repoName = repoName.Left(repoName.GetLength() - static_cast<int>(wcslen(L".git")));
+			m_PathCtrl.SetWindowTextW(strDirectory + L'\\' + repoName);
+			return;
+		}
 		this->m_PathCtrl.SetWindowTextW(strDirectory);
 	}
 }
@@ -210,4 +227,18 @@ void CSubmoduleAddDlg::OnBnClickedPuttykeyAutoload()
 	UpdateData();
 	GetDlgItem(IDC_PUTTYKEYFILE)->EnableWindow(m_bAutoloadPuttyKeyFile);
 	GetDlgItem(IDC_PUTTYKEYFILE_BROWSE)->EnableWindow(m_bAutoloadPuttyKeyFile);
+}
+
+BOOL CSubmoduleAddDlg::OnRepoEndEdit(UINT, NMHDR*, LRESULT*)
+{
+	CString strUrl;
+	m_Repository.GetWindowTextW(strUrl);
+	CString repoName = CPathUtils::GetFileNameFromPath(strUrl);
+	if (CStringUtils::EndsWith(repoName, L".git"))
+		repoName = repoName.Left(repoName.GetLength() - static_cast<int>(wcslen(L".git")));
+	if (m_strPath.IsEmpty())
+		m_PathCtrl.SetWindowText(repoName);
+	else
+		m_PathCtrl.SetWindowText(m_strPath + L'\\' + repoName);
+	return 0;
 }

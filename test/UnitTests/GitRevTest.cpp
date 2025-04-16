@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2015-2017, 2019-2020, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ static void GetRevParsingTests()
 	EXPECT_STREQ(L"1fc3c9688e27596d8717b54f2939dc951568f6cb", rev.m_ParentHash[0].ToString());
 	EXPECT_STREQ(L"", rev.GetLastErr());
 	rev.Clear();
-	EXPECT_EQ(0, rev.GetCommit(GitRev::GetWorkingCopy()));
+	EXPECT_EQ(0, rev.GetCommit(GitRev::GetWorkingCopyRef()));
 	EXPECT_TRUE(rev.m_CommitHash.IsEmpty());
 	EXPECT_STREQ(L"", rev.GetAuthorName());
 	EXPECT_STREQ(L"", rev.GetAuthorEmail());
@@ -190,6 +190,5 @@ TEST_P(GitRevCBasicGitWithTestRepoBareFixture, GitRevParsing)
 
 TEST(GitRev, Constants)
 {
-	EXPECT_STREQ(L"HEAD", GitRev::GetHead());
-	EXPECT_STREQ(L"0000000000000000000000000000000000000000", GitRev::GetWorkingCopy());
+	EXPECT_STREQ(L"0000000000000000000000000000000000000000", GitRev::GetWorkingCopyRef());
 }

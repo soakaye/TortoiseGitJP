@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -32,7 +32,6 @@
 #include "IconMenu.h"
 #include "FileDiffDlg.h"
 #include "DeleteRemoteTagDlg.h"
-#include "UnicodeUtils.h"
 #include "InputDlg.h"
 #include "SysProgressDlg.h"
 #include "LoglistUtils.h"
@@ -49,7 +48,7 @@ static int SplitRemoteBranchName(CString ref, CString &remote, CString &branch)
 		ref = ref.Mid(static_cast<int>(wcslen(L"remotes/")));
 
 	STRING_VECTOR list;
-	int result = g_Git.GetRemoteList(list);
+	const int result = g_Git.GetRemoteList(list);
 	if (result != 0)
 		return result;
 
@@ -117,7 +116,7 @@ public:
 
 	int Compare(const CShadowTree* pLeft, const CShadowTree* pRight)
 	{
-		int result=CompareNoDesc(pLeft,pRight);
+		const int result = CompareNoDesc(pLeft, pRight);
 		if(m_desc)
 			return -result;
 		return result;
@@ -129,9 +128,11 @@ public:
 		{
 		case CBrowseRefsDlg::eCol_Name:	return SortStrCmp(pLeft->GetRefName(), pRight->GetRefName());
 		case CBrowseRefsDlg::eCol_Upstream:	return SortStrCmp(pLeft->m_csUpstream, pRight->m_csUpstream);
-		case CBrowseRefsDlg::eCol_Date:	return ((pLeft->m_csDate == pRight->m_csDate) ? 0 : ((pLeft->m_csDate > pRight->m_csDate) ? 1 : -1));
+		case CBrowseRefsDlg::eCol_AuthorDate: return ((pLeft->m_csAuthorDate == pRight->m_csAuthorDate) ? 0 : ((pLeft->m_csAuthorDate > pRight->m_csAuthorDate) ? 1 : -1));
 		case CBrowseRefsDlg::eCol_Msg:	return SortStrCmp(pLeft->m_csSubject, pRight->m_csSubject);
 		case CBrowseRefsDlg::eCol_LastAuthor: return SortStrCmp(pLeft->m_csAuthor, pRight->m_csAuthor);
+		case CBrowseRefsDlg::eCol_CommitterDate: return ((pLeft->m_csCommitterDate == pRight->m_csCommitterDate) ? 0 : ((pLeft->m_csCommitterDate > pRight->m_csCommitterDate) ? 1 : -1));
+		case CBrowseRefsDlg::eCol_LastCommitter: return SortStrCmp(pLeft->m_csCommitter, pRight->m_csCommitter);
 		case CBrowseRefsDlg::eCol_Hash:	return pLeft->m_csRefHash.CompareNoCase(pRight->m_csRefHash);
 		case CBrowseRefsDlg::eCol_Description: return SortStrCmp(pLeft->m_csDescription, pRight->m_csDescription);
 		}
@@ -157,19 +158,11 @@ IMPLEMENT_DYNAMIC(CBrowseRefsDlg, CResizableStandAloneDialog)
 CBrowseRefsDlg::CBrowseRefsDlg(CString cmdPath, CWnd* pParent /*=nullptr*/)
 :	CResizableStandAloneDialog(CBrowseRefsDlg::IDD, pParent),
 	m_cmdPath(cmdPath),
-	m_currSortCol(0),
-	m_currSortDesc(false),
 	m_regCurrSortCol(L"Software\\TortoiseGit\\RefBrowserSortCol", 0),
 	m_regCurrSortDesc(L"Software\\TortoiseGit\\RefBrowserSortDesc", FALSE),
 	m_initialRef(L"HEAD"),
-	m_pickRef_Kind(gPickRef_All),
-	m_pListCtrlRoot(nullptr),
-	m_bHasWC(true),
 	m_SelectedFilters(LOGFILTER_ALL),
-	m_bPickOne(false),
-	m_bIncludeNestedRefs(TRUE),
-	m_bPickedRefSet(false)
-	, m_bWantPick(false)
+	m_bIncludeNestedRefs(TRUE)
 {
 	// get short/long datetime setting from registry
 	DWORD RegUseShortDateFormat = CRegDWORD(L"Software\\TortoiseGit\\LogDateFormat", TRUE);
@@ -242,15 +235,16 @@ void CBrowseRefsDlg::OnBnClickedOk()
 
 	popupMenu.AppendMenuIcon(1, GetSelectedRef(true, false), IDI_LOG);
 	popupMenu.SetDefaultItem(1);
-	popupMenu.AppendMenuIcon(2, GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L".."), IDI_LOG);
-	popupMenu.AppendMenuIcon(3, GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"..."), IDI_LOG);
+	popupMenu.AppendMenuIcon(2, GetTwoSelectedRefs(selectedLeafs, selectedLeafs[0]->GetRefName(), L".."), IDI_LOG);
+	popupMenu.AppendMenuIcon(3, GetTwoSelectedRefs(selectedLeafs, selectedLeafs[1]->GetRefName(), L".."), IDI_LOG);
+	popupMenu.AppendMenuIcon(4, GetTwoSelectedRefs(selectedLeafs, selectedLeafs[1]->GetRefName(), L"..."), IDI_LOG);
 
 	RECT rect;
 	GetDlgItem(IDOK)->GetWindowRect(&rect);
 	TPMPARAMS params;
 	params.cbSize = sizeof(TPMPARAMS);
 	params.rcExclude = rect;
-	int selection = popupMenu.TrackPopupMenuEx(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY | TPM_VERTICAL, rect.left, rect.top, this, &params);
+	const int selection = popupMenu.TrackPopupMenuEx(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY | TPM_VERTICAL, rect.left, rect.top, this, &params);
 	switch (selection)
 	{
 	case 1:
@@ -259,18 +253,25 @@ void CBrowseRefsDlg::OnBnClickedOk()
 	case 2:
 		{
 			m_bPickedRefSet = true;
-			m_pickedRef = GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"..");
+			m_pickedRef = GetTwoSelectedRefs(selectedLeafs, selectedLeafs[0]->GetRefName(), L"..");
 			OnOK();
 		}
 		break;
 	case 3:
 		{
 			m_bPickedRefSet = true;
-			m_pickedRef = GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"...");
+			m_pickedRef = GetTwoSelectedRefs(selectedLeafs, selectedLeafs[1]->GetRefName(), L"..");
 			OnOK();
 		}
 		break;
-	default:
+	case 4:
+		{
+			m_bPickedRefSet = true;
+			m_pickedRef = GetTwoSelectedRefs(selectedLeafs, selectedLeafs[1]->GetRefName(), L"...");
+			OnOK();
+		}
+		break;
+		default:
 		break;
 	}
 }
@@ -295,15 +296,14 @@ BOOL CBrowseRefsDlg::OnInitDialog()
 	AddAnchor(IDHELP, BOTTOM_RIGHT);
 
 	m_ListRefLeafs.SetExtendedStyle(m_ListRefLeafs.GetExtendedStyle() | LVS_EX_INFOTIP | LVS_EX_DOUBLEBUFFER);
-	static UINT columnNames[] = { IDS_BRANCHNAME, IDS_TRACKEDBRANCH, IDS_DATELASTCOMMIT, IDS_LASTCOMMIT, IDS_LASTAUTHOR, IDS_HASH, IDS_DESCRIPTION };
-	static int columnWidths[] = { 0, 0, 0, CDPIAware::Instance().ScaleX(300), 0, 0, CDPIAware::Instance().ScaleX(80) };
-	DWORD dwDefaultColumns = (1 << eCol_Name) | (1 << eCol_Upstream ) | (1 << eCol_Date) | (1 << eCol_Msg) |
-		(1 << eCol_LastAuthor) | (1 << eCol_Hash) | (1 << eCol_Description);
-	m_ListRefLeafs.m_bAllowHiding = false;
+	static UINT columnNames[] = { IDS_BRANCHNAME, IDS_TRACKEDBRANCH, IDS_DATELASTAUTHOR, IDS_LASTCOMMIT, IDS_LASTAUTHOR, IDS_DATELASTCOMMIT, IDS_LASTCOMMITTER, IDS_HASH, IDS_DESCRIPTION };
+	static int columnWidths[] = { 0, 0, 0, CDPIAware::Instance().ScaleX(GetSafeHwnd(), 300), 0, 0, 0, 0, CDPIAware::Instance().ScaleX(GetSafeHwnd(), 80) };
+	static_assert(_countof(columnNames) == _countof(columnWidths));
+	DWORD dwDefaultColumns = (1 << eCol_Name) | (1 << eCol_Upstream ) | (1 << eCol_AuthorDate) | (1 << eCol_Msg) | (1 << eCol_LastAuthor) | (1 << eCol_Hash) | (1 << eCol_Description);
 	m_ListRefLeafs.Init();
 	m_ListRefLeafs.SetListContextMenuHandler([&](CPoint point) {OnContextMenu_ListRefLeafs(point); });
 	m_ListRefLeafs.m_ColumnManager.SetNames(columnNames, _countof(columnNames));
-	constexpr int columnVersion = 6; // adjust when changing number/names/etc. of columns
+	constexpr int columnVersion = 7; // adjust when changing number/names/etc. of columns
 	m_ListRefLeafs.m_ColumnManager.ReadSettings(dwDefaultColumns, 0, L"BrowseRefs", columnVersion, _countof(columnNames), columnWidths);
 	m_bPickedRefSet = false;
 
@@ -317,10 +317,9 @@ BOOL CBrowseRefsDlg::OnInitDialog()
 	Refresh(m_initialRef);
 
 	EnableSaveRestore(L"BrowseRefs");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	m_bHasWC = !GitAdminDir::IsBareRepo(g_Git.m_CurrentDir);
 
@@ -338,7 +337,7 @@ BOOL CBrowseRefsDlg::OnInitDialog()
 
 CShadowTree* CShadowTree::GetNextSub(CString& nameLeft, bool bCreateIfNotExist)
 {
-	int posSlash=nameLeft.Find('/');
+	const int posSlash = nameLeft.Find('/');
 	CString nameSub;
 	if(posSlash<0)
 	{
@@ -433,7 +432,7 @@ void CBrowseRefsDlg::Refresh(CString selectRef)
 		if (selectRef == L"HEAD")
 		{
 			if (g_Git.GetCurrentBranchFromFile(g_Git.m_CurrentDir, selectRef))
-				selectRef.Empty();
+				selectRef = L"refs/heads";
 			else
 				selectRef = L"refs/heads/" + selectRef;
 		}
@@ -466,6 +465,12 @@ void CBrowseRefsDlg::Refresh(CString selectRef)
 		MessageBox(L"Get refs failed:" + err, L"TortoiseGit", MB_OK | MB_ICONERROR);
 	}
 
+
+	STRING_VECTOR remoteBranches;
+	if (g_Git.GetBranchList(remoteBranches, nullptr, CGit::BRANCH_REMOTE))
+		MessageBox(L"Loading remote tracking branches failed.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+	std::sort(remoteBranches.begin(), remoteBranches.end());
+
 	//Populate ref tree
 	for (auto iterRefMap = refMap.cbegin(); iterRefMap != refMap.cend(); ++iterRefMap)
 	{
@@ -473,11 +478,16 @@ void CBrowseRefsDlg::Refresh(CString selectRef)
 		GitRevRefBrowser ref = iterRefMap->second;
 
 		treeLeaf.m_csRefHash = ref.m_CommitHash.ToString();
+		CGit::GetShortName(ref.m_UpstreamRef, ref.m_UpstreamRef, L"refs/");
 		treeLeaf.m_csUpstream = ref.m_UpstreamRef;
-		CGit::GetShortName(treeLeaf.m_csUpstream, treeLeaf.m_csUpstream, L"refs/remotes/");
+		CGit::GetShortName(treeLeaf.m_csUpstream, treeLeaf.m_csUpstream, L"remotes/");
+		if (!ref.m_UpstreamRef.IsEmpty() && !std::binary_search(remoteBranches.cbegin(), remoteBranches.cend(), ref.m_UpstreamRef))
+			treeLeaf.m_csUpstream = L"(gone: " + treeLeaf.m_csUpstream + L")";
 		treeLeaf.m_csSubject = ref.GetSubject();
 		treeLeaf.m_csAuthor = ref.GetAuthorName();
-		treeLeaf.m_csDate = ref.GetAuthorDate();
+		treeLeaf.m_csAuthorDate = ref.GetAuthorDate();
+		treeLeaf.m_csCommitter = ref.GetCommitterName();
+		treeLeaf.m_csCommitterDate = ref.GetCommitterDate();
 		treeLeaf.m_csDescription = ref.m_Description;
 	}
 
@@ -487,6 +497,8 @@ void CBrowseRefsDlg::Refresh(CString selectRef)
 	// try exact match first
 	if (!selectRef.IsEmpty() && !SelectRef(selectRef, true))
 		SelectRef(selectRef, false);
+	else if (refMap.empty())
+		SelectRef(L"refs", false);
 }
 
 bool CBrowseRefsDlg::SelectRef(CString refName, bool bExactMatch)
@@ -598,15 +610,17 @@ void CBrowseRefsDlg::FillListCtrlForShadowTree(CShadowTree* pTree, CString refNa
 		CString ref = refNamePrefix + pTree->m_csRefName;
 		if (!(pTree->m_csRefName.IsEmpty() || pTree->m_csRefName == L"refs" && !pTree->m_pParent) && filter(pTree, ref))
 		{
-			int indexItem = m_ListRefLeafs.InsertItem(m_ListRefLeafs.GetItemCount(), L"");
+			const int indexItem = m_ListRefLeafs.InsertItem(m_ListRefLeafs.GetItemCount(), L"");
 
 			m_ListRefLeafs.SetItemData(indexItem, reinterpret_cast<DWORD_PTR>(pTree));
-			m_ListRefLeafs.SetItemText(indexItem,eCol_Name, ref);
+			m_ListRefLeafs.SetItemText(indexItem, eCol_Name, ref);
 			m_ListRefLeafs.SetItemText(indexItem, eCol_Upstream, pTree->m_csUpstream);
-			m_ListRefLeafs.SetItemText(indexItem, eCol_Date, pTree->m_csDate != 0 ? CLoglistUtils::FormatDateAndTime(pTree->m_csDate, m_DateFormat, true, m_bRelativeTimes) : L"");
-			m_ListRefLeafs.SetItemText(indexItem,eCol_Msg, pTree->m_csSubject);
-			m_ListRefLeafs.SetItemText(indexItem,eCol_LastAuthor, pTree->m_csAuthor);
-			m_ListRefLeafs.SetItemText(indexItem,eCol_Hash, pTree->m_csRefHash);
+			m_ListRefLeafs.SetItemText(indexItem, eCol_AuthorDate, pTree->m_csAuthorDate != 0 ? CLoglistUtils::FormatDateAndTime(pTree->m_csAuthorDate, m_DateFormat, true, m_bRelativeTimes) : CString());
+			m_ListRefLeafs.SetItemText(indexItem, eCol_CommitterDate, pTree->m_csCommitterDate != 0 ? CLoglistUtils::FormatDateAndTime(pTree->m_csCommitterDate, m_DateFormat, true, m_bRelativeTimes) : CString());
+			m_ListRefLeafs.SetItemText(indexItem, eCol_Msg, pTree->m_csSubject);
+			m_ListRefLeafs.SetItemText(indexItem, eCol_LastAuthor, pTree->m_csAuthor);
+			m_ListRefLeafs.SetItemText(indexItem, eCol_LastCommitter, pTree->m_csCommitter);
+			m_ListRefLeafs.SetItemText(indexItem, eCol_Hash, pTree->m_csRefHash);
 			CString descrition = pTree->m_csDescription;
 			descrition.Replace(L'\n', L' ');
 			m_ListRefLeafs.SetItemText(indexItem, eCol_Description, descrition);
@@ -652,7 +666,7 @@ bool CBrowseRefsDlg::ConfirmDeleteRef(VectorPShadowTree& leafs)
 		if(leafs.size() == 1)
 		{
 			CString branchToDelete = leafs[0]->GetRefName().Mid(bIsRemoteBranch ? 13 : 11);
-			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(branchToDelete));
+			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(branchToDelete));
 
 			//Check if branch is fully merged in HEAD
 			if (!g_Git.IsFastForward(leafs[0]->GetRefName(), L"HEAD"))
@@ -691,7 +705,7 @@ bool CBrowseRefsDlg::ConfirmDeleteRef(VectorPShadowTree& leafs)
 		if(leafs.size() == 1)
 		{
 			CString tagToDelete = leafs[0]->GetRefName().Mid(static_cast<int>(wcslen(L"refs/tags/")));
-			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(tagToDelete));
+			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(tagToDelete));
 		}
 		else
 			csMessage.Format(IDS_PROC_DELETENREFS, leafs.size());
@@ -920,7 +934,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 			if (SplitRemoteBranchName(selectedLeafs[0]->GetRefName(), remoteName, remoteBranch))
 				bShowFetchOption = false;
 			else
-				fetchFromCmd.Format(IDS_PROC_BROWSEREFS_FETCHFROM, static_cast<LPCTSTR>(remoteName));
+				fetchFromCmd.Format(IDS_PROC_BROWSEREFS_FETCHFROM, static_cast<LPCWSTR>(remoteName));
 		}
 
 		if (m_bWantPick)
@@ -958,7 +972,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 			CString str;
 			if (selectedLeafs[0]->GetRefName() != L"refs/heads/" + g_Git.GetCurrentBranch())
 			{
-				str.Format(IDS_LOG_POPUP_MERGEREV, static_cast<LPCTSTR>(g_Git.GetCurrentBranch()));
+				str.Format(IDS_LOG_POPUP_MERGEREV, static_cast<LPCWSTR>(g_Git.GetCurrentBranch()));
 				popupMenu.AppendMenuIcon(eCmd_Merge, str, IDI_MERGE);
 			}
 			popupMenu.AppendMenuIcon(eCmd_Switch, IDS_SWITCH_TO_THIS, IDI_SWITCH);
@@ -998,9 +1012,9 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 		popupMenu.AppendMenuIcon(eCmd_Diff, IDS_PROC_BROWSEREFS_COMPAREREFS, IDI_DIFF);
 		popupMenu.AppendMenuIcon(eCmd_UnifiedDiff, IDS_LOG_POPUP_GNUDIFF, IDI_DIFF);
 		CString menu;
-		menu.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"..")));
+		menu.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"..")));
 		popupMenu.AppendMenuIcon(eCmd_ViewLogRange, menu, IDI_LOG);
-		menu.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"...")));
+		menu.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"...")));
 		popupMenu.AppendMenuIcon(eCmd_ViewLogRangeReachableFromOnlyOne, menu, IDI_LOG);
 	}
 
@@ -1062,11 +1076,11 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 				CString remoteBranch;
 				if (SplitRemoteBranchName(pTree->GetRefName(), remoteName, remoteBranch))
 					remoteName.Empty();
-				int pos = findVectorPosition(remotes, remoteName);
+				const int pos = findVectorPosition(remotes, remoteName);
 				if (pos >= 0)
 				{
 					CString temp;
-					temp.Format(IDS_PROC_BROWSEREFS_FETCHFROM, static_cast<LPCTSTR>(remoteName));
+					temp.Format(IDS_PROC_BROWSEREFS_FETCHFROM, static_cast<LPCWSTR>(remoteName));
 					popupMenu.AppendMenuIcon(eCmd_Fetch, temp, IDI_UPDATE);
 
 					temp.LoadString(IDS_DELETEREMOTETAG);
@@ -1097,7 +1111,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 				for (auto it = remotes.cbegin(); it != remotes.cend(); ++it, ++i)
 				{
 					CString temp;
-					temp.Format(IDS_DELETEREMOTETAGON, static_cast<LPCTSTR>(*it));
+					temp.Format(IDS_DELETEREMOTETAGON, static_cast<LPCWSTR>(*it));
 					popupMenu.AppendMenuIcon(eCmd_DeleteRemoteTag | (i << 16), temp, IDI_DELETE);
 				}
 			}
@@ -1108,7 +1122,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 		popupMenu.AppendMenu(MF_SEPARATOR);
 	popupMenu.AppendMenuIcon(eCmd_Copy, IDS_COPY_REF_NAMES, IDI_COPYCLIP);
 
-	int selection = popupMenu.TrackPopupMenuEx(TPM_LEFTALIGN | TPM_RETURNCMD, point.x, point.y, this, nullptr);
+	const int selection = popupMenu.TrackPopupMenuEx(TPM_LEFTALIGN | TPM_RETURNCMD, point.x, point.y, this, nullptr);
 	switch (static_cast<eCmd>(selection & 0xFFFF))
 	{
 	case eCmd_Select:
@@ -1117,21 +1131,21 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 	case eCmd_ViewLog:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(g_Git.FixBranchName(selectedLeafs[0]->GetRefName())));
+			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(g_Git.FixBranchName(selectedLeafs[0]->GetRefName())));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		}
 		break;
 	case eCmd_ViewLogRange:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"..")));
+			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"..")));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		}
 		break;
 	case eCmd_ViewLogRangeReachableFromOnlyOne:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"...")));
+			sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(GetTwoSelectedRefs(selectedLeafs, m_sLastSelected, L"...")));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		}
 		break;
@@ -1169,7 +1183,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 	case eCmd_DeleteRemoteTag:
 		{
 			CDeleteRemoteTagDlg deleteRemoteTagDlg;
-			int remoteInx = selection >> 16;
+			const int remoteInx = selection >> 16;
 			if (remoteInx < 0 || static_cast<size_t>(remoteInx) >= remotes.size())
 				return;
 			deleteRemoteTagDlg.m_sRemote = remotes[remoteInx];
@@ -1253,7 +1267,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 	case eCmd_DiffWC:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(selectedLeafs[0]->GetRefName()), static_cast<LPCTSTR>(GitRev::GetWorkingCopy()));
+			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(selectedLeafs[0]->GetRefName()), GitRev::GetWorkingCopyRef());
 			if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
 				sCmd += L" /alternative";
 
@@ -1277,9 +1291,9 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 	case eCmd_UpstreamDrop:
 		{
 			CString key;
-			key.Format(L"branch.%s.remote", static_cast<LPCTSTR>(selectedLeafs[0]->GetRefsHeadsName()));
+			key.Format(L"branch.%s.remote", static_cast<LPCWSTR>(selectedLeafs[0]->GetRefsHeadsName()));
 			g_Git.UnsetConfigValue(key);
-			key.Format(L"branch.%s.merge", static_cast<LPCTSTR>(selectedLeafs[0]->GetRefsHeadsName()));
+			key.Format(L"branch.%s.merge", static_cast<LPCWSTR>(selectedLeafs[0]->GetRefsHeadsName()));
 			g_Git.UnsetConfigValue(key);
 		}
 		Refresh();
@@ -1294,7 +1308,7 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 				return;
 			// Setting the config keys directly might result in an invalid situation if the remote is not set to
 			// fetch the desired upstream branch (in remote.x.fetch), cf. issue #3638
-			if (CString errorMsg; g_Git.Run(L"git.exe branch \"" + selectedLeafs[0]->GetRefsHeadsName() + L"\" --set-upstream-to=\"" + remote + L'/' + branch + L'"', &errorMsg, CP_UTF8) != 0)
+			if (CString errorMsg; g_Git.Run(L"git.exe branch --set-upstream-to=\"" + remote + L'/' + branch + L"\" -- \"" + selectedLeafs[0]->GetRefsHeadsName() + L"\"", &errorMsg, CP_UTF8) != 0)
 			{
 				MessageBox(errorMsg + "\r\n\r\nThis is generally caused when remote." + remote + ".fetch does not include the desired branch.", L"TortoiseGit", MB_ICONERROR);
 				return;
@@ -1306,13 +1320,11 @@ void CBrowseRefsDlg::ShowContextMenu(CPoint point, HTREEITEM hTreePos, VectorPSh
 		{
 			CString sClipdata;
 			bool first = true;
-			POSITION pos = m_ListRefLeafs.GetFirstSelectedItemPosition();
-			while (pos)
+			for (const auto& leaf : selectedLeafs)
 			{
-				auto index = m_ListRefLeafs.GetNextSelectedItem(pos);
 				if (!first)
 					sClipdata += L"\r\n";
-				sClipdata += m_ListRefLeafs.GetItemText(index, eCol_Name);
+				sClipdata += CGit::StripRefName(leaf->GetRefName());
 				first = false;
 			}
 			CStringUtils::WriteAsciiStringToClipboard(sClipdata, GetSafeHwnd());
@@ -1371,6 +1383,15 @@ BOOL CBrowseRefsDlg::PreTranslateMessage(MSG* pMsg)
 					m_ctrlFilter.SetFocus();
 					return TRUE;
 				}
+			}
+			break;
+		case L'A':
+			if (pMsg->hwnd == m_ListRefLeafs.m_hWnd && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+			{
+				// select all entries
+				for (int i = 0; i < m_ListRefLeafs.GetItemCount(); ++i)
+					m_ListRefLeafs.SetItemState(i, LVIS_SELECTED, LVIS_SELECTED);
+				return TRUE;
 			}
 			break;
 		case VK_ESCAPE:
@@ -1443,7 +1464,7 @@ void CBrowseRefsDlg::OnNMDblclkListRefLeafs(NMHDR * /*pNMHDR*/, LRESULT *pResult
 	}
 
 	CString sCmd;
-	sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(g_Git.FixBranchName(GetSelectedRef(true, false))));
+	sCmd.Format(L"/command:log /path:\"%s\" /range:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(g_Git.FixBranchName(GetSelectedRef(true, false))));
 	CAppUtils::RunTortoiseGitProc(sCmd);
 }
 
@@ -1540,7 +1561,7 @@ void CBrowseRefsDlg::OnLvnEndlabeleditListRefLeafs(NMHDR *pNMHDR, LRESULT *pResu
 
 	CString newNameTrunced = newName.Mid(static_cast<int>(wcslen(L"refs/heads/")));
 
-	if (CString errorMsg; g_Git.Run(L"git.exe branch -m \"" + origName + L"\" \"" + newNameTrunced + L'"', &errorMsg, CP_UTF8) != 0)
+	if (CString errorMsg; g_Git.Run(L"git.exe branch -m \"" + origName + L"\" -- \"" + newNameTrunced + L'"', &errorMsg, CP_UTF8) != 0)
 	{
 		MessageBox(errorMsg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 		return;
@@ -1614,7 +1635,7 @@ LRESULT CBrowseRefsDlg::OnClickedInfoIcon(WPARAM /*wParam*/, LPARAM lParam)
 		temp.LoadString(IDS_LOG_FILTER_TOGGLE);
 		popup.AppendMenu(MF_STRING | MF_ENABLED, LOGFILTER_TOGGLE, temp);
 
-		int selection = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
+		const int selection = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 		if (selection != 0)
 		{
 			if (selection == LOGFILTER_TOGGLE)

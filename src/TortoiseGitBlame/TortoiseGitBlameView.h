@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -24,12 +24,9 @@
 
 
 #pragma once
-
 #include "Scintilla.h"
-#include "SciLexer.h"
 #include "registry.h"
 #include "SciEdit.h"
-
 #include "GitBlameLogList.h"
 #include "TortoiseGitBlameData.h"
 #include "Tooltip.h"
@@ -88,30 +85,26 @@ protected: // create from serialization only
 public:
 	CTortoiseGitBlameDoc* GetDocument() const;
 	int GetEncode(unsigned char * buffer, int size, int *bomoffset);
-// Operations
-public:
 
 // Overrides
 public:
 	afx_msg void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs) override;
+	BOOL PreCreateWindow(CREATESTRUCT& cs) override;
 protected:
-	virtual ULONG GetGestureStatus(CPoint ptTouch) override;
+	ULONG GetGestureStatus(CPoint ptTouch) override;
 
 // Implementation
 public:
 	virtual ~CTortoiseGitBlameView();
 #ifdef _DEBUG
-	virtual void AssertValid() const override;
-	virtual void Dump(CDumpContext& dc) const override;
+	void AssertValid() const override;
+	void Dump(CDumpContext& dc) const override;
 #endif
-
-protected:
 
 // Generated message map functions
 protected:
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void OnSysColorChange();
 	afx_msg void OnDestroy();
 	afx_msg void OnChangeEncode(UINT nID);
@@ -183,31 +176,31 @@ public:
 	void UpdateInfo(int encode = 0);
 	CString ResolveCommitFile(int line);
 	CString ResolveCommitFile(const CString& path);
-	void FocusOn(GitRevLoglist* pRev);
+	void FocusOn(std::unordered_set<CGitHash>&& pRevs, GitRevLoglist* selected);
 
 	CSciEditBlame		m_TextView;
 	CToolTips			m_ToolTip;
 	CString				m_sLastFilename;
 
-	HINSTANCE hInstance;
-	HINSTANCE hResource;
-	HWND currentDialog;
+	HINSTANCE hInstance = nullptr;
+	HINSTANCE hResource = nullptr;
+	HWND currentDialog = nullptr;
 
-	BOOL bIgnoreEOL;
-	BOOL bIgnoreSpaces;
-	BOOL bIgnoreAllSpaces;
+	BOOL bIgnoreEOL = FALSE;
+	BOOL bIgnoreSpaces = FALSE;
+	BOOL bIgnoreAllSpaces = FALSE;
 
-	BOOL m_bShowLogID;
-	BOOL m_bShowAuthor;
-	BOOL m_bShowDate;
-	BOOL m_bShowFilename;
-	BOOL m_bShowOriginalLineNumber;
-	DWORD m_dwDetectMovedOrCopiedLines;
-	BOOL m_bIgnoreWhitespace;
-	BOOL m_bShowCompleteLog;
-	BOOL m_bOnlyFirstParent;
-	BOOL m_bFollowRenames;
-	BOOL m_bBlameOutputContainsOtherFilenames;
+	BOOL m_bShowLogID = FALSE;
+	BOOL m_bShowAuthor = FALSE;
+	BOOL m_bShowDate = FALSE;
+	BOOL m_bShowFilename = FALSE;
+	BOOL m_bShowOriginalLineNumber = FALSE;
+	DWORD m_dwDetectMovedOrCopiedLines = 0;
+	BOOL m_bIgnoreWhitespace = FALSE;
+	BOOL m_bShowCompleteLog = FALSE;
+	BOOL m_bOnlyFirstParent = FALSE;
+	BOOL m_bFollowRenames = FALSE;
+	BOOL m_bBlameOutputContainsOtherFilenames = FALSE;
 
 	LRESULT SendEditor(UINT Msg, WPARAM wParam=0, LPARAM lParam=0);
 
@@ -225,19 +218,18 @@ public:
 
 	void SetSelectedLine(int line) { m_SelectedLine = line;};
 
-	int						m_MouseLine;
-	CGitHash				m_SelectedHash;
-	CGitHash				m_selecteddate;
-	bool					m_colorage;
-	bool					m_bLexer;
-	bool					m_bWrapLongLines;
+	int						m_MouseLine = -1;
+	std::unordered_set<CGitHash>	m_selectedHashes;
+	bool					m_colorage = false;
+	bool					m_bLexer = false;
+	bool					m_bWrapLongLines = false;
 
 	CTortoiseGitBlameData	m_data;
 	std::vector<int>		m_lineToLogIndex;
 
 	CLogDataVector *		GetLogData();
 
-	BOOL m_bShowLine;
+	BOOL m_bShowLine = TRUE;
 
 protected:
 	void CreateFont();
@@ -250,15 +242,15 @@ protected:
 	COLORREF InterColor(COLORREF c1, COLORREF c2, int Slider);
 	CFont					m_font;
 	CFont					m_italicfont;
-	LONG					m_blamewidth;
-	LONG					m_revwidth;
-	LONG					m_logidwidth;
-	LONG					m_datewidth;
-	LONG					m_authorwidth;
-	LONG					m_filenameWidth;
-	LONG					m_originalLineNumberWidth;
-	LONG					m_linewidth;
-	int						m_SelectedLine; ///< zero-based
+	LONG					m_blamewidth = 0;
+	LONG					m_revwidth = 0;
+	LONG					m_logidwidth = 0;
+	LONG					m_datewidth = 0;
+	LONG					m_authorwidth = 0;
+	LONG					m_filenameWidth = 0;
+	LONG					m_originalLineNumberWidth = 0;
+	LONG					m_linewidth = 0;
+	int						m_SelectedLine = -1; ///< zero-based
 
 	CString m_sLogIDFormat;
 
@@ -277,16 +269,16 @@ protected:
 
 	CGitBlameLogList * GetLogList();
 
-	CFindReplaceDialog		*m_pFindDialog;
+	CFindReplaceDialog* m_pFindDialog = nullptr;
 
 #ifdef USE_TEMPFILENAME
-	char					*m_Buffer;
+	char* m_Buffer = nullptr;
 #endif
 
-	int m_themeCallbackId;
+	int m_themeCallbackId = 0;
 
-	DWORD					m_DateFormat;	// DATE_SHORTDATE or DATE_LONGDATE
-	bool					m_bRelativeTimes;	// Show relative times
+	DWORD					m_DateFormat = DATE_SHORTDATE;	// DATE_SHORTDATE or DATE_LONGDATE
+	bool					m_bRelativeTimes = false;	// Show relative times
 
 	CString					m_sRev;
 	CString					m_sFileName;
@@ -295,7 +287,9 @@ protected:
 	CString					m_sMessage;
 
 	CString					m_sFindText;
-	bool					m_bMatchCase;
+	bool					m_bMatchCase = false;
+
+	bool					m_bBlockUpdates = false;
 };
 
 #ifndef _DEBUG  // debug version in TortoiseGitBlameView.cpp

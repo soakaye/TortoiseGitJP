@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2013-2016, 2018-2020, 2023-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -29,8 +29,6 @@ IMPLEMENT_DYNAMIC(CUserPassword, CStandAloneDialog)
 CUserPassword::CUserPassword(CWnd* pParent /*=nullptr*/)
 	: CStandAloneDialog(CUserPassword::IDD, pParent)
 {
-	SecureZeroMemory(&m_password, sizeof(m_password));
-	SecureZeroMemory(&m_passwordA, sizeof(m_passwordA));
 }
 
 CUserPassword::~CUserPassword()
@@ -63,6 +61,7 @@ BOOL CUserPassword::OnInitDialog()
 		title += m_URL;
 		this->SetWindowText(title);
 	}
+	SetTheme(CTheme::Instance().IsDarkTheme());
 	GetDlgItem(IDC_USER_PASSWORD)->SendMessage(EM_SETLIMITTEXT, MAX_LENGTH_PASSWORD - 1, 0);
 	if (GetDlgItem(IDC_USER_NAME)->GetWindowTextLength())
 		GetDlgItem(IDC_USER_PASSWORD)->SetFocus();
@@ -92,7 +91,7 @@ void CUserPassword::OnBnClickedOk()
 void CUserPassword::OnDestroy()
 {
 	// overwrite password textfield contents with garbage in order to wipe the cache
-	TCHAR gargabe[MAX_LENGTH_PASSWORD];
+	wchar_t gargabe[MAX_LENGTH_PASSWORD];
 	wmemset(gargabe, L'*', _countof(gargabe));
 	gargabe[_countof(gargabe) - 1] = L'\0';
 	GetDlgItem(IDC_USER_PASSWORD)->SetWindowText(gargabe);

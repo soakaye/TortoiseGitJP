@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011, 2012, 2015-2017, 2019 - TortoiseGit
+// Copyright (C) 2011, 2012, 2015-2017, 2019, 2021-2022 - TortoiseGit
 // Copyright (C) 2003-2008, 2012, 2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -27,6 +27,8 @@
 #include "resource.h"
 #include <shlwapi.h>
 #include <shellapi.h>
+#include <memory>
+#include <string>
 #pragma comment(lib, "shlwapi")
 #pragma comment(lib, "shell32")
 
@@ -84,7 +86,7 @@ UINT __stdcall SetLanguage(MSIHANDLE hModule)
 UINT __stdcall RestartExplorer(MSIHANDLE /*hModule*/)
 {
 	HMODULE hModule = nullptr;
-	if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCTSTR>(RestartExplorer), &hModule) == 0 || !hModule)
+	if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(RestartExplorer), &hModule) == 0 || !hModule)
 		return ERROR_SUCCESS;
 
 	HRSRC hRestartExplorerRes = FindResource(hModule, MAKEINTRESOURCE(IDR_RESTARTEXPLORER), RT_RCDATA);
@@ -95,11 +97,11 @@ UINT __stdcall RestartExplorer(MSIHANDLE /*hModule*/)
 	if (!hRestartExplorerGlobal)
 		return ERROR_SUCCESS;
 
-	TCHAR szTempPath[MAX_PATH];
+	wchar_t szTempPath[MAX_PATH];
 	if (!GetTempPath(_countof(szTempPath) - 15, szTempPath))
 		return ERROR_SUCCESS;
 
-	TCHAR szTempFileName[MAX_PATH + 1];
+	wchar_t szTempFileName[MAX_PATH + 1];
 	if (!GetTempFileName(szTempPath, L"REx", 0, szTempFileName))
 		return ERROR_SUCCESS;
 
@@ -125,5 +127,13 @@ UINT __stdcall RestartExplorer(MSIHANDLE /*hModule*/)
 
 	ShellExecute(nullptr, L"open", szTempFileName, nullptr, nullptr, SW_SHOW);
 
+	return ERROR_SUCCESS;
+}
+
+UINT __stdcall RemoveAllUserSettings(MSIHANDLE /*hModule*/)
+{
+	SHDeleteKeyW(HKEY_CURRENT_USER, L"Software\\TortoiseGit");
+	SHDeleteKeyW(HKEY_CURRENT_USER, L"Software\\TortoiseGitBlame");
+	SHDeleteKeyW(HKEY_CURRENT_USER, L"Software\\TortoiseGitMerge");
 	return ERROR_SUCCESS;
 }

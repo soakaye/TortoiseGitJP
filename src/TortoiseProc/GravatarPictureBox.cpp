@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2017, 2019 - TortoiseGit
+// Copyright (C) 2013-2017, 2019, 2021, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 #include <WinCrypt.h>
 #include "SmartHandle.h"
 
-typedef CComCritSecLock<CComCriticalSection> CAutoLocker;
+using CAutoLocker = CComCritSecLock<CComCriticalSection>;
 
 static CString CalcMD5(CString text)
 {
@@ -68,10 +68,6 @@ END_MESSAGE_MAP()
 
 CGravatar::CGravatar()
 	: CStatic()
-	, m_gravatarEvent(INVALID_HANDLE_VALUE)
-	, m_gravatarThread(nullptr)
-	, m_gravatarExit(nullptr)
-	, m_bEnableGravatar(false)
 {
 }
 
@@ -259,7 +255,7 @@ resend:
 
 	BOOL httpsendrequest = HttpSendRequest(hResourceHandle, nullptr, 0, nullptr, 0);
 
-	DWORD dwError = InternetErrorDlg(GetSafeHwnd(), hResourceHandle, ERROR_SUCCESS, FLAGS_ERROR_UI_FILTER_FOR_ERRORS | FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS | FLAGS_ERROR_UI_FLAGS_GENERATE_DATA, nullptr);
+	const DWORD dwError = InternetErrorDlg(GetSafeHwnd(), hResourceHandle, ERROR_SUCCESS, FLAGS_ERROR_UI_FILTER_FOR_ERRORS | FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS | FLAGS_ERROR_UI_FLAGS_GENERATE_DATA, nullptr);
 
 	if (dwError == ERROR_INTERNET_FORCE_RETRY)
 		goto resend;
@@ -279,9 +275,11 @@ resend:
 
 	CFile destinationFile;
 	if (!destinationFile.Open(dest, CFile::modeCreate | CFile::modeWrite))
-		return ERROR_ACCESS_DENIED;
+		return ERROR_OPEN_FAILED;
 
 	DWORD downloadedSum = 0; // sum of bytes downloaded so far
+	constexpr DWORD BUFFER_SIZE = 65536;
+	auto buff = std::make_unique<wchar_t[]>(BUFFER_SIZE);
 	while (!*gravatarExit)
 	{
 		DWORD size; // size of the data available
@@ -289,17 +287,28 @@ resend:
 			return static_cast<int>(INET_E_DOWNLOAD_FAILURE);
 
 		DWORD downloaded; // size of the downloaded data
-		auto buff = std::make_unique<TCHAR[]>(size + 1);
-		if (!InternetReadFile(hResourceHandle, buff.get(), size, &downloaded))
+		if (!InternetReadFile(hResourceHandle, buff.get(), min(BUFFER_SIZE, size), &downloaded))
 			return static_cast<int>(INET_E_DOWNLOAD_FAILURE);
 
 		if (downloaded == 0)
 			break;
 
-		buff[downloaded] = '\0';
-		destinationFile.Write(buff.get(), downloaded);
+		try
+		{
+			destinationFile.Write(buff.get(), downloaded);
+		}
+		catch (CFileException* e)
+		{
+			auto ret = e->m_lOsError;
+			if (e->m_cause == CFileException::diskFull)
+				ret = ERROR_DISK_FULL;
+			e->Delete();
+			return ret;
+		}
 
-		downloadedSum += downloaded;
+		if (DWordAdd(downloadedSum, downloaded, &downloadedSum) != S_OK)
+			downloadedSum = DWORD_MAX;
+
 	}
 	destinationFile.Close();
 	if (downloadedSum == 0)

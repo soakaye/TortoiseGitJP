@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2003-2020 - TortoiseGit
+// Copyright (C) 2003-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,14 +16,14 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "ProjectProperties.h"
 #include "CommonAppUtils.h"
 #include "Git.h"
-#include "UnicodeUtils.h"
 #include "TempFile.h"
 #include <WinInet.h>
-#include "SysInfo.h"
+#include "git2/sys/errors.h"
 
 struct num_compare
 {
@@ -33,17 +33,7 @@ struct num_compare
 	}
 };
 
-ProjectProperties::ProjectProperties(void)
-	: regExNeedUpdate (true)
-	, nBugIdPos(-1)
-	, bWarnNoSignedOffBy(FALSE)
-	, bNumber(TRUE)
-	, bWarnIfNoIssue(FALSE)
-	, nLogWidthMarker(0)
-	, nMinLogSize(0)
-	, bFileListInEnglish(TRUE)
-	, bAppend(TRUE)
-	, lProjectLanguage(0)
+ProjectProperties::ProjectProperties()
 {
 }
 
@@ -68,8 +58,6 @@ int ProjectProperties::ReadProps()
 	git_config_add_file_ondisk(gitconfig, CGit::GetGitPathStringA(g_Git.GetGitGlobalConfig()), GIT_CONFIG_LEVEL_GLOBAL, repo, FALSE);
 	git_config_add_file_ondisk(gitconfig,CGit::GetGitPathStringA(g_Git.GetGitGlobalXDGConfig()), GIT_CONFIG_LEVEL_XDG, repo, FALSE);
 	git_config_add_file_ondisk(gitconfig, CGit::GetGitPathStringA(g_Git.GetGitSystemConfig()), GIT_CONFIG_LEVEL_SYSTEM, repo, FALSE);
-	if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty())
-		git_config_add_file_ondisk(gitconfig, CGit::GetGitPathStringA(g_Git.GetGitProgramDataConfig()), GIT_CONFIG_LEVEL_PROGRAMDATA, repo, FALSE);
 	git_error_clear();
 
 	CString sPropVal;
@@ -117,7 +105,7 @@ int ProjectProperties::ReadProps()
 			lProjectLanguage = -1;
 		if (!val.IsEmpty())
 		{
-			LPTSTR strEnd;
+			LPWSTR strEnd;
 			lProjectLanguage = wcstol(val, &strEnd, 0);
 		}
 	}
@@ -273,7 +261,7 @@ std::vector<CHARRANGE> ProjectProperties::FindBugIDPositions(const CString& msg)
 			{
 				AutoUpdateRegex();
 				const std::wsregex_iterator end;
-				std::wstring s = msg;
+				std::wstring s { static_cast<LPCWSTR>(msg) };
 				for (std::wsregex_iterator it(s.cbegin(), s.cend(), regCheck); it != end; ++it)
 				{
 					// (*it)[0] is the matched string
@@ -296,7 +284,7 @@ std::vector<CHARRANGE> ProjectProperties::FindBugIDPositions(const CString& msg)
 			{
 				AutoUpdateRegex();
 				const std::wsregex_iterator end;
-				std::wstring s = msg;
+				std::wstring s { static_cast<LPCWSTR>(msg) };
 				for (std::wsregex_iterator it(s.cbegin(), s.cend(), regCheck); it != end; ++it)
 				{
 					const std::wsmatch match = *it;
@@ -440,24 +428,7 @@ void ProjectProperties::ReplaceBugIDPlaceholder(CString& url, const CString& sBu
 {
 	CString parameter;
 	DWORD size = INTERNET_MAX_URL_LENGTH;
-	if (SysInfo::Instance().IsWin8OrLater())
-		UrlEscape(sBugID, CStrBuf(parameter, size + 1), &size, URL_ESCAPE_SEGMENT_ONLY | URL_ESCAPE_PERCENT | URL_ESCAPE_AS_UTF8 | URL_ESCAPE_ASCII_URI_COMPONENT);
-	else
-	{
-		UrlEscape(sBugID, CStrBuf(parameter, size + 1), &size, URL_ESCAPE_SEGMENT_ONLY | URL_ESCAPE_PERCENT | URL_ESCAPE_AS_UTF8);
-		parameter.Replace(L"!", L"%21");
-		parameter.Replace(L"$", L"%24");
-		parameter.Replace(L"'", L"%27");
-		parameter.Replace(L"(", L"%28");
-		parameter.Replace(L")", L"%29");
-		parameter.Replace(L"*", L"%2A");
-		parameter.Replace(L"+", L"%2B");
-		parameter.Replace(L",", L"%2C");
-		parameter.Replace(L":", L"%3A");
-		parameter.Replace(L";", L"%3B");
-		parameter.Replace(L"=", L"%3D");
-		parameter.Replace(L"@", L"%40");
-	}
+	UrlEscape(sBugID, CStrBuf(parameter, size + 1), &size, URL_ESCAPE_SEGMENT_ONLY | URL_ESCAPE_PERCENT | URL_ESCAPE_AS_UTF8 | URL_ESCAPE_ASCII_URI_COMPONENT);
 	url.Replace(L"%BUGID%", parameter);
 }
 
@@ -470,7 +441,7 @@ BOOL ProjectProperties::CheckBugID(const CString& sID)
 		int len = sID.GetLength();
 		for (int i=0; i<len; ++i)
 		{
-			TCHAR c = sID.GetAt(i);
+			wchar_t c = sID.GetAt(i);
 			if ((c < '0')&&(c != ',')&&(c != ' '))
 				return FALSE;
 			if (c > '9')
@@ -487,7 +458,7 @@ BOOL ProjectProperties::HasBugID(const CString& sMsg)
 		try
 		{
 			AutoUpdateRegex();
-			return std::regex_search(static_cast<LPCTSTR>(sMsg), regCheck);
+			return std::regex_search(static_cast<LPCWSTR>(sMsg), regCheck);
 		}
 		catch (std::exception&) {}
 	}

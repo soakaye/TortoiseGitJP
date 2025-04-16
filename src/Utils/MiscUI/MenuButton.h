@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2017, 2020 - TortoiseGit
+// Copyright (C) 2016-2017, 2020, 2023 - TortoiseGit
 // Copyright (C) 2011, 2016 - Sven Strickroth <email@cs-ware.de>
 
 //based on:
@@ -37,8 +37,8 @@ class CMenuButton : public CThemeMFCMenuButton
 public:
 	DECLARE_DYNCREATE(CMenuButton);
 
-	CMenuButton(void);
-	virtual ~CMenuButton(void);
+	CMenuButton();
+	virtual ~CMenuButton();
 
 	/**
 	 * Inserts a text to be shown in the button menu.
@@ -77,17 +77,17 @@ public:
 	 */
 	void	RemoveAll();
 
-	bool	m_bMarkDefault;
+	bool	m_bMarkDefault = true;
 
 	/** Don't show text on Button */
-	bool	m_bShowCurrentItem;
+	bool	m_bShowCurrentItem = true;
 
-	bool	m_bAlwaysShowArrow;
+	bool	m_bAlwaysShowArrow = false;
 
 protected:
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 
-	virtual BOOL IsPressed() override;
+	BOOL IsPressed() const override;
 
 	afx_msg void OnDraw(CDC* pDC, const CRect& rect, UINT uiState) override;
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
@@ -98,7 +98,7 @@ protected:
 	afx_msg void OnDestroy();
 
 	CIconMenu	m_btnMenu;
-	INT_PTR	m_nDefault;
+	INT_PTR	m_nDefault = 0;
 
 	DECLARE_MESSAGE_MAP()
 

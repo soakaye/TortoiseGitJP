@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006-2008, 2014 - TortoiseSVN
-// Copyright (C) 2012-2013, 2018-2019 - Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2012-2013, 2018-2019, 2021-2023 - Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -34,8 +34,8 @@
 class CPatch
 {
 public:
-	CPatch(void);
-	~CPatch(void);
+	CPatch();
+	~CPatch();
 
 	BOOL		OpenUnifiedDiffFile(const CString& filename);
 	int			PatchFile(const int strip, const int nIndex, const CString& sPath, const CString& sSavePath = L"", const CString& sBaseFile = L"", const bool force = false);
@@ -54,6 +54,7 @@ protected:
 	int			CountMatches(const CString& path);
 	int			CountDirMatches(const CString& path);
 	CString		RemoveUnicodeBOM(const CString& str) const;
+	bool		HasUnicodeBOM(const CString& str) const;
 
 	BOOL		ParsePatchFile(CFileTextLines &PatchLines);
 
@@ -63,10 +64,10 @@ protected:
 	CString		Strip(const CString& filename) const;
 	struct Chunk
 	{
-		LONG					lRemoveStart;
-		LONG					lRemoveLength;
-		LONG					lAddStart;
-		LONG					lAddLength;
+		LONG					lRemoveStart = 0;
+		LONG					lRemoveLength = 0;
+		LONG					lAddStart = 0;
+		LONG					lAddLength = 0;
 		CStringArray			arLines;
 		CStdDWORDArray			arLinesStates;
 		std::vector<EOL>		arEOLs;
@@ -79,11 +80,13 @@ protected:
 		CString					sFilePath2;
 		CString					sRevision2;
 		std::vector<std::unique_ptr<Chunk>>	chunks;
+		int						oldHasBom = -1;
+		int						newHasBom = -1;
 	};
 
 	std::vector<std::unique_ptr<Chunks>>	m_arFileDiffs;
 	CString						m_sErrorMessage;
-	CFileTextLines::UnicodeType m_UnicodeType;
+	CFileTextLines::UnicodeType m_UnicodeType = CFileTextLines::UnicodeType::AUTOTYPE;
 
 	/**
 	 * Defines how many prefixes are removed from the paths in the
@@ -92,9 +95,9 @@ protected:
 	 * Example: A filename like "/home/ts/my-working-copy/dir/file.txt"
 	 * stripped by 4 prefixes is interpreted as "dir/file.txt"
 	 */
-	int							m_nStrip;
+	int							m_nStrip = 0;
 
-#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
+#ifdef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 public:
 	const auto& GetChunks(int index) const { return m_arFileDiffs[index]->chunks; };
 #endif

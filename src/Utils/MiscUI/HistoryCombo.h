@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2014, 2020 - TortoiseGit
+// Copyright (C) 2008-2014, 2020-2023 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoioseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ public:
 	CHistoryCombo(BOOL bAllowSortStyle = FALSE);
 	virtual ~CHistoryCombo();
 
-	bool m_bWantReturn;
+	bool m_bWantReturn = false;
 // Operations
 public:
 	/**
@@ -58,13 +58,17 @@ public:
 	void DisableTooltip(){m_bDyn = FALSE;} //because rebase need disable combox tooltip to show version info
 protected:
 	DECLARE_MESSAGE_MAP()
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs) override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
-	virtual void PreSubclassWindow() override;
+	BOOL PreCreateWindow(CREATESTRUCT& cs) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
+	void PreSubclassWindow() override;
 
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg LRESULT OnPaste(WPARAM, LPARAM);
+
+	static WNDPROC lpfnEditWndProc;
+	static LRESULT CALLBACK SubClassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 	void CreateToolTip();
 
@@ -73,6 +77,7 @@ private:
 	 * Inserts an entry into the combobox
 	 */
 	int InsertEntry(const CString& combostring, INT_PTR pos);
+	void SetEditWndProc();
 
 // Implementation
 public:
@@ -106,6 +111,11 @@ public:
 	 */
 	void SetMaxHistoryItems(int nMaxItems);
 	/**
+	 * Allows to configure whether entries can be deleted by the user by opening the
+	 * drop-down box, selecting an item by mouse over, and pressing SHIFT+DEL.
+	 */
+	void SetAllowDelete(bool allowDelete) { m_bAllowDelete = allowDelete; }
+	 /**
 	 * Saves the history to the registry/inifile.
 	 * \remark if you haven't called LoadHistory() before this method
 	 * does nothing!
@@ -117,12 +127,12 @@ public:
 	 * \param lpszSection a section name where to put the entries, e.g. "lastloadedfiles"
 	 * \param lpszKeyPrefix a prefix to use for the history entries in registry/inifiles. E.g. "file" or "entry"
 	 */
-	CString LoadHistory(LPCTSTR lpszSection, LPCTSTR lpszKeyPrefix);
+	CString LoadHistory(LPCWSTR lpszSection, LPCWSTR lpszKeyPrefix, bool allowUserDelete = true);
 
 	/**
 	 * Goes through the stored history in registry and removes a specific entry
 	 */
-	static void RemoveEntryFromHistory(LPCTSTR lpszSection, LPCTSTR lpszKeyPrefix, const CString& entryToRemove);
+	static void RemoveEntryFromHistory(LPCWSTR lpszSection, LPCWSTR lpszKeyPrefix, const CString& entryToRemove);
 
 	/**
 	 * Returns the string in the combobox which is either selected or the user has entered.
@@ -151,7 +161,7 @@ public:
 	void SetCaseSensitive(BOOL bCaseSensitive) { m_bCaseSensitive = bCaseSensitive; }
 	void SetCheckDuplicate(BOOL bCheckDuplicate) { m_bCheckDuplicate = bCheckDuplicate; }
 
-	int FindStringExactCaseSensitive(int nIndexStart, LPCTSTR lpszFind);
+	int FindStringExactCaseSensitive(int nIndexStart, LPCWSTR lpszFind);
 
 	static int		m_nGitIconIndex;
 
@@ -170,17 +180,18 @@ protected:
 	CString			m_sSection;
 	CString			m_sKeyPrefix;
 	int				m_nMaxHistoryItems;
-	BOOL			m_bAllowSortStyle;
-	BOOL			m_bURLHistory;
-	BOOL			m_bPathHistory;
-	HWND			m_hWndToolTip;
-	TOOLINFO		m_ToolInfo;
+	BOOL			m_bAllowSortStyle = FALSE;
+	BOOL			m_bURLHistory = FALSE;
+	BOOL			m_bPathHistory = FALSE;
+	HWND			m_hWndToolTip = nullptr;
+	TOOLINFO		m_ToolInfo{};
 	CString			m_ToolText;
-	BOOL			m_ttShown;
-	BOOL			m_bDyn;
-	BOOL			m_bTrim;
-	BOOL			m_bCaseSensitive;
-	BOOL			m_bCheckDuplicate;
+	BOOL			m_ttShown = FALSE;
+	BOOL			m_bDyn = FALSE;
+	BOOL			m_bTrim = TRUE;
+	BOOL			m_bCaseSensitive = FALSE;
+	BOOL			m_bCheckDuplicate = TRUE;
+	bool			m_bAllowDelete = false;
 };
 
 class CCustomAutoCompleteSource : public IEnumString
@@ -189,18 +200,18 @@ public:
 	CCustomAutoCompleteSource(const CStringArray& pData);
 
 	//IUnknown
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) override;
-	virtual ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual ULONG STDMETHODCALLTYPE Release() override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) override;
+	ULONG STDMETHODCALLTYPE AddRef() override;
+	ULONG STDMETHODCALLTYPE Release() override;
 
 	//IEnumString
-	virtual HRESULT STDMETHODCALLTYPE Clone(IEnumString** ppenum) override;
-	virtual HRESULT STDMETHODCALLTYPE Next(ULONG celt, LPOLESTR* rgelt, ULONG* pceltFetched) override;
-	virtual HRESULT STDMETHODCALLTYPE Reset() override;
-	virtual HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override;
+	HRESULT STDMETHODCALLTYPE Clone(IEnumString** ppenum) override;
+	HRESULT STDMETHODCALLTYPE Next(ULONG celt, LPOLESTR* rgelt, ULONG* pceltFetched) override;
+	HRESULT STDMETHODCALLTYPE Reset() override;
+	HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override;
 
 private:
-	volatile ULONG		m_cRefCount;
-	int					m_index;
+	volatile ULONG		m_cRefCount = 0;
+	int					m_index = 0;
 	const CStringArray&	m_pData;
 };

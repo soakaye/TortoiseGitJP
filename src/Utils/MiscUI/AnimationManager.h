@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -59,9 +60,6 @@
 #pragma once
 #include <UIAnimation.h>
 #include <functional>
-#include <vector>
-#include <comip.h>
-#include <comdefsp.h>
 
 _COM_SMARTPTR_TYPEDEF(IUIAnimationStoryboard, __uuidof(IUIAnimationStoryboard));
 _COM_SMARTPTR_TYPEDEF(IUIAnimationVariable, __uuidof(IUIAnimationVariable));
@@ -121,5 +119,5 @@ private:
 	/// The holder of the UITransitionLibrary
 	IUIAnimationTransitionLibraryPtr pTransLib;
 	/// the timer callback object
-	CTimerEventHandler* timerEventHandler;
+	CTimerEventHandler* timerEventHandler = nullptr;
 };

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011, 2013-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2011, 2013-2016, 2018-2019, 2023-2025 - TortoiseGit
 // Copyright (C) 2007-2008,2010,2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ bool DropCopyAddCommand::Execute()
 	if(!CTGitPath(droppath).HasAdminDir(&g_Git.m_CurrentDir))
 		return FALSE;
 
-	int worktreePathLen = g_Git.m_CurrentDir.GetLength();
+	const int worktreePathLen = g_Git.m_CurrentDir.GetLength();
 	orgPathList.RemoveAdminPaths();
 	CTGitPathList copiedFiles;
 	for(int nPath = 0; nPath < orgPathList.GetCount(); ++nPath)
@@ -55,11 +55,11 @@ bool DropCopyAddCommand::Execute()
 			}
 
 			CString strMessage;
-			strMessage.Format(IDS_PROC_OVERWRITE_CONFIRM, static_cast<LPCTSTR>(droppath + L'\\' + name));
+			strMessage.Format(IDS_PROC_OVERWRITE_CONFIRM, static_cast<LPCWSTR>(droppath + L'\\' + name));
 			CString sBtn1(MAKEINTRESOURCE(IDS_PROC_OVERWRITEEXPORT_OVERWRITE));
 			CString sBtn2(MAKEINTRESOURCE(IDS_PROC_OVERWRITEEXPORT_KEEP));
 			CString sBtn3(MAKEINTRESOURCE(IDS_PROC_OVERWRITEEXPORT_CANCEL));
-			UINT ret = CMessageBox::Show(GetExplorerHWND(), strMessage, L"TortoiseGit", 2, IDI_QUESTION, sBtn1, sBtn2, sBtn3);
+			const UINT ret = CMessageBox::Show(GetExplorerHWND(), strMessage, L"TortoiseGit", 2, IDI_QUESTION, sBtn1, sBtn2, sBtn3);
 
 			if (ret == 3)
 				return FALSE; //cancel the whole operation
@@ -79,12 +79,12 @@ bool DropCopyAddCommand::Execute()
 			{
 				CString fromPath = orgPathList[nPath].GetWinPathString() + L"||";
 				CString toPath = droppath + L'\\' + name + L"||";
-				auto fromBuf = std::make_unique<TCHAR[]>(fromPath.GetLength() + 2);
-				auto toBuf = std::make_unique<TCHAR[]>(toPath.GetLength() + 2);
-				wcscpy_s(fromBuf.get(), fromPath.GetLength() + 2, fromPath);
-				wcscpy_s(toBuf.get(), toPath.GetLength() + 2, toPath);
-				CStringUtils::PipesToNulls(fromBuf.get(), fromPath.GetLength() + 2);
-				CStringUtils::PipesToNulls(toBuf.get(), toPath.GetLength() + 2);
+				auto fromBuf = std::make_unique<wchar_t[]>(fromPath.GetLength() + sizeof(wchar_t));
+				auto toBuf = std::make_unique<wchar_t[]>(toPath.GetLength() + sizeof(wchar_t));
+				wcscpy_s(fromBuf.get(), fromPath.GetLength() + sizeof(wchar_t), fromPath);
+				wcscpy_s(toBuf.get(), toPath.GetLength() + sizeof(wchar_t), toPath);
+				CStringUtils::PipesToNulls(fromBuf.get(), fromPath.GetLength());
+				CStringUtils::PipesToNulls(toBuf.get(), toPath.GetLength());
 
 				SHFILEOPSTRUCT fileop = {0};
 				fileop.wFunc = FO_COPY;
@@ -95,12 +95,11 @@ bool DropCopyAddCommand::Execute()
 				{
 					// add all copied files WITH special handling for repos/submodules (folders which include a .git entry)
 					CDirFileEnum finder(droppath + L'\\' + name);
-					bool isDir = true;
-					CString filepath;
 					CString lastRepo;
 					bool isRepo = false;
-					while (finder.NextFile(filepath, &isDir, !isRepo)) // don't recurse into .git directories
+					while (auto file = finder.NextFile(!isRepo)) // don't recurse into .git directories
 					{
+						CString filepath = file->GetFilePath();
 						if (!lastRepo.IsEmpty())
 						{
 							if (CStringUtils::StartsWith(filepath, lastRepo))
@@ -117,11 +116,11 @@ bool DropCopyAddCommand::Execute()
 						{
 							lastRepo = filepath.Left(filepath.GetLength() - GitAdminDir::GetAdminDirName().GetLength());
 							CString msg;
-							if (!isDir)
-								msg.Format(IDS_PROC_COPY_SUBMODULE, static_cast<LPCTSTR>(lastRepo));
+							if (!file->IsDirectory())
+								msg.Format(IDS_PROC_COPY_SUBMODULE, static_cast<LPCWSTR>(lastRepo));
 							else
-								msg.Format(IDS_PROC_COPY_REPOSITORY, static_cast<LPCTSTR>(lastRepo));
-							int ret = CMessageBox::Show(GetExplorerHWND(), msg, L"TortoiseGit", 1, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_IGNOREBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)));
+								msg.Format(IDS_PROC_COPY_REPOSITORY, static_cast<LPCWSTR>(lastRepo));
+							const auto ret = CMessageBox::Show(GetExplorerHWND(), msg, IDS_APPNAME, 1, IDI_QUESTION, IDS_DELETEBUTTON, IDS_IGNOREBUTTON, IDS_ABORTBUTTON);
 							if (ret == 3)
 								return FALSE;
 							if (ret == 1)
@@ -131,7 +130,7 @@ bool DropCopyAddCommand::Execute()
 							}
 							continue;
 						}
-						if (!isDir)
+						if (!file->IsDirectory())
 							copiedFiles.AddPath(CTGitPath(filepath.Mid(worktreePathLen + 1))); //add the new filepath
 					}
 				}
@@ -163,6 +162,6 @@ void DropCopyAddCommand::ShowErrorMessage()
 {
 	CFormatMessageWrapper errorDetails;
 	CString strMessage;
-	strMessage.Format(IDS_ERR_COPYFILES, static_cast<LPCTSTR>(errorDetails));
+	strMessage.Format(IDS_ERR_COPYFILES, static_cast<LPCWSTR>(errorDetails));
 	MessageBox(GetExplorerHWND(), strMessage, L"TortoiseGit", MB_OK | MB_ICONINFORMATION);
 }

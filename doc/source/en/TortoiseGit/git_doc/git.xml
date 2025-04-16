@@ -13,11 +13,11 @@
 <simplesect id="git(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git</emphasis> [--version] [--help] [-C &lt;path&gt;] [-c &lt;name&gt;=&lt;value&gt;]
+<literallayout><emphasis>git</emphasis> [-v | --version] [-h | --help] [-C &lt;path&gt;] [-c &lt;name&gt;=&lt;value&gt;]
     [--exec-path[=&lt;path&gt;]] [--html-path] [--man-path] [--info-path]
-    [-p|--paginate|-P|--no-pager] [--no-replace-objects] [--bare]
-    [--git-dir=&lt;path&gt;] [--work-tree=&lt;path&gt;] [--namespace=&lt;name&gt;]
-    [--super-prefix=&lt;path&gt;]
+    [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--no-lazy-fetch]
+    [--no-optional-locks] [--no-advice] [--bare] [--git-dir=&lt;path&gt;]
+    [--work-tree=&lt;path&gt;] [--namespace=&lt;name&gt;] [--config-env=&lt;name&gt;=&lt;envvar&gt;]
     &lt;command&gt; [&lt;args&gt;]</literallayout>
 </blockquote>
 </simplesect>
@@ -28,7 +28,7 @@ unusually rich command set that provides both high-level operations
 and full access to internals.</simpara>
 <simpara>See <xref linkend="gittutorial(7)" /> to get started, then see
 <xref linkend="giteveryday(7)" /> for a useful minimum set of
-commands.  The <ulink url="https://www.kernel.org/pub/software/scm/git/docs/user-manual.html"><citetitle>Git User's Manual</citetitle></ulink> has a more
+commands.  The <link linkend="git_user-manual">Git User's Manual</link> has a more
 in-depth introduction.</simpara>
 <simpara>After you mastered the basic concepts, you can come back to this
 page to learn what commands Git offers.  You can learn more about
@@ -43,15 +43,24 @@ or <ulink url="https://git-scm.com/docs">https://git-scm.com/docs</ulink>.</simp
 <variablelist>
 <varlistentry>
 <term>
+-v
+</term>
+<term>
 --version
 </term>
 <listitem>
 <simpara>
         Prints the Git suite version that the <emphasis>git</emphasis> program came from.
 </simpara>
+<simpara>This option is internally converted to <emphasis>git version ...</emphasis> and accepts
+the same options as the <xref linkend="git-version(1)" /> command. If <emphasis>--help</emphasis> is
+also given, it takes precedence over <emphasis>--version</emphasis>.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
+<term>
+-h
+</term>
 <term>
 --help
 </term>
@@ -104,6 +113,33 @@ git --git-dir=c/a.git --work-tree=c/b status</literallayout>
 config file). Including the equals but with an empty value (like <emphasis>git -c
 foo.bar= ...</emphasis>) sets <emphasis>foo.bar</emphasis> to the empty string which <emphasis>git config
 --type=bool</emphasis> will convert to <emphasis>false</emphasis>.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--config-env=&lt;name&gt;=&lt;envvar&gt;
+</term>
+<listitem>
+<simpara>
+        Like <emphasis>-c &lt;name&gt;=&lt;value&gt;</emphasis>, give configuration variable
+        <emphasis>&lt;name&gt;</emphasis> a value, where &lt;envvar&gt; is the name of an
+        environment variable from which to retrieve the value. Unlike
+        <emphasis>-c</emphasis> there is no shortcut for directly setting the value to an
+        empty string, instead the environment variable itself must be
+        set to the empty string.  It is an error if the <emphasis>&lt;envvar&gt;</emphasis> does not exist
+        in the environment. <emphasis>&lt;envvar&gt;</emphasis> may not contain an equals sign
+        to avoid ambiguity with <emphasis>&lt;name&gt;</emphasis> containing one.
+</simpara>
+<simpara>This is useful for cases where you want to pass transitory
+configuration options to git, but are doing so on operating systems
+where other processes might be able to read your command line
+(e.g. <emphasis>/proc/self/cmdline</emphasis>), but not your environment
+(e.g. <emphasis>/proc/self/environ</emphasis>). That behavior is the default on
+Linux, but may not be on your system.</simpara>
+<simpara>Note that this might add security for variables such as
+<emphasis>http.extraHeader</emphasis> where the sensitive information is part of
+the value, but not e.g. <emphasis>url.&lt;base&gt;.insteadOf</emphasis> where the
+sensitive information can be part of the key.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -234,18 +270,6 @@ environment variable)</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---super-prefix=&lt;path&gt;
-</term>
-<listitem>
-<simpara>
-        Currently for internal use only.  Set a prefix which gives a path from
-        above a repository down to its root.  One use is to give submodules
-        context about the superproject that invoked it.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 --bare
 </term>
 <listitem>
@@ -262,8 +286,45 @@ environment variable)</simpara>
 </term>
 <listitem>
 <simpara>
-        Do not use replacement refs to replace Git objects. See
-        <xref linkend="git-replace(1)" /> for more information.
+        Do not use replacement refs to replace Git objects.
+        This is equivalent to exporting the <emphasis>GIT_NO_REPLACE_OBJECTS</emphasis>
+        environment variable with any value.
+        See <xref linkend="git-replace(1)" /> for more information.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--no-lazy-fetch
+</term>
+<listitem>
+<simpara>
+        Do not fetch missing objects from the promisor remote on
+        demand.  Useful together with <emphasis>git cat-file -e &lt;object&gt;</emphasis> to
+        see if the object is locally available.
+        This is equivalent to setting the <emphasis>GIT_NO_LAZY_FETCH</emphasis>
+        environment variable to <emphasis>1</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--no-optional-locks
+</term>
+<listitem>
+<simpara>
+        Do not perform optional operations that require locks. This is
+        equivalent to setting the <emphasis>GIT_OPTIONAL_LOCKS</emphasis> to <emphasis>0</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--no-advice
+</term>
+<listitem>
+<simpara>
+        Disable all advice hints from being printed.
 </simpara>
 </listitem>
 </varlistentry>
@@ -318,18 +379,7 @@ environment variable)</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---no-optional-locks
-</term>
-<listitem>
-<simpara>
-        Do not perform optional operations that require locks. This is
-        equivalent to setting the <emphasis>GIT_OPTIONAL_LOCKS</emphasis> to <emphasis>0</emphasis>.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
---list-cmds=group[,group&#8230;]
+--list-cmds=&lt;group&gt;[,&lt;group&gt;&#8230;]
 </term>
 <listitem>
 <simpara>
@@ -341,6 +391,18 @@ environment variable)</simpara>
         list-&lt;category&gt; (see categories in command-list.txt),
         nohelpers (exclude helper commands), alias and config
         (retrieve command list from config variable completion.commands)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--attr-source=&lt;tree-ish&gt;
+</term>
+<listitem>
+<simpara>
+        Read gitattributes from &lt;tree-ish&gt; instead of the worktree. See
+        <xref linkend="gitattributes(5)" />. This is equivalent to setting the
+        <emphasis>GIT_ATTR_SOURCE</emphasis> environment variable.
 </simpara>
 </listitem>
 </varlistentry>
@@ -385,6 +447,16 @@ ancillary user utilities.</simpara>
 <listitem>
 <simpara>
         Create an archive of files from a named tree.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="git-backfill(1)" />
+</term>
+<listitem>
+<simpara>
+        Download missing objects in a partial clone.
 </simpara>
 </listitem>
 </varlistentry>
@@ -714,7 +786,7 @@ ancillary user utilities.</simpara>
 </term>
 <listitem>
 <simpara>
-        Initialize and modify the sparse-checkout.
+        Reduce your working tree to a subset of tracked files.
 </simpara>
 </listitem>
 </varlistentry>
@@ -785,6 +857,16 @@ ancillary user utilities.</simpara>
 <listitem>
 <simpara>
         The Git repository browser.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="scalar(1)" />
+</term>
+<listitem>
+<simpara>
+        A tool for managing large Git repositories.
 </simpara>
 </listitem>
 </varlistentry>
@@ -876,6 +958,16 @@ ancillary user utilities.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+<xref linkend="git-refs(1)" />
+</term>
+<listitem>
+<simpara>
+        Low-level access to refs.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <xref linkend="git-remote(1)" />
 </term>
 <listitem>
@@ -949,6 +1041,16 @@ ancillary user utilities.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+<xref linkend="git-diagnose(1)" />
+</term>
+<listitem>
+<simpara>
+        Generate a zip archive of diagnostic information.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <xref linkend="git-difftool(1)" />
 </term>
 <listitem>
@@ -993,7 +1095,7 @@ ancillary user utilities.</simpara>
 </term>
 <listitem>
 <simpara>
-        Show three-way merge without touching index.
+        Perform merge without touching index or working tree.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1039,11 +1141,21 @@ ancillary user utilities.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+<xref linkend="git-version(1)" />
+</term>
+<listitem>
+<simpara>
+        Display version information about Git.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <xref linkend="git-whatchanged(1)" />
 </term>
 <listitem>
 <simpara>
-        Show logs with difference each commit introduces.
+        Show logs with differences each commit introduces.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1264,7 +1376,7 @@ repositories.</simpara>
 </term>
 <listitem>
 <simpara>
-        Compute object ID and optionally creates a blob from a file.
+        Compute object ID and optionally create an object from a file.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1304,7 +1416,7 @@ repositories.</simpara>
 </term>
 <listitem>
 <simpara>
-        Creates a tag object.
+        Creates a tag object with extra validation.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1355,6 +1467,16 @@ repositories.</simpara>
 <listitem>
 <simpara>
         Reads tree information into the index.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="git-replay(1)" />
+</term>
+<listitem>
+<simpara>
+        EXPERIMENTAL: Replay commits on a new base, works with bare repos too.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1419,7 +1541,7 @@ repositories.</simpara>
 </term>
 <listitem>
 <simpara>
-        Provide content or type and size information for repository objects.
+        Provide contents or details of repository objects.
 </simpara>
 </listitem>
 </varlistentry>
@@ -1843,6 +1965,16 @@ users typically do not use them directly.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+<xref linkend="git-hook(1)" />
+</term>
+<listitem>
+<simpara>
+        Run git hooks.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <xref linkend="git-interpret-trailers(1)" />
 </term>
 <listitem>
@@ -1930,26 +2062,6 @@ users typically do not use them directly.</simpara>
 <variablelist>
 <varlistentry>
 <term>
-<xref linkend="gitattributes(5)" />
-</term>
-<listitem>
-<simpara>
-        Defining attributes per path.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<xref linkend="gitcli(7)" />
-</term>
-<listitem>
-<simpara>
-        Git command-line interface and conventions.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 <xref linkend="gitcore-tutorial(7)" />
 </term>
 <listitem>
@@ -2020,36 +2132,6 @@ users typically do not use them directly.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
-<xref linkend="githooks(5)" />
-</term>
-<listitem>
-<simpara>
-        Hooks used by Git.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<xref linkend="gitignore(5)" />
-</term>
-<listitem>
-<simpara>
-        Specifies intentionally untracked files to ignore.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<xref linkend="gitmodules(5)" />
-</term>
-<listitem>
-<simpara>
-        Defining submodule properties.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 <xref linkend="gitnamespaces(7)" />
 </term>
 <listitem>
@@ -2065,26 +2147,6 @@ users typically do not use them directly.</simpara>
 <listitem>
 <simpara>
         Helper programs to interact with remote repositories.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<xref linkend="gitrepository-layout(5)" />
-</term>
-<listitem>
-<simpara>
-        Git Repository Layout.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<xref linkend="gitrevisions(7)" />
-</term>
-<listitem>
-<simpara>
-        Specifying revisions and ranges for Git.
 </simpara>
 </listitem>
 </varlistentry>
@@ -2125,6 +2187,212 @@ users typically do not use them directly.</simpara>
 <listitem>
 <simpara>
         An overview of recommended workflows with Git.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</simplesect>
+<simplesect id="git(1)__repository_command_and_file_interfaces">
+<title>Repository, command and file interfaces</title>
+<simpara>This documentation discusses repository and command interfaces which
+users are expected to interact with directly. See <emphasis>--user-formats</emphasis> in
+<xref linkend="git-help(1)" /> for more details on the criteria.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<xref linkend="gitattributes(5)" />
+</term>
+<listitem>
+<simpara>
+        Defining attributes per path.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitcli(7)" />
+</term>
+<listitem>
+<simpara>
+        Git command-line interface and conventions.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="githooks(5)" />
+</term>
+<listitem>
+<simpara>
+        Hooks used by Git.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitignore(5)" />
+</term>
+<listitem>
+<simpara>
+        Specifies intentionally untracked files to ignore.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitmailmap(5)" />
+</term>
+<listitem>
+<simpara>
+        Map author/committer names and/or E-Mail addresses.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitmodules(5)" />
+</term>
+<listitem>
+<simpara>
+        Defining submodule properties.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitrepository-layout(5)" />
+</term>
+<listitem>
+<simpara>
+        Git Repository Layout.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitrevisions(7)" />
+</term>
+<listitem>
+<simpara>
+        Specifying revisions and ranges for Git.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</simplesect>
+<simplesect id="git(1)__file_formats_protocols_and_other_developer_interfaces">
+<title>File formats, protocols and other developer interfaces</title>
+<simpara>This documentation discusses file formats, over-the-wire protocols and
+other git developer interfaces. See <emphasis>--developer-interfaces</emphasis> in
+<xref linkend="git-help(1)" />.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<xref linkend="gitformat-bundle(5)" />
+</term>
+<listitem>
+<simpara>
+        The bundle file format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitformat-chunk(5)" />
+</term>
+<listitem>
+<simpara>
+        Chunk-based file formats.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitformat-commit-graph(5)" />
+</term>
+<listitem>
+<simpara>
+        Git commit-graph format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitformat-index(5)" />
+</term>
+<listitem>
+<simpara>
+        Git index format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitformat-pack(5)" />
+</term>
+<listitem>
+<simpara>
+        Git pack format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitformat-signature(5)" />
+</term>
+<listitem>
+<simpara>
+        Git cryptographic signature formats.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitprotocol-capabilities(5)" />
+</term>
+<listitem>
+<simpara>
+        Protocol v0 and v1 capabilities.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitprotocol-common(5)" />
+</term>
+<listitem>
+<simpara>
+        Things common to various protocols.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitprotocol-http(5)" />
+</term>
+<listitem>
+<simpara>
+        Git HTTP-based protocols.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitprotocol-pack(5)" />
+</term>
+<listitem>
+<simpara>
+        How packs are transferred over-the-wire.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<xref linkend="gitprotocol-v2(5)" />
+</term>
+<listitem>
+<simpara>
+        Git Wire Protocol, Version 2.
 </simpara>
 </listitem>
 </varlistentry>
@@ -2299,7 +2567,30 @@ HEAD
 </simplesect>
 <simplesect id="git(1)__environment_variables">
 <title>Environment Variables</title>
-<simpara>Various Git commands use the following environment variables:</simpara>
+<simpara>Various Git commands pay attention to environment variables and change
+their behavior.  The environment variables marked as "Boolean" take
+their values the same way as Boolean valued configuration variables, i.e.,
+"true", "yes", "on" and positive numbers are taken as "yes", while "false",
+"no", "off", and "0" are taken as "no".</simpara>
+<simpara>Here are the variables:</simpara>
+<section id="git(1)__system">
+<title>System</title>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>HOME</emphasis>
+</term>
+<listitem>
+<simpara>
+        Specifies the path to the user's home directory. On Windows, if
+        unset, Git will set a process environment variable equal to:
+        <emphasis>$HOMEDRIVE$HOMEPATH</emphasis> if both <emphasis>$HOMEDRIVE</emphasis> and <emphasis>$HOMEPATH</emphasis> exist;
+        otherwise <emphasis>$USERPROFILE</emphasis> if <emphasis>$USERPROFILE</emphasis> exists.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</section>
 <section id="git(1)__the_git_repository">
 <title>The Git Repository</title>
 <simpara>These environment variables apply to <emphasis>all</emphasis> core Git commands. Nb: it
@@ -2312,7 +2603,7 @@ Git so take care if using a foreign front-end.</simpara>
 </term>
 <listitem>
 <simpara>
-        This environment allows the specification of an alternate
+        This environment variable specifies an alternate
         index file. If not specified, the default of <emphasis>$GIT_DIR/index</emphasis>
         is used.
 </simpara>
@@ -2324,8 +2615,8 @@ Git so take care if using a foreign front-end.</simpara>
 </term>
 <listitem>
 <simpara>
-        This environment variable allows the specification of an index
-        version for new repositories.  It won't affect existing index
+        This environment variable specifies what index version is used
+        when writing the index file out.  It won't affect existing index
         files.  By default index file version 2 or 3 is used. See
         <xref linkend="git-update-index(1)" /> for more information.
 </simpara>
@@ -2430,7 +2721,7 @@ double-quotes and respecting backslash escapes. E.g., the value
         When run in a directory that does not have ".git" repository
         directory, Git tries to find such a directory in the parent
         directories to find the top of the working tree, but by default it
-        does not cross filesystem boundaries.  This environment variable
+        does not cross filesystem boundaries.  This Boolean environment variable
         can be set to true to tell Git not to stop at filesystem
         boundaries.  Like <emphasis>GIT_CEILING_DIRECTORIES</emphasis>, this will not affect
         an explicit repository directory set via <emphasis>GIT_DIR</emphasis> or on the
@@ -2461,10 +2752,22 @@ double-quotes and respecting backslash escapes. E.g., the value
 <listitem>
 <simpara>
         If this variable is set, the default hash algorithm for new
-        repositories will be set to this value. This value is currently
-        ignored when cloning; the setting of the remote repository
-        is used instead. The default is "sha1". THIS VARIABLE IS
-        EXPERIMENTAL! See <emphasis>--object-format</emphasis> in <xref linkend="git-init(1)" />.
+        repositories will be set to this value. This value is
+        ignored when cloning and the setting of the remote repository
+        is always used. The default is "sha1".
+        See <emphasis>--object-format</emphasis> in <xref linkend="git-init(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_DEFAULT_REF_FORMAT</emphasis>
+</term>
+<listitem>
+<simpara>
+        If this variable is set, the default reference backend format for new
+        repositories will be set to this value. The default is "files".
+        See <emphasis>--ref-format</emphasis> in <xref linkend="git-init(1)" />.
 </simpara>
 </listitem>
 </varlistentry>
@@ -2621,11 +2924,27 @@ are the octal representation of the file modes.
 (e.g. <emphasis>new-file</emphasis> in "git-diff-files"), <emphasis>/dev/null</emphasis> (e.g. <emphasis>old-file</emphasis>
 when a new file is added), or a temporary file (e.g. <emphasis>old-file</emphasis> in the
 index).  <emphasis>GIT_EXTERNAL_DIFF</emphasis> should not worry about unlinking the
-temporary file --- it is removed when <emphasis>GIT_EXTERNAL_DIFF</emphasis> exits.</simpara>
+temporary file -- it is removed when <emphasis>GIT_EXTERNAL_DIFF</emphasis> exits.</simpara>
 <simpara>For a path that is unmerged, <emphasis>GIT_EXTERNAL_DIFF</emphasis> is called with 1
 parameter, &lt;path&gt;.</simpara>
 <simpara>For each path <emphasis>GIT_EXTERNAL_DIFF</emphasis> is called, two environment variables,
 <emphasis>GIT_DIFF_PATH_COUNTER</emphasis> and <emphasis>GIT_DIFF_PATH_TOTAL</emphasis> are set.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_EXTERNAL_DIFF_TRUST_EXIT_CODE</emphasis>
+</term>
+<listitem>
+<simpara>
+        If this Boolean environment variable is set to true then the
+        <emphasis>GIT_EXTERNAL_DIFF</emphasis> command is expected to return exit code
+        0 if it considers the input files to be equal or 1 if it
+        considers them to be different, like <emphasis>diff(1)</emphasis>.
+        If it is set to false, which is the default, then the command
+        is expected to return exit code 0 regardless of equality.
+        Any other exit code causes Git to report a fatal error.
+</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -2756,6 +3075,28 @@ for further details.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+<emphasis>GIT_SSL_NO_VERIFY</emphasis>
+</term>
+<listitem>
+<simpara>
+        Setting and exporting this environment variable to any value
+        tells Git not to verify the SSL certificate when fetching or
+        pushing over HTTPS.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_ATTR_SOURCE</emphasis>
+</term>
+<listitem>
+<simpara>
+        Sets the treeish that gitattributes will be read from.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <emphasis>GIT_ASKPASS</emphasis>
 </term>
 <listitem>
@@ -2774,8 +3115,27 @@ for further details.</simpara>
 </term>
 <listitem>
 <simpara>
-        If this environment variable is set to <emphasis>0</emphasis>, git will not prompt
+        If this Boolean environment variable is set to false, git will not prompt
         on the terminal (e.g., when asking for HTTP authentication).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_CONFIG_GLOBAL</emphasis>
+</term>
+<term>
+<emphasis>GIT_CONFIG_SYSTEM</emphasis>
+</term>
+<listitem>
+<simpara>
+        Take the configuration from the given files instead from global or
+        system-level configuration files. If <emphasis>GIT_CONFIG_SYSTEM</emphasis> is set, the
+        system config file defined at build time (usually <emphasis>/etc/gitconfig</emphasis>)
+        will not be read. Likewise, if <emphasis>GIT_CONFIG_GLOBAL</emphasis> is set, neither
+        <emphasis>$HOME/.gitconfig</emphasis> nor <emphasis>$XDG_CONFIG_HOME/git/config</emphasis> will be read. Can
+        be set to <emphasis>/dev/null</emphasis> to skip reading configuration files of the
+        respective level.
 </simpara>
 </listitem>
 </varlistentry>
@@ -2786,10 +3146,10 @@ for further details.</simpara>
 <listitem>
 <simpara>
         Whether to skip reading settings from the system-wide
-        <emphasis>$(prefix)/etc/gitconfig</emphasis> file.  This environment variable can
+        <emphasis>$(prefix)/etc/gitconfig</emphasis> file.  This Boolean environment variable can
         be used along with <emphasis>$HOME</emphasis> and <emphasis>$XDG_CONFIG_HOME</emphasis> to create a
         predictable environment for a picky script, or you can set it
-        temporarily to avoid using a buggy <emphasis>/etc/gitconfig</emphasis> file while
+        to true to temporarily avoid using a buggy <emphasis>/etc/gitconfig</emphasis> file while
         waiting for someone with sufficient permissions to fix it.
 </simpara>
 </listitem>
@@ -2800,12 +3160,12 @@ for further details.</simpara>
 </term>
 <listitem>
 <simpara>
-        If this environment variable is set to "1", then commands such
+        If this Boolean environment variable is set to true, then commands such
         as <emphasis>git blame</emphasis> (in incremental mode), <emphasis>git rev-list</emphasis>, <emphasis>git log</emphasis>,
         <emphasis>git check-attr</emphasis> and <emphasis>git check-ignore</emphasis> will
         force a flush of the output stream after each record have been
         flushed. If this
-        variable is set to "0", the output of these commands will be done
+        variable is set to false, the output of these commands will be done
         using completely buffered I/O.   If this environment variable is
         not set, Git will choose buffered or record-oriented flushing
         based on whether stdout appears to be redirected to a file or not.
@@ -2989,7 +3349,7 @@ in that directory, named according to the last component
 of the SID and an optional counter (to avoid filename
 collisions).</simpara>
 <simpara>In addition, if the variable is set to
-<emphasis>af_unix:[&lt;socket_type&gt;:]&lt;absolute-pathname&gt;</emphasis>, Git will try
+<emphasis>af_unix:[&lt;socket-type&gt;:]&lt;absolute-pathname&gt;</emphasis>, Git will try
 to open the path as a Unix Domain Socket.  The socket type
 can be either <emphasis>stream</emphasis> or <emphasis>dgram</emphasis>.</simpara>
 <simpara>Unsetting the variable, or setting it to empty, "0" or
@@ -3032,8 +3392,20 @@ for full details.</simpara>
 <listitem>
 <simpara>
         By default, when tracing is activated, Git redacts the values of
-        cookies, the "Authorization:" header, and the "Proxy-Authorization:"
-        header. Set this variable to <emphasis>0</emphasis> to prevent this redaction.
+        cookies, the "Authorization:" header, the "Proxy-Authorization:"
+        header and packfile URIs. Set this Boolean environment variable to false to prevent this
+        redaction.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_NO_REPLACE_OBJECTS</emphasis>
+</term>
+<listitem>
+<simpara>
+        Setting and exporting this environment variable tells Git to
+        ignore replacement refs and do not replace Git objects.
 </simpara>
 </listitem>
 </varlistentry>
@@ -3043,7 +3415,7 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        Setting this variable to <emphasis>1</emphasis> will cause Git to treat all
+        Setting this Boolean environment variable to true will cause Git to treat all
         pathspecs literally, rather than as glob patterns. For example,
         running <emphasis>GIT_LITERAL_PATHSPECS=1 git log -- '*.c'</emphasis> will search
         for commits that touch the path <emphasis>*.c</emphasis>, not any paths that the
@@ -3059,7 +3431,7 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        Setting this variable to <emphasis>1</emphasis> will cause Git to treat all
+        Setting this Boolean environment variable to true will cause Git to treat all
         pathspecs as glob patterns (aka "glob" magic).
 </simpara>
 </listitem>
@@ -3070,7 +3442,7 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        Setting this variable to <emphasis>1</emphasis> will cause Git to treat all
+        Setting this Boolean environment variable to true will cause Git to treat all
         pathspecs as literal (aka "literal" magic).
 </simpara>
 </listitem>
@@ -3081,8 +3453,20 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        Setting this variable to <emphasis>1</emphasis> will cause Git to treat all
+        Setting this Boolean environment variable to true will cause Git to treat all
         pathspecs as case-insensitive.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_NO_LAZY_FETCH</emphasis>
+</term>
+<listitem>
+<simpara>
+        Setting this Boolean environment variable to true tells Git
+        not to lazily fetch missing objects from the promisor remote
+        on demand.
 </simpara>
 </listitem>
 </varlistentry>
@@ -3109,16 +3493,33 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        If set to <emphasis>1</emphasis>, include broken or badly named refs when iterating
-        over lists of refs. In a normal, non-corrupted repository, this
-        does nothing. However, enabling it may help git to detect and
-        abort some operations in the presence of broken refs. Git sets
-        this variable automatically when performing destructive
-        operations like <xref linkend="git-prune(1)" />. You should not need to set
-        it yourself unless you want to be paranoid about making sure
-        an operation has touched every ref (e.g., because you are
-        cloning a repository to make a backup).
+        If this Boolean environment variable is set to false, ignore broken or badly named refs when iterating
+        over lists of refs. Normally Git will try to include any such
+        refs, which may cause some operations to fail. This is usually
+        preferable, as potentially destructive operations (e.g.,
+        <xref linkend="git-prune(1)" />) are better off aborting rather than
+        ignoring broken refs (and thus considering the history they
+        point to as not worth saving). The default value is <emphasis>1</emphasis> (i.e.,
+        be paranoid about detecting and aborting all operations). You
+        should not normally need to set this to <emphasis>0</emphasis>, but it may be
+        useful when trying to salvage data from a corrupted repository.
 </simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_COMMIT_GRAPH_PARANOIA</emphasis>
+</term>
+<listitem>
+<simpara>
+        When loading a commit object from the commit-graph, Git performs an
+        existence check on the object in the object database. This is done to
+        avoid issues with stale commit-graphs that contain references to
+        already-deleted commits, but comes with a performance penalty.
+</simpara>
+<simpara>The default is "false", which disables the aforementioned behavior.
+Setting this to "true" enables the existence check so that stale commits
+will never be returned from the commit-graph at the cost of performance.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -3130,9 +3531,7 @@ for full details.</simpara>
         If set to a colon-separated list of protocols, behave as if
         <emphasis>protocol.allow</emphasis> is set to <emphasis>never</emphasis>, and each of the listed
         protocols has <emphasis>protocol.&lt;name&gt;.allow</emphasis> set to <emphasis>always</emphasis>
-        (overriding any existing configuration). In other words, any
-        protocol not mentioned will be disallowed (i.e., this is a
-        whitelist, not a blacklist). See the description of
+        (overriding any existing configuration). See the description of
         <emphasis>protocol.allow</emphasis> in <xref linkend="git-config(1)" /> for more details.
 </simpara>
 </listitem>
@@ -3143,7 +3542,7 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        Set to 0 to prevent protocols used by fetch/push/clone which are
+        Set this Boolean environment variable to false to prevent protocols used by fetch/push/clone which are
         configured to the <emphasis>user</emphasis> state.  This is useful to restrict recursive
         submodule initialization from an untrusted repository or for programs
         which feed potentially-untrusted URLS to git commands.  See
@@ -3159,9 +3558,22 @@ for full details.</simpara>
 <simpara>
         For internal use only.  Used in handshaking the wire protocol.
         Contains a colon <emphasis>:</emphasis> separated list of keys with optional values
-        <emphasis>key[=value]</emphasis>.  Presence of unknown keys and values must be
+        <emphasis>&lt;key&gt;[=&lt;value&gt;]</emphasis>.  Presence of unknown keys and values must be
         ignored.
 </simpara>
+<simpara>Note that servers may need to be configured to allow this variable to
+pass over some transports. It will be propagated automatically when
+accessing local repositories (i.e., <emphasis>file://</emphasis> or a filesystem path), as
+well as over the <emphasis>git://</emphasis> protocol. For git-over-http, it should work
+automatically in most configurations, but see the discussion in
+<xref linkend="git-http-backend(1)" />. For git-over-ssh, the ssh server may need
+to be configured to allow clients to pass this variable (e.g., by using
+<emphasis>AcceptEnv GIT_PROTOCOL</emphasis> with OpenSSH).</simpara>
+<simpara>This configuration is optional. If the variable is not propagated, then
+clients will fall back to the original "v0" protocol (but may miss out
+on some performance improvements or features). This variable currently
+only affects clones and fetches; it is not yet used for pushes (but may
+be in the future).</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -3170,7 +3582,7 @@ for full details.</simpara>
 </term>
 <listitem>
 <simpara>
-        If set to <emphasis>0</emphasis>, Git will complete any requested operation without
+        If this Boolean environment variable is set to false, Git will complete any requested operation without
         performing any optional sub-operations that require taking a lock.
         For example, this will prevent <emphasis>git status</emphasis> from refreshing the
         index as a side effect. This is useful for processes running in
@@ -3223,14 +3635,32 @@ standard output.</simpara>
 </simpara>
 </listitem>
 </varlistentry>
+<varlistentry>
+<term>
+<emphasis>GIT_ADVICE</emphasis>
+</term>
+<listitem>
+<simpara>
+        If set to <emphasis>0</emphasis>, then disable all advice messages. These messages are
+        intended to provide hints to human users that may help them get out of
+        problematic situations or take advantage of new features. Users can
+        disable individual messages using the <emphasis>advice.*</emphasis> config keys. These
+        messages may be disruptive to tools that execute Git processes, so this
+        variable is available to disable the messages. (The <emphasis>--no-advice</emphasis>
+        global option is also available, but old Git versions may fail when
+        this option is not understood. The environment variable will be ignored
+        by Git versions that do not understand it.)
+</simpara>
+</listitem>
+</varlistentry>
 </variablelist>
 </section>
 </simplesect>
 <simplesect id="git(1)__discussion_anchor_id_git_1__discussion_xreflabel_discussion">
 <title>Discussion<anchor id="git(1)_Discussion" xreflabel="[Discussion]"/></title>
 <simpara>More detail on the following is available from the
-<ulink url="https://www.kernel.org/pub/software/scm/git/docs/user-manual.html#git-concepts"><citetitle>Git concepts chapter of the
-user-manual</citetitle></ulink> and <xref linkend="gitcore-tutorial(7)" />.</simpara>
+<link linkend="user-manual_git-concepts">Git concepts chapter of the
+user-manual</link> and <xref linkend="gitcore-tutorial(7)" />.</simpara>
 <simpara>A Git project normally consists of a working directory with a ".git"
 subdirectory at the top level.  The .git directory contains, among other
 things, a compressed object database representing the complete history
@@ -3253,10 +3683,11 @@ purpose.</simpara>
 <simpara>When first created, objects are stored in individual files, but for
 efficiency may later be compressed together into "pack files".</simpara>
 <simpara>Named pointers called refs mark interesting points in history.  A ref
-may contain the SHA-1 name of an object or the name of another ref.  Refs
-with names beginning <emphasis>ref/head/</emphasis> contain the SHA-1 name of the most
+may contain the SHA-1 name of an object or the name of another ref (the
+latter is called a "symbolic ref").
+Refs with names beginning <emphasis>refs/head/</emphasis> contain the SHA-1 name of the most
 recent commit (or "head") of a branch under development.  SHA-1 names of
-tags of interest are stored under <emphasis>ref/tags/</emphasis>.  A special ref named
+tags of interest are stored under <emphasis>refs/tags/</emphasis>.  A symbolic ref named
 <emphasis>HEAD</emphasis> contains the name of the currently checked-out branch.</simpara>
 <simpara>The index file is initialized with a list of all paths and, for each
 path, a blob object and a set of attributes.  The blob object represents
@@ -3270,13 +3701,40 @@ content stored in the index.</simpara>
 for a given pathname.  These stages are used to hold the various
 unmerged version of a file when a merge is in progress.</simpara>
 </simplesect>
+<simplesect id="git(1)__security">
+<title>SECURITY</title>
+<simpara>Some configuration options and hook files may cause Git to run arbitrary
+shell commands. Because configuration and hooks are not copied using
+<emphasis>git clone</emphasis>, it is generally safe to clone remote repositories with
+untrusted content, inspect them with <emphasis>git log</emphasis>, and so on.</simpara>
+<simpara>However, it is not safe to run Git commands in a <emphasis>.git</emphasis> directory (or
+the working tree that surrounds it) when that <emphasis>.git</emphasis> directory itself
+comes from an untrusted source. The commands in its config and hooks
+are executed in the usual way.</simpara>
+<simpara>By default, Git will refuse to run when the repository is owned by
+someone other than the user running the command. See the entry for
+<emphasis>safe.directory</emphasis> in <xref linkend="git-config(1)" />. While this can help protect
+you in a multi-user environment, note that you can also acquire
+untrusted repositories that are owned by you (for example, if you
+extract a zip file or tarball from an untrusted source). In such cases,
+you'd need to "sanitize" the untrusted repository first.</simpara>
+<simpara>If you have an untrusted <emphasis>.git</emphasis> directory, you should first clone it
+with <emphasis>git clone --no-local</emphasis> to obtain a clean copy. Git does restrict
+the set of options and hooks that will be run by <emphasis>upload-pack</emphasis>, which
+handles the server side of a clone or fetch, but beware that the
+surface area for attack against <emphasis>upload-pack</emphasis> is large, so this does
+carry some risk. The safest thing is to serve the repository as an
+unprivileged user (either via <xref linkend="git-daemon(1)" />, ssh, or using
+other tools to change user ids). See the discussion in the <emphasis>SECURITY</emphasis>
+section of <xref linkend="git-upload-pack(1)" />.</simpara>
+</simplesect>
 <simplesect id="git(1)__further_documentation">
 <title>FURTHER DOCUMENTATION</title>
 <simpara>See the references in the "description" section to get started
 using Git.  The following is probably more detail than necessary
 for a first-time user.</simpara>
-<simpara>The <ulink url="https://www.kernel.org/pub/software/scm/git/docs/user-manual.html#git-concepts"><citetitle>Git concepts chapter of the
-user-manual</citetitle></ulink> and <xref linkend="gitcore-tutorial(7)" /> both provide
+<simpara>The <link linkend="user-manual_git-concepts">Git concepts chapter of the
+user-manual</link> and <xref linkend="gitcore-tutorial(7)" /> both provide
 introductions to the underlying Git architecture.</simpara>
 <simpara>See <xref linkend="gitworkflows(7)" /> for an overview of recommended workflows.</simpara>
 <simpara>See also the <ulink url="https://www.kernel.org/pub/software/scm/git/docs/howto-index.html"><citetitle>howto</citetitle></ulink> documents for some useful
@@ -3290,7 +3748,7 @@ read <xref linkend="gitcvs-migration(7)" />.</simpara>
 <title>Authors</title>
 <simpara>Git was started by Linus Torvalds, and is currently maintained by Junio
 C Hamano. Numerous contributions have come from the Git mailing list
-&lt;<ulink url="mailto:git@vger.kernel.org">git@vger.kernel.org</ulink>&gt;.  <ulink url="http://www.openhub.net/p/git/contributors/summary">http://www.openhub.net/p/git/contributors/summary</ulink>
+&lt;<ulink url="mailto:git@vger.kernel.org">git@vger.kernel.org</ulink>&gt;.  <ulink url="https://openhub.net/p/git/contributors/summary">https://openhub.net/p/git/contributors/summary</ulink>
 gives you a more complete list of contributors.</simpara>
 <simpara>If you have a clone of git.git itself, the
 output of <xref linkend="git-shortlog(1)" /> and <xref linkend="git-blame(1)" /> can show you
@@ -3311,7 +3769,7 @@ the Git Security mailing list &lt;<ulink url="mailto:git-security@googlegroups.c
 <simpara><xref linkend="gittutorial(7)" />, <xref linkend="gittutorial-2(7)" />,
 <xref linkend="giteveryday(7)" />, <xref linkend="gitcvs-migration(7)" />,
 <xref linkend="gitglossary(7)" />, <xref linkend="gitcore-tutorial(7)" />,
-<xref linkend="gitcli(7)" />, <ulink url="https://www.kernel.org/pub/software/scm/git/docs/user-manual.html"><citetitle>The Git User's Manual</citetitle></ulink>,
+<xref linkend="gitcli(7)" />, <link linkend="git_user-manual">The Git User's Manual</link>,
 <xref linkend="gitworkflows(7)" /></simpara>
 </simplesect>
 <simplesect id="git(1)__git">

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2016, 2019 - TortoiseGit
+// Copyright (C) 2011-2016, 2019, 2021-2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2011, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,15 +17,21 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
-#include "Globals.h"
-#include "ShellUpdater.h"
 #include "AppUtils.h"
 #include "StringUtils.h"
 #include "SetLookAndFeelPage.h"
 #include "MenuInfo.h"
 #include "ShellCache.h"
+#include "PathUtils.h"
+#include <winrt/Windows.Management.Deployment.h>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.ApplicationModel.h>
+
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Management::Deployment;
 
 extern MenuInfo menuInfo[];
 
@@ -140,7 +146,6 @@ static unsigned __int64 ClickedSelectAll(CListCtrl *list, CButton *selectAll)
 IMPLEMENT_DYNAMIC(CSetLookAndFeelPage, ISettingsPropPage)
 CSetLookAndFeelPage::CSetLookAndFeelPage()
 	: ISettingsPropPage(CSetLookAndFeelPage::IDD)
-	, m_bBlock(false)
 	, m_bHideMenus(false)
 {
 	ShellCache cache;
@@ -205,8 +210,6 @@ BOOL CSetLookAndFeelPage::OnInitDialog()
 	while (c>=0)
 		m_cMenuList.DeleteColumn(c--);
 	m_cMenuList.InsertColumn(0, L"");
-
-	SetWindowTheme(m_hWnd, L"Explorer", nullptr);
 
 	m_cMenuList.SetRedraw(false);
 
@@ -302,8 +305,6 @@ CSetExtMenu::CSetExtMenu()
 {
 	ShellCache shell;
 
-	m_bBlock = false;
-
 	m_regExtmenu = shell.menuextlow;
 	m_regExtmenuhigh = shell.menuexthigh;
 
@@ -343,8 +344,6 @@ BOOL CSetExtMenu::OnInitDialog()
 	while (c>=0)
 		m_cMenuList.DeleteColumn(c--);
 	m_cMenuList.InsertColumn(0, L"");
-
-	SetWindowTheme(m_cMenuList.GetSafeHwnd(), L"Explorer", nullptr);
 
 	m_cMenuList.SetRedraw(false);
 
@@ -414,4 +413,185 @@ void CSetExtMenu::OnLvnItemchangedMenulist(NMHDR * /*pNMHDR*/, LRESULT *pResult)
 void CSetExtMenu::OnChange()
 {
 	SetModified();
+}
+
+// Set Win11 top menu class
+#include "SetWin11ContextMenu.h"
+
+IMPLEMENT_DYNAMIC(CSetWin11ContextMenu, ISettingsPropPage)
+CSetWin11ContextMenu::CSetWin11ContextMenu()
+	: ISettingsPropPage(CSetWin11ContextMenu::IDD)
+{
+	ShellCache shell;
+
+	m_regtopMenu = shell.menuLayout11;
+	m_topMenu = m_regtopMenu;
+}
+
+CSetWin11ContextMenu::~CSetWin11ContextMenu()
+{
+}
+
+void CSetWin11ContextMenu::DoDataExchange(CDataExchange* pDX)
+{
+	ISettingsPropPage::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_MENULIST, m_cMenuList);
+}
+
+BEGIN_MESSAGE_MAP(CSetWin11ContextMenu, ISettingsPropPage)
+	ON_NOTIFY(LVN_ITEMCHANGED, IDC_MENULIST, OnLvnItemchangedMenulist)
+	ON_BN_CLICKED(IDC_SELECTALL, OnBnClickedSelectall)
+	ON_BN_CLICKED(IDC_RESTORE, OnBnClickedRestoreDefaults)
+	ON_BN_CLICKED(IDC_REGISTER, &CSetWin11ContextMenu::OnBnClickedRegister)
+END_MESSAGE_MAP()
+
+BOOL CSetWin11ContextMenu::OnInitDialog()
+{
+	ISettingsPropPage::OnInitDialog();
+
+	AdjustControlSize(IDC_SELECTALL);
+
+	m_cMenuList.SetExtendedStyle(LVS_EX_CHECKBOXES | (CRegDWORD(L"Software\\TortoiseGit\\FullRowSelect", TRUE) ? LVS_EX_FULLROWSELECT : 0) | LVS_EX_DOUBLEBUFFER);
+
+	m_cMenuList.DeleteAllItems();
+	int c = m_cMenuList.GetHeaderCtrl()->GetItemCount() - 1;
+	while (c >= 0)
+		m_cMenuList.DeleteColumn(c--);
+	m_cMenuList.InsertColumn(0, L"");
+
+	m_cMenuList.SetRedraw(false);
+
+	int iconWidth = GetSystemMetrics(SM_CXSMICON);
+	int iconHeight = GetSystemMetrics(SM_CYSMICON);
+	m_imgList.Create(iconWidth, iconHeight, ILC_COLOR32 | ILC_MASK, 4, 1);
+
+	m_bBlock = true;
+
+	InsertMenuItemToList(&m_cMenuList, &m_imgList);
+	SetMenuItemCheck(&m_cMenuList, m_topMenu, static_cast<CButton*>(GetDlgItem(IDC_SELECTALL)));
+
+	m_bBlock = false;
+
+	m_cMenuList.SetImageList(&m_imgList, LVSIL_SMALL);
+	for (int col = 0, maxcol = m_cMenuList.GetHeaderCtrl()->GetItemCount(); col < maxcol; ++col)
+		m_cMenuList.SetColumnWidth(col, LVSCW_AUTOSIZE_USEHEADER);
+	m_cMenuList.SetRedraw(true);
+
+	UpdateData(FALSE);
+
+	return TRUE;
+}
+
+BOOL CSetWin11ContextMenu::OnApply()
+{
+	UpdateData();
+
+	m_regtopMenu = m_topMenu;
+
+	SetModified(FALSE);
+	return ISettingsPropPage::OnApply();
+}
+
+void CSetWin11ContextMenu::OnBnClickedRestoreDefaults()
+{
+	SetModified(TRUE);
+	m_topMenu = DEFAULTWIN11MENUTOPENTRIES;
+	m_bBlock = true;
+	SetMenuItemCheck(&m_cMenuList, m_topMenu, static_cast<CButton*>(GetDlgItem(IDC_SELECTALL)));
+	m_bBlock = false;
+}
+
+void CSetWin11ContextMenu::OnBnClickedSelectall()
+{
+	if (m_bBlock)
+		return;
+
+	SetModified(TRUE);
+	m_bBlock = true;
+	m_topMenu = ClickedSelectAll(&m_cMenuList, static_cast<CButton*>(GetDlgItem(IDC_SELECTALL)));
+	m_bBlock = false;
+}
+
+void CSetWin11ContextMenu::OnLvnItemchangedMenulist(NMHDR* /*pNMHDR*/, LRESULT* pResult)
+{
+	if (m_bBlock)
+		return;
+
+	SetModified(TRUE);
+	if (m_cMenuList.GetItemCount() > 0)
+		m_topMenu = GetMenuListMask(&m_cMenuList, static_cast<CButton*>(GetDlgItem(IDC_SELECTALL)));
+	*pResult = 0;
+}
+
+void CSetWin11ContextMenu::OnChange()
+{
+	SetModified();
+}
+
+void CSetWin11ContextMenu::OnBnClickedRegister()
+{
+	CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+	SCOPE_EXIT
+	{
+		CoUninitialize();
+	};
+	PackageManager manager;
+
+	// first unregister if already registered
+	Collections::IIterable<winrt::Windows::ApplicationModel::Package> packages;
+	try
+	{
+		packages = manager.FindPackagesForUser(L"");
+	}
+	catch (winrt::hresult_error const& ex)
+	{
+		std::wstring error = L"FindPackagesForUser failed (Errorcode: ";
+		error += std::to_wstring(ex.code().value);
+		error += L"):\n";
+		error += ex.message();
+		MessageBox(error.c_str(), L"TortoiseGit", MB_ICONERROR);
+		return;
+	}
+
+	for (const auto& package : packages)
+	{
+		if (package.Id().Name() != L"0BF99681-825C-4B2A-A14F-2AC01DB9B70E")
+			continue;
+
+		winrt::hstring fullName = package.Id().FullName();
+		auto deploymentOperation = manager.RemovePackageAsync(fullName, RemovalOptions::None);
+		auto deployResult = deploymentOperation.get();
+		if (SUCCEEDED(deployResult.ExtendedErrorCode()))
+			break;
+
+		// Undeployment failed
+		std::wstring error = L"RemovePackageAsync failed (Errorcode: ";
+		error += std::to_wstring(deployResult.ExtendedErrorCode());
+		error += L"):\n";
+		error += deployResult.ErrorText();
+		MessageBox(error.c_str(), L"TortoiseGit", MB_ICONERROR);
+		return;
+	}
+
+	// now register the package
+	auto appDir = CPathUtils::GetAppParentDirectory();
+	Uri externalUri(static_cast<LPCWSTR>(appDir));
+	auto packagePath = appDir + L"bin\\package.msix";
+	Uri packageUri(static_cast<LPCWSTR>(packagePath));
+	AddPackageOptions options;
+	options.ExternalLocationUri(externalUri);
+	auto deploymentOperation = manager.AddPackageByUriAsync(packageUri, options);
+
+	auto deployResult = deploymentOperation.get();
+
+	if (!SUCCEEDED(deployResult.ExtendedErrorCode()))
+	{
+		std::wstring error = L"AddPackageByUriAsync failed (Errorcode: ";
+		error += std::to_wstring(deployResult.ExtendedErrorCode());
+		error += L"):\n";
+		error += deployResult.ErrorText();
+		MessageBox(error.c_str(), nullptr, MB_ICONERROR);
+		return;
+	}
+	MessageBox(CString(MAKEINTRESOURCE(IDS_PACKAGE_REGISTERED)), L"TortoiseGit", MB_OK);
 }

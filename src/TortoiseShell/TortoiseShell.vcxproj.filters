@@ -120,6 +120,9 @@
     <ClCompile Include="..\Utils\LoadIconEx.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="ExplorerCommand.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ShellExt.def">
@@ -244,11 +247,11 @@
     <ClInclude Include="..\Utils\SmartHandle.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="ExplorerCommand.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\Resources\checkout.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="..\Resources\clippaste.ico">
       <Filter>Resource Files</Filter>
     </Image>
@@ -417,10 +420,24 @@
     <Image Include="..\Resources\menuunlock.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\Resources\TortoiseGitBlame.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Resources\menushelve.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Resources\menuunshelve.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resourceshell.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="..\identity.manifest">
+      <Filter>Resource Files</Filter>
+    </Manifest>
   </ItemGroup>
 </Project>

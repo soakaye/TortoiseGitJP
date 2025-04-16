@@ -120,7 +120,7 @@ public:
 	@param hIcon
 		Icon to display for the caption.
 	*/
-	virtual void SetCaption(LPCTSTR lpszCaption, HICON hIcon = nullptr);
+	virtual void SetCaption(LPCWSTR lpszCaption, HICON hIcon = nullptr);
 
 	/**
 	Returns the caption, that has been set most recently using the
@@ -143,7 +143,7 @@ public:
 	This default implementation calls the SafeUpdateWindow() method
 	with the message rectangle, to force it to be redrawn.
 	*/
-	virtual void SetMsgText(LPCTSTR lpszMsg);
+	virtual void SetMsgText(LPCWSTR lpszMsg);
 
 	/**
 	Returns the text currently displayed.
@@ -218,7 +218,7 @@ protected:
 		Combination of the DT_* flags, specified by the Win32 function
 		DrawText() to draw the message with.
 	*/
-	virtual void DrawMsg(CDC *pDc, CRect rect, LPCTSTR lpszMsg, DWORD dwFormat);
+	virtual void DrawMsg(CDC* pDc, CRect rect, LPCWSTR lpszMsg, DWORD dwFormat);
 
 	/**
 	Calculates the caption area. The caption area is the rectangular
@@ -256,7 +256,7 @@ protected:
 	@param hIcon
 		Icon to display in the caption.
 	*/
-	virtual void DrawCaption(CDC *pDc, CRect rect, LPCTSTR lpszCaption, HICON hIcon);
+	virtual void DrawCaption(CDC* pDc, CRect rect, LPCWSTR lpszCaption, HICON hIcon);
 
 // Implementation helpers
 protected:
@@ -276,10 +276,10 @@ protected:
 // Properties
 private:
 	/** TRUE if the caption should be drawn, FALSE otherwise. */
-	BOOL m_bShowCaption;
+	BOOL m_bShowCaption = FALSE;
 
 	/** Height of the caption in pixels, if it is enabled. */
-	int m_nCaptionHeight;
+	int m_nCaptionHeight = 0;
 
 	/** Text to display in the caption. */
 	CString m_strCaption;
@@ -288,15 +288,15 @@ private:
 	Icon to display in the caption or nullptr if no icon should be
 	displayed.
 	*/
-	HICON m_hCaptionIcon;
+	HICON m_hCaptionIcon = nullptr;
 
 	/** Message text to display. */
 	CString m_strMsg;
 
 	/** Style to use when drawing the message text m_strMsg. */
-	DWORD m_dwMsgFormat;
+	DWORD m_dwMsgFormat = DT_CENTER | DT_VCENTER | DT_NOPREFIX | DT_SINGLELINE;
 
-	HFONT m_uiFont;
+	CFont m_uiFont;
 	bool m_bDark = false;
 };
 

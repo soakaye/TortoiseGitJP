@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2020 - TortoiseGit
+// Copyright (C) 2012-2024 - TortoiseGit
 // Copyright (C) 2003-2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -42,7 +42,8 @@ ShellCache::ShellCache()
 	showunversionedoverlay = CRegStdDWORD(L"Software\\TortoiseGit\\ShowUnversionedOverlay", TRUE, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	showignoredoverlay = CRegStdDWORD(L"Software\\TortoiseGit\\ShowIgnoredOverlay", TRUE, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	excludedasnormal = CRegStdDWORD(L"Software\\TortoiseGit\\ShowExcludedAsNormal", TRUE, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
-	drivetypeticker = 0;
+
+	menuLayout11 = CRegStdQWORD(L"Software\\TortoiseGit\\ContextMenu11Entries", DEFAULTWIN11MENUTOPENTRIES, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 
 	unsigned __int64 entries = (DEFAULTMENUTOPENTRIES);
 	menulayoutlow = CRegStdDWORD(L"Software\\TortoiseGit\\ContextMenuEntries", entries & 0xFFFFFFFF, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
@@ -56,7 +57,6 @@ ShellCache::ShellCache()
 	menumaskhigh_lm = CRegStdDWORD(L"Software\\TortoiseGit\\ContextMenuEntriesMaskHigh", 0, FALSE, HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY);
 	menumasklow_cu = CRegStdDWORD(L"Software\\TortoiseGit\\ContextMenuEntriesMaskLow", 0, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	menumaskhigh_cu = CRegStdDWORD(L"Software\\TortoiseGit\\ContextMenuEntriesMaskHigh", 0, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
-	menumaskticker = 0;
 	langid = CRegStdDWORD(L"Software\\TortoiseGit\\LanguageID", 1033, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	blockstatus = CRegStdDWORD(L"Software\\TortoiseGit\\BlockStatus", 0, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	std::fill_n(drivetypecache, 27, UINT(-1));
@@ -66,7 +66,6 @@ ShellCache::ShellCache()
 		drivetypecache[0] = DRIVE_REMOVABLE;
 		drivetypecache[1] = DRIVE_REMOVABLE;
 	}
-	drivetypepathcache[0] = L'\0';
 	nocontextpaths = CRegStdString(L"Software\\TortoiseGit\\NoContextPaths", L"", false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	// Use RegNotifyChangeKeyValue() to get a notification event whenever a registry value
 	// below HKCU\Software\TortoiseGit is changed. If a value has changed, re-read all
@@ -83,7 +82,6 @@ ShellCache::ShellCache()
 	}
 
 	// find out if we're elevated
-	isElevated = false;
 	HANDLE hToken = nullptr;
 	if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_QUERY, &hToken))
 	{
@@ -111,7 +109,7 @@ bool ShellCache::RefreshIfNeeded()
 	// has occurred since the last time we got here.
 	// if the event has occurred, re-read all registry variables and of course
 	// re-set the notification event to get further notifications of registry changes.
-	bool signalled = WaitForSingleObjectEx(m_registryChangeEvent, 0, true) != WAIT_TIMEOUT;
+	const bool signalled = WaitForSingleObjectEx(m_registryChangeEvent, 0, true) != WAIT_TIMEOUT;
 	if (!signalled)
 		return signalled;
 
@@ -142,6 +140,7 @@ bool ShellCache::RefreshIfNeeded()
 	showignoredoverlay.read();
 	excludedasnormal.read();
 	hidemenusforunversioneditems.read();
+	menuLayout11.read();
 	menulayoutlow.read();
 	menulayouthigh.read();
 	langid.read();
@@ -183,6 +182,12 @@ DWORD ShellCache::BlockStatus()
 {
 	RefreshIfNeeded();
 	return (blockstatus);
+}
+
+unsigned __int64 ShellCache::GetMenuLayout11()
+{
+	RefreshIfNeeded();
+	return menuLayout11;
 }
 
 unsigned __int64 ShellCache::GetMenuLayout()
@@ -326,7 +331,7 @@ BOOL ShellCache::IsUnknown()
 	return (driveunknown);
 }
 
-BOOL ShellCache::IsContextPathAllowed(LPCTSTR path)
+BOOL ShellCache::IsContextPathAllowed(const std::wstring& path)
 {
 	Locker lock(m_critSec);
 	ExcludeContextValid();
@@ -334,28 +339,49 @@ BOOL ShellCache::IsContextPathAllowed(LPCTSTR path)
 	{
 		if (exPath.empty())
 			continue;
-		if (exPath[exPath.size() - 1] == '*')
+		const size_t filterlen = exPath.size();
+		const wchar_t last_character = exPath.at(filterlen - 1);
+		if (last_character == L'*')
 		{
-			tstring str = exPath.substr(0, exPath.size() - 1);
-			if (_wcsnicmp(str.c_str(), path, str.size()) == 0)
+			if (_wcsnicmp(exPath.c_str(), path.c_str(), filterlen - 1) == 0)
 				return FALSE;
 		}
-		else if (_wcsicmp(exPath.c_str(), path) == 0)
+		else if (last_character == L'\\')
+		{
+			if (path.length() < filterlen - 1)
+				// path is a parent of the current filter. Don't filter
+				continue;
+
+			if (path.length() == filterlen - 1)
+			{
+				// path MAY be the filtered path without trailing backslash.
+				// compare with the filter excluding trailing backslash!
+				if (_wcsnicmp(exPath.c_str(), path.c_str(), filterlen - 1) == 0)
+					return FALSE;
+			}
+			else
+			{
+				// path is at least as large as the filter. compare with the whole filter!
+				if (_wcsnicmp(exPath.c_str(), path.c_str(), filterlen) == 0)
+					return FALSE;
+			}
+		}
+		else if (_wcsicmp(exPath.c_str(), path.c_str()) == 0)
 			return FALSE;
 	}
 	return TRUE;
 }
 
-BOOL ShellCache::IsPathAllowed(LPCTSTR path)
+BOOL ShellCache::IsPathAllowed(LPCWSTR path)
 {
 	RefreshIfNeeded();
 	Locker lock(m_critSec);
-	tristate_t allowed = pathFilter.IsPathAllowed(path);
-	if (allowed != tristate_unknown)
-		return allowed == tristate_true ? TRUE : FALSE;
+	const Tristate allowed = pathFilter.IsPathAllowed(path);
+	if (allowed != Tristate::Unknown)
+		return allowed == Tristate::True ? TRUE : FALSE;
 
 	UINT drivetype = 0;
-	int drivenumber = PathGetDriveNumber(path);
+	const int drivenumber = PathGetDriveNumber(path);
 	if ((drivenumber >= 0) && (drivenumber <= 25))
 	{
 		drivetype = drivetypecache[drivenumber];
@@ -367,7 +393,7 @@ BOOL ShellCache::IsPathAllowed(LPCTSTR path)
 				drivetype = DRIVE_REMOTE;
 			else
 			{
-				TCHAR pathbuf[MAX_PATH + 4] = { 0 };		// MAX_PATH ok here. PathStripToRoot works with partial paths too.
+				wchar_t pathbuf[MAX_PATH + 4] = { 0 };		// MAX_PATH ok here. PathStripToRoot works with partial paths too.
 				wcsncpy_s(pathbuf, path, _countof(pathbuf) - 1);
 				PathStripToRoot(pathbuf);
 				PathAddBackslash(pathbuf);
@@ -384,7 +410,7 @@ BOOL ShellCache::IsPathAllowed(LPCTSTR path)
 			drivetype = DRIVE_REMOTE;
 		else
 		{
-			TCHAR pathbuf[MAX_PATH + 4] = { 0 }; // MAX_PATH ok here. PathStripToRoot works with partial paths too.
+			wchar_t pathbuf[MAX_PATH + 4] = { 0 }; // MAX_PATH ok here. PathStripToRoot works with partial paths too.
 			wcsncpy_s(pathbuf, path, _countof(pathbuf) - 1);
 			PathStripToRoot(pathbuf);
 			PathAddBackslash(pathbuf);
@@ -421,16 +447,16 @@ DWORD ShellCache::GetLangID()
 	return (langid);
 }
 
-BOOL ShellCache::HasGITAdminDir(LPCTSTR path, BOOL bIsDir, CString* ProjectTopDir /*= nullptr*/)
+BOOL ShellCache::HasGITAdminDir(LPCWSTR path, BOOL bIsDir, CString* ProjectTopDir /*= nullptr*/)
 {
-	tstring folder(path);
+	std::wstring folder(path);
 	if (!bIsDir)
 	{
 		size_t pos = folder.rfind(L'\\');
-		if (pos != tstring::npos)
+		if (pos != std::wstring::npos)
 			folder.erase(pos);
 	}
-	std::map<tstring, AdminDir_s>::const_iterator iter;
+	std::map<std::wstring, AdminDir_s>::const_iterator iter;
 	if ((iter = admindircache.find(folder)) != admindircache.cend())
 	{
 		Locker lock(m_critSec);
@@ -443,7 +469,7 @@ BOOL ShellCache::HasGITAdminDir(LPCTSTR path, BOOL bIsDir, CString* ProjectTopDi
 	}
 
 	CString sProjectRoot;
-	BOOL hasAdminDir = GitAdminDir::HasAdminDir(folder.c_str(), true, &sProjectRoot);
+	const BOOL hasAdminDir = GitAdminDir::HasAdminDir(folder.c_str(), true, &sProjectRoot);
 
 	Locker lock(m_critSec);
 	AdminDir_s& ad = admindircache[folder];
@@ -470,9 +496,9 @@ void ShellCache::ExcludeContextValid()
 	excontextvector.clear();
 	size_t pos = 0, pos_ant = 0;
 	pos = excludecontextstr.find(L'\n', pos_ant);
-	while (pos != tstring::npos)
+	while (pos != std::wstring::npos)
 	{
-		tstring token = excludecontextstr.substr(pos_ant, pos - pos_ant);
+		std::wstring token = excludecontextstr.substr(pos_ant, pos - pos_ant);
 		if (!token.empty())
 			excontextvector.push_back(token);
 		pos_ant = pos + 1;
@@ -480,26 +506,26 @@ void ShellCache::ExcludeContextValid()
 	}
 	if (!excludecontextstr.empty())
 	{
-		tstring token = excludecontextstr.substr(pos_ant, excludecontextstr.size() - 1);
+		std::wstring token = excludecontextstr.substr(pos_ant, excludecontextstr.size() - 1);
 		if (!token.empty())
 			excontextvector.push_back(token);
 	}
 }
 
 // construct \ref data content
-void ShellCache::CPathFilter::AddEntry(const tstring& s, bool include)
+void ShellCache::CPathFilter::AddEntry(const std::wstring& s, bool include)
 {
 	static wchar_t pathbuf[MAX_PATH * 4] = { 0 };
 	if (s.empty())
 		return;
 
-	TCHAR lastChar = *s.rbegin();
+	wchar_t lastChar = *s.rbegin();
 
 	SEntry entry;
 	entry.hasSubFolderEntries = false;
 	entry.recursive = lastChar != L'?';
-	entry.included = include ? tristate_true : tristate_false;
-	entry.subPathIncluded = include == entry.recursive ? tristate_true : tristate_false;
+	entry.included = include ? Tristate::True : Tristate::False;
+	entry.subPathIncluded = include == entry.recursive ? Tristate::True : Tristate::False;
 
 	entry.path = s;
 	if ((lastChar == L'?') || (lastChar == L'*'))
@@ -513,11 +539,11 @@ void ShellCache::CPathFilter::AddEntry(const tstring& s, bool include)
 	data.push_back(entry);
 }
 
-void ShellCache::CPathFilter::AddEntries(const tstring& s, bool include)
+void ShellCache::CPathFilter::AddEntries(const std::wstring& s, bool include)
 {
 	size_t pos = 0, pos_ant = 0;
 	pos = s.find(L'\n', pos_ant);
-	while (pos != tstring::npos)
+	while (pos != std::wstring::npos)
 	{
 		AddEntry(s.substr(pos_ant, pos - pos_ant), include);
 		pos_ant = pos + 1;
@@ -562,10 +588,10 @@ void ShellCache::CPathFilter::PostProcessData()
 			else
 			{
 				// include beats exclude
-				if (source->included == tristate_true)
-					dest->included = tristate_true;
-				if (source->recursive && source->subPathIncluded == tristate_true)
-					dest->subPathIncluded = tristate_true;
+				if (source->included == Tristate::True)
+					dest->included = Tristate::True;
+				if (source->recursive && source->subPathIncluded == Tristate::True)
+					dest->subPathIncluded = Tristate::True;
 			}
 		}
 		else
@@ -593,9 +619,9 @@ void ShellCache::CPathFilter::PostProcessData()
 // excluded: C:, C:\some\deep\path
 // include: C:\some
 // lookup for C:\some\deeper\path
-tristate_t ShellCache::CPathFilter::IsPathAllowed(LPCTSTR path, TData::const_iterator begin, TData::const_iterator end) const
+Tristate ShellCache::CPathFilter::IsPathAllowed(LPCWSTR path, TData::const_iterator begin, TData::const_iterator end) const
 {
-	tristate_t result = tristate_unknown;
+	Tristate result = Tristate::Unknown;
 
 	// handle special cases
 	if (begin == end)
@@ -609,10 +635,10 @@ tristate_t ShellCache::CPathFilter::IsPathAllowed(LPCTSTR path, TData::const_ite
 	size_t pos = 0;
 	do
 	{
-		LPCTSTR backslash = wcschr(path + pos + 1,L'\\');
+		LPCWSTR backslash = wcschr(path + pos + 1,L'\\');
 		pos = backslash == nullptr ? maxLength : backslash - path;
 
-		std::pair<LPCTSTR, size_t> toFind(path, pos);
+		std::pair<LPCWSTR, size_t> toFind(path, pos);
 		TData::const_iterator iter = std::lower_bound(begin, end, toFind);
 
 		// found a relevant entry?
@@ -675,22 +701,22 @@ void ShellCache::CPathFilter::Refresh()
 }
 
 // data access
-tristate_t ShellCache::CPathFilter::IsPathAllowed(LPCTSTR path) const
+Tristate ShellCache::CPathFilter::IsPathAllowed(LPCWSTR path) const
 {
 	if (!path)
-		return tristate_unknown;
+		return Tristate::Unknown;
 	// always ignore the recycle bin
 	PTSTR pFound = StrStrI(path, L":\\RECYCLER");
 	if (pFound)
 	{
 		if ((*(pFound + 10) == L'\0') || (*(pFound + 10) == L'\\'))
-			return tristate_false;
+			return Tristate::False;
 	}
 	pFound = StrStrI(path, L":\\$Recycle.Bin");
 	if (pFound)
 	{
 		if ((*(pFound + 14) == '\0') || (*(pFound + 14) == L'\\'))
-			return tristate_false;
+			return Tristate::False;
 	}
 	return IsPathAllowed(path, data.begin(), data.end());
 }

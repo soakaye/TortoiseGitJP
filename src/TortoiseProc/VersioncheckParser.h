@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2018, 2020 - TortoiseGit
+// Copyright (C) 2013-2018, 2020-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,8 +16,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include "..\..\ext\simpleini\SimpleIni.h"
+#include "../../ext/simpleini/SimpleIni.h"
 
 class CVersioncheckParser
 {
@@ -30,26 +31,29 @@ public:
 
 	bool Load(const CString& filename, CString& err);
 
-	typedef struct Version_
+	struct Version
 	{
 		CString version;
 		CString version_for_filename;
+		CString version_languagepacks;
 		unsigned int major = 0;
 		unsigned int minor = 0;
 		unsigned int micro = 0;
 		unsigned int build = 0;
-	} Version;
+	};
 	Version GetTortoiseGitVersion();
 
 	CString GetTortoiseGitInfoText();
 	CString GetTortoiseGitInfoTextURL();
 	CString GetTortoiseGitIssuesURL();
+	bool GetTortoiseGitHasChangelog();
 	CString GetTortoiseGitChangelogURL();
+	bool GetTortoiseGitIsDirectDownloadable();
 	CString GetTortoiseGitBaseURL();
 	bool GetTortoiseGitIsHotfix();
 	CString GetTortoiseGitMainfilename();
 
-	typedef struct
+	struct LanguagePack
 	{
 		CString m_PackName;
 		CString m_LangName;
@@ -57,8 +61,8 @@ public:
 		CString m_LangCode;
 
 		CString m_filename;
-	} LanguagePack;
-	typedef std::vector<LanguagePack> LANGPACK_VECTOR;
+	};
+	using LANGPACK_VECTOR = std::vector<LanguagePack>;
 	LANGPACK_VECTOR GetTortoiseGitLanguagePacks();
 
 private:

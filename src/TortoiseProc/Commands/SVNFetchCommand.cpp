@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2020, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,10 +16,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "SVNFetchCommand.h"
-
-#include "SysProgressDlg.h"
 #include "ProgressDlg.h"
 #include "Git.h"
 #include "AppUtils.h"
@@ -72,14 +71,14 @@ bool SVNFetchCommand::Execute()
 		postCmdList.emplace_back(IDI_DIFF, IDS_PROC_PULL_DIFFS, [&]
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(upstreamOldHash.ToString()), static_cast<LPCTSTR>(upstreamNewHash.ToString()));
+			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(upstreamOldHash.ToString()), static_cast<LPCWSTR>(upstreamNewHash.ToString()));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		});
 
 		postCmdList.emplace_back(IDI_LOG, IDS_PROC_PULL_LOG, [&]
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /range:%s", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(upstreamOldHash.ToString() + L".." + upstreamNewHash.ToString()));
+			sCmd.Format(L"/command:log /path:\"%s\" /range:%s", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(upstreamOldHash.ToString() + L".." + upstreamNewHash.ToString()));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 		});
 	};

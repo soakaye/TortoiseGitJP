@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005-2008, 2011-2012 - TortoiseSVN
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -29,20 +29,16 @@
 extern HWND hWndHidden;
 extern CGitAdminDirMap g_AdminDirMap;
 
-CDirectoryWatcher::CDirectoryWatcher(void)
-	: m_bRunning(TRUE)
-	, m_bCleaned(FALSE)
-	, m_FolderCrawler(nullptr)
-	, blockTickCount(0)
+CDirectoryWatcher::CDirectoryWatcher()
 {
 	// enable the required privileges for this process
 
-	LPCTSTR arPrivelegeNames[] = {  SE_BACKUP_NAME,
+	LPCWSTR arPrivelegeNames[] = {  SE_BACKUP_NAME,
 									SE_RESTORE_NAME,
 									SE_CHANGE_NOTIFY_NAME
 								 };
 
-	for (int i=0; i<(sizeof(arPrivelegeNames)/sizeof(LPCTSTR)); ++i)
+	for (int i = 0; i < (sizeof(arPrivelegeNames) / sizeof(LPCWSTR)); ++i)
 	{
 		CAutoGeneralHandle hToken;
 		if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, hToken.GetPointer()))
@@ -62,7 +58,7 @@ CDirectoryWatcher::CDirectoryWatcher(void)
 	m_hThread = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0, ThreadEntry, this, 0, &threadId));
 }
 
-CDirectoryWatcher::~CDirectoryWatcher(void)
+CDirectoryWatcher::~CDirectoryWatcher()
 {
 	Stop();
 	AutoLocker lock(m_critSec);
@@ -170,7 +166,7 @@ bool CDirectoryWatcher::AddPath(const CTGitPath& path, bool bCloseInfoMap)
 	{
 		const CString& watched = watchedPaths[i].GetWinPathString();
 		const CString& sPath = path.GetWinPathString();
-		int minlen = min(sPath.GetLength(), watched.GetLength());
+		const int minlen = min(sPath.GetLength(), watched.GetLength());
 		int len = 0;
 		for (len = 0; len < minlen; ++len)
 		{
@@ -320,8 +316,8 @@ void CDirectoryWatcher::WorkerThread()
 					NotificationFilter.dbch_handle = hDir;
 					// RegisterDeviceNotification sends a message to the UI thread:
 					// make sure we *can* send it and that the UI thread isn't waiting on a lock
-					int numPaths = watchedPaths.GetCount();
-					size_t numWatch = watchInfoMap.size();
+					const int numPaths = watchedPaths.GetCount();
+					const size_t numWatch = watchInfoMap.size();
 					lock.Unlock();
 					NotificationFilter.dbch_hdevnotify = RegisterDeviceNotification(hWndHidden, &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
 					lock.Lock();
@@ -425,15 +421,15 @@ void CDirectoryWatcher::WorkerThread()
 
 							nOffset = pnotify->NextEntryOffset;
 
-							if (pnotify->FileNameLength >= (READ_DIR_CHANGE_BUFFER_SIZE*sizeof(TCHAR)))
+							if (pnotify->FileNameLength >= (READ_DIR_CHANGE_BUFFER_SIZE * sizeof(wchar_t)))
 								continue;
 
-							SecureZeroMemory(buf, READ_DIR_CHANGE_BUFFER_SIZE*sizeof(TCHAR));
+							SecureZeroMemory(buf, READ_DIR_CHANGE_BUFFER_SIZE * sizeof(wchar_t));
 							wcsncpy_s(buf, pdi->m_DirPath, _countof(buf) - 1);
-							errno_t err = wcsncat_s(buf + pdi->m_DirPath.GetLength(), READ_DIR_CHANGE_BUFFER_SIZE - pdi->m_DirPath.GetLength(), pnotify->FileName, min(READ_DIR_CHANGE_BUFFER_SIZE - pdi->m_DirPath.GetLength(), int(pnotify->FileNameLength / sizeof(TCHAR))));
+							errno_t err = wcsncat_s(buf + pdi->m_DirPath.GetLength(), READ_DIR_CHANGE_BUFFER_SIZE - pdi->m_DirPath.GetLength(), pnotify->FileName, min(READ_DIR_CHANGE_BUFFER_SIZE - pdi->m_DirPath.GetLength(), int(pnotify->FileNameLength / sizeof(wchar_t))));
 							if (err == STRUNCATE)
 								continue;
-							buf[(pnotify->FileNameLength / sizeof(TCHAR)) + pdi->m_DirPath.GetLength()] = L'\0';
+							buf[(pnotify->FileNameLength / sizeof(wchar_t)) + pdi->m_DirPath.GetLength()] = L'\0';
 
 							if (m_FolderCrawler)
 							{
@@ -624,11 +620,9 @@ CDirectoryWatcher::CDirWatchInfo::CDirWatchInfo(HANDLE hDir, const CTGitPath& Di
 {
 	ATLASSERT(m_hDir && !DirectoryName.IsEmpty());
 	m_Buffer[0] = '\0';
-	SecureZeroMemory(&m_Overlapped, sizeof(m_Overlapped));
 	m_DirPath = m_DirName.GetWinPathString();
 	if (m_DirPath.GetAt(m_DirPath.GetLength() - 1) != L'\\')
 		m_DirPath += L'\\';
-	m_hDevNotify = nullptr;
 }
 
 CDirectoryWatcher::CDirWatchInfo::~CDirWatchInfo()

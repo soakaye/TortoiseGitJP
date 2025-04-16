@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -150,9 +150,7 @@ BOOL CPushDlg::OnInitDialog()
 
 	AddOthersToAnchor();
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	this->GetDlgItem(IDC_PUTTYKEY_AUTOLOAD)->EnableWindow(CAppUtils::IsSSHPutty());
 
@@ -168,7 +166,8 @@ BOOL CPushDlg::OnInitDialog()
 	m_regPushAllRemotes = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\Push\\" + WorkingDir + L"\\AllRemotes", FALSE);
 	m_bPushAllRemotes = m_regPushAllRemotes;
 	m_regPushAllBranches = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\Push\\" + WorkingDir + L"\\AllBranches", FALSE);
-	m_bPushAllBranches = m_regPushAllBranches;
+	if (m_BranchSourceName.IsEmpty()) // attention for GitLogListAction ID_PUSH
+		m_bPushAllBranches = m_regPushAllBranches;
 	m_RemoteURL.LoadHistory(L"Software\\TortoiseGit\\History\\PushURLS\\" + WorkingDir, L"url");
 	m_RemoteURL.EnableWindow(FALSE);
 	m_PushOption.LoadHistory(L"Software\\TortoiseGit\\History\\PushOption\\" + WorkingDir, L"option");
@@ -273,6 +272,14 @@ void CPushDlg::Refresh()
 		m_BranchSource.SetWindowText(m_BranchSourceName);
 
 	GetRemoteBranch(m_BranchSource.GetString());
+	CString trackRemote, trackBranch;
+	g_Git.GetRemoteTrackedBranchForHEAD(trackRemote, trackBranch);
+	if (trackRemote.IsEmpty() && trackBranch.IsEmpty())
+	{
+		// if the local branch is not yet tracked, make that the default
+		m_bSetUpstream = TRUE;
+		UpdateData(FALSE);
+	}
 
 	if (list.size() > 1 && m_bPushAllRemotes)
 		m_Remote.SetCurSel(0);
@@ -304,7 +311,7 @@ void CPushDlg::GetRemoteBranch(CString currentBranch)
 		{
 			CString str;
 			int n = m_Remote.GetLBTextLen(i);
-			m_Remote.GetLBText(i, CStrBuf(str, n));
+			m_Remote.GetLBText(i, CStrBuf(str, n, 0));
 			if (str == pushRemote)
 			{
 				m_Remote.SetCurSel(i);
@@ -360,6 +367,7 @@ void CPushDlg::OnBnClickedRd()
 	}
 	if( GetCheckedRadioButton(IDC_RD_REMOTE,IDC_RD_URL) == IDC_RD_URL)
 	{
+		// similar code in PullFetchDlg::OnBnClickedRd
 		CString clippath = CAppUtils::GetClipboardLink(L"git pull", 1);
 		if (clippath.IsEmpty())
 			clippath = CAppUtils::GetClipboardLink(L"git fetch", 1);
@@ -371,11 +379,11 @@ void CPushDlg::OnBnClickedRd()
 			if (argSeparator > 1 && clippath.GetLength() > argSeparator + 2)
 			{
 				CString url = clippath.Left(argSeparator);
-				if (url.GetLength() > 2 && url[0] == L'"' && url[url.GetLength() - 1] == L'"')
+				if (url.GetLength() > 2 && (url[0] == L'"' && url[url.GetLength() - 1] == L'"' || url[0] == L'\'' && url[url.GetLength() - 1] == L'\''))
 					url = url.Mid(1, url.GetLength() - 2);
 				m_RemoteURL.SetWindowText(url);
 				CString branch = clippath.Mid(argSeparator + 1);
-				if (branch.GetLength() > 2 && branch[0] == L'"' && branch[branch.GetLength() - 1] == L'"')
+				if (branch.GetLength() > 2 && (branch[0] == L'"' && branch[branch.GetLength() - 1] == L'"' || branch[0] == L'\'' && branch[branch.GetLength() - 1] == L'\''))
 					branch = branch.Mid(1, branch.GetLength() - 2);
 				m_BranchRemote.SetWindowText(branch);
 			}
@@ -460,7 +468,7 @@ void CPushDlg::OnBnClickedOk()
 				CString configName;
 				if (m_bSetPushBranch)
 				{
-					configName.Format(L"branch.%s.pushbranch", static_cast<LPCTSTR>(m_BranchSourceName));
+					configName.Format(L"branch.%s.pushbranch", static_cast<LPCWSTR>(m_BranchSourceName));
 					if (!m_BranchRemoteName.IsEmpty())
 						g_Git.SetConfigValue(configName, m_BranchRemoteName);
 					else
@@ -468,7 +476,7 @@ void CPushDlg::OnBnClickedOk()
 				}
 				if (m_bSetPushRemote)
 				{
-					configName.Format(L"branch.%s.pushremote", static_cast<LPCTSTR>(m_BranchSourceName));
+					configName.Format(L"branch.%s.pushremote", static_cast<LPCWSTR>(m_BranchSourceName));
 					if (!m_URL.IsEmpty())
 						g_Git.SetConfigValue(configName, m_URL);
 					else

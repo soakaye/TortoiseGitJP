@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseGit
-// Copyright (C) 2020 - TortoiseSVN
+// Copyright (C) 2020, 2023, 2025 - TortoiseGit
+// Copyright (C) 2020-2021, 2024 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,12 +17,52 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "DarkModeHelper.h"
 #include "StringUtils.h"
 #include "PathUtils.h"
 #include <vector>
-#include <Shlobj.h>
+#include <functional>
+#include "scope_exit_noexcept.h"
+#include "../../ext/Detours/src/detours.h"
+
+
+namespace
+{
+LONG DetourTransaction(std::function<LONG()> callback)
+{
+	LONG res = DetourTransactionBegin();
+
+	if (res != NO_ERROR)
+		return res;
+
+	SCOPE_EXIT
+	{
+		if (res != ERROR_SUCCESS)
+			DetourTransactionAbort();
+	};
+
+	res = DetourUpdateThread(GetCurrentThread());
+
+	if (res != NO_ERROR)
+		return res;
+
+	res = callback();
+
+	if (res != NO_ERROR)
+		return res;
+
+	res = DetourTransactionCommit();
+
+	if (res != NO_ERROR)
+		return res;
+
+	return res;
+}
+} // namespace
+
+DarkModeHelper::OpenNcThemeDataType DarkModeHelper::m_openNcThemeData = nullptr;
 
 DarkModeHelper& DarkModeHelper::Instance()
 {
@@ -30,80 +70,84 @@ DarkModeHelper& DarkModeHelper::Instance()
 	return helper;
 }
 
-bool DarkModeHelper::CanHaveDarkMode()
+bool DarkModeHelper::CanHaveDarkMode() const
 {
 	return m_bCanHaveDarkMode;
 }
 
-void DarkModeHelper::AllowDarkModeForApp(BOOL allow)
+void DarkModeHelper::AllowDarkModeForApp(BOOL allow) const
 {
 	if (m_pAllowDarkModeForApp)
 		m_pAllowDarkModeForApp(allow ? 1 : 0);
 	if (m_pSetPreferredAppMode)
-		m_pSetPreferredAppMode(allow ? PreferredAppMode::AllowDark : PreferredAppMode::Default);
+		m_pSetPreferredAppMode(allow ? PreferredAppMode::ForceDark : PreferredAppMode::Default);
+	if (allow)
+		DetourOpenNcThemeData();
+	else
+		RestoreOpenNcThemeData();
 }
 
-void DarkModeHelper::AllowDarkModeForWindow(HWND hwnd, BOOL allow)
+void DarkModeHelper::AllowDarkModeForWindow(HWND hwnd, BOOL allow) const
 {
 	if (m_pAllowDarkModeForWindow)
 		m_pAllowDarkModeForWindow(hwnd, allow);
 }
 
-BOOL DarkModeHelper::ShouldAppsUseDarkMode()
+BOOL DarkModeHelper::ShouldAppsUseDarkMode() const
 {
-	if (m_pShouldAppsUseDarkMode)
+	if (m_pShouldAppsUseDarkMode && m_pAllowDarkModeForApp)
 		return m_pShouldAppsUseDarkMode() & 0x01;
-	return FALSE;
+	return ShouldSystemUseDarkMode();
 }
 
-BOOL DarkModeHelper::IsDarkModeAllowedForWindow(HWND hwnd)
+BOOL DarkModeHelper::IsDarkModeAllowedForWindow(HWND hwnd) const
 {
 	if (m_pIsDarkModeAllowedForWindow)
 		return m_pIsDarkModeAllowedForWindow(hwnd);
 	return FALSE;
 }
 
-BOOL DarkModeHelper::IsDarkModeAllowedForApp()
+BOOL DarkModeHelper::IsDarkModeAllowedForApp() const
 {
 	if (m_pIsDarkModeAllowedForApp)
 		return m_pIsDarkModeAllowedForApp();
 	return FALSE;
 }
 
-BOOL DarkModeHelper::ShouldSystemUseDarkMode()
+BOOL DarkModeHelper::ShouldSystemUseDarkMode() const
 {
 	if (m_pShouldSystemUseDarkMode)
 		return m_pShouldSystemUseDarkMode();
 	return FALSE;
 }
 
-void DarkModeHelper::RefreshImmersiveColorPolicyState()
+void DarkModeHelper::RefreshImmersiveColorPolicyState() const
 {
 	if (m_pRefreshImmersiveColorPolicyState)
 		m_pRefreshImmersiveColorPolicyState();
 }
 
-BOOL DarkModeHelper::GetIsImmersiveColorUsingHighContrast(IMMERSIVE_HC_CACHE_MODE mode)
+BOOL DarkModeHelper::GetIsImmersiveColorUsingHighContrast(IMMERSIVE_HC_CACHE_MODE mode) const
 {
 	if (m_pGetIsImmersiveColorUsingHighContrast)
 		return m_pGetIsImmersiveColorUsingHighContrast(mode);
 	return FALSE;
 }
 
-void DarkModeHelper::FlushMenuThemes()
+void DarkModeHelper::FlushMenuThemes() const
 {
 	if (m_pFlushMenuThemes)
 		m_pFlushMenuThemes();
 }
 
-BOOL DarkModeHelper::SetWindowCompositionAttribute(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA* data)
+BOOL DarkModeHelper::SetWindowCompositionAttribute(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA* data) const
 {
 	if (m_pSetWindowCompositionAttribute)
 		return m_pSetWindowCompositionAttribute(hWnd, data);
 	return FALSE;
 }
 
- void DarkModeHelper::RefreshTitleBarThemeColor(HWND hWnd, BOOL dark)
+void DarkModeHelper::RefreshTitleBarThemeColor(HWND hWnd, BOOL dark) const
 {
 	WINDOWCOMPOSITIONATTRIBDATA data = { WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &dark, sizeof(dark) };
 	SetWindowCompositionAttribute(hWnd, &data);
@@ -121,13 +165,13 @@ DarkModeHelper::DarkModeHelper()
 	long micro = 0;
 	{
 		auto version = CPathUtils::GetVersionFromFile(L"uxtheme.dll");
-		std::vector<std::wstring> tokens;
+		std::vector<long> tokens;
 		stringtok(tokens, version, false, L".");
 		if (tokens.size() == 4)
 		{
-			auto major = std::stol(tokens[0]);
-			auto minor = std::stol(tokens[1]);
-			micro = std::stol(tokens[2]);
+			auto major = tokens[0];
+			auto minor = tokens[1];
+			micro = tokens[2];
 
 			// the windows 10 update 1809 has the version
 			// number as 10.0.17763.1
@@ -185,10 +229,36 @@ DarkModeHelper::DarkModeHelper()
 			m_pGetIsImmersiveColorUsingHighContrast = reinterpret_cast<GetIsImmersiveColorUsingHighContrastFN>(GetProcAddress(m_hUxthemeLib, MAKEINTRESOURCEA(106)));
 		if (!m_pFlushMenuThemes)
 			m_pFlushMenuThemes = reinterpret_cast<FlushMenuThemesFN>(GetProcAddress(m_hUxthemeLib, MAKEINTRESOURCEA(136)));
+		if (!m_openNcThemeData)
+			m_openNcThemeData = reinterpret_cast<OpenNcThemeDataType>(GetProcAddress(m_hUxthemeLib, MAKEINTRESOURCEA(49)));
 	}
 }
 
 DarkModeHelper::~DarkModeHelper()
 {
 	FreeLibrary(m_hUxthemeLib);
+}
+
+LONG DarkModeHelper::DetourOpenNcThemeData()
+{
+	return DetourTransaction([] { return DetourAttach(&reinterpret_cast<PVOID&>(m_openNcThemeData), DetouredOpenNcThemeData); });
+}
+
+LONG DarkModeHelper::RestoreOpenNcThemeData()
+{
+	return DetourTransaction([] { return DetourDetach(&reinterpret_cast<PVOID&>(m_openNcThemeData), DetouredOpenNcThemeData); });
+}
+
+HTHEME WINAPI DarkModeHelper::DetouredOpenNcThemeData(HWND hwnd, LPCWSTR classList)
+{
+	// The "ItemsView" theme used to style listview controls in dark mode doesn't change the
+	// scrollbar colors. By changing the class here, the scrollbars in a listview control will
+	// appear dark in dark mode.
+	if (lstrcmp(classList, L"ScrollBar") == 0)
+	{
+		hwnd = nullptr;
+		classList = L"Explorer::ScrollBar";
+	}
+
+	return m_openNcThemeData(hwnd, classList);
 }

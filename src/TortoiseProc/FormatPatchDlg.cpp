@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2014, 2016-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2014, 2016-2017, 2019-2020, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -120,9 +120,7 @@ BOOL CFormatPatchDlg::OnInitDialog()
 
 	this->AddOthersToAnchor();
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	m_cDir.SetPathHistory(TRUE);
 	m_cDir.LoadHistory(L"Software\\TortoiseGit\\History\\FormatPatchURLS", L"path");
@@ -283,5 +281,5 @@ void CFormatPatchDlg::OnBnClickedButtonUnifieddiff()
 {
 	UpdateData(TRUE);
 	m_regNoPrefix = m_bNoPrefix;
-	CAppUtils::StartShowUnifiedDiff(m_hWnd, CTGitPath(), GitRev::GetHead(), CTGitPath(), GitRev::GetWorkingCopy(), !!(GetAsyncKeyState(VK_SHIFT) & 0x8000), false, false, false, false, !!m_bNoPrefix);
+	CAppUtils::StartShowUnifiedDiff(m_hWnd, CTGitPath(), L"HEAD", CTGitPath(), GitRev::GetWorkingCopyRef(), !!(GetAsyncKeyState(VK_SHIFT) & 0x8000), false, false, false, false, !!m_bNoPrefix);
 }

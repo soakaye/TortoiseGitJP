@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -24,11 +24,12 @@
 #include "resource.h"
 #include <propsys.h>
 #include <PropKey.h>
-#include "UnicodeUtils.h"
 #include "SmartHandle.h"
 #include <memory>
 #include "DarkModeHelper.h"
 #include "registry.h"
+#include "DPIAware.h"
+#include <afxtaskdialog.h>
 
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
@@ -39,18 +40,19 @@
 // Global Variables:
 HINSTANCE hInst;								// current instance
 bool g_darkmode = false;
+int m_dpi = 0;
 
-const TCHAR g_Promptphrase[] = L"Enter your OpenSSH passphrase:";
-const TCHAR* g_Prompt = g_Promptphrase;
+const wchar_t g_Promptphrase[] = L"Enter your OpenSSH passphrase:";
+const wchar_t* g_Prompt = g_Promptphrase;
 
-TCHAR g_PassWord[MAX_LOADSTRING];
+wchar_t g_PassWord[MAX_LOADSTRING];
 
 // Forward declarations of functions included in this code module:
 INT_PTR CALLBACK PasswdDlg(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY _tWinMain(HINSTANCE	/*hInstance*/,
 					 HINSTANCE		/*hPrevInstance*/,
-					 LPTSTR			lpCmdLine,
+					 LPWSTR			lpCmdLine,
 					 int			/*nCmdShow*/)
 {
 	SetDllDirectory(L"");
@@ -68,7 +70,16 @@ int APIENTRY _tWinMain(HINSTANCE	/*hInstance*/,
 
 	if (StrStrI(lpCmdLine, L"(yes/no"))
 	{
-		if (::MessageBox(nullptr, g_Prompt, L"TortoiseGit - git CLI stdin wrapper", MB_YESNO | MB_ICONQUESTION) == IDYES)
+		if (CTaskDialog::IsSupported())
+		{
+			if (CTaskDialog::ShowDialog(g_Prompt, L"", L"TortoiseGit - Git CLI stdin wrapper", TDCBF_NO_BUTTON | TDCBF_YES_BUTTON, TDF_USE_COMMAND_LINKS | TDF_POSITION_RELATIVE_TO_WINDOW) == IDYES)
+				wprintf(L"yes");
+			else
+				wprintf(L"no");
+			return 0;
+		}
+
+		if (::MessageBox(nullptr, g_Prompt, L"TortoiseGit - Git CLI stdin wrapper", MB_YESNO | MB_ICONQUESTION) == IDYES)
 			wprintf(L"yes");
 		else
 			wprintf(L"no");
@@ -77,7 +88,14 @@ int APIENTRY _tWinMain(HINSTANCE	/*hInstance*/,
 
 	if (StrStrI(lpCmdLine, L"Should I try again?"))
 	{
-		if (::MessageBox(nullptr, g_Prompt, L"TortoiseGit - git CLI yes/no wrapper", MB_YESNO | MB_ICONQUESTION) == IDYES)
+		if (CTaskDialog::IsSupported())
+		{
+			if (CTaskDialog::ShowDialog(g_Prompt, L"", L"TortoiseGit - Git CLI yes/no wrapper", TDCBF_NO_BUTTON | TDCBF_YES_BUTTON, TDF_USE_COMMAND_LINKS | TDF_POSITION_RELATIVE_TO_WINDOW) == IDYES)
+				return 0;
+			return 1;
+		}
+
+		if (::MessageBox(nullptr, g_Prompt, L"TortoiseGit - Git CLI yes/no wrapper", MB_YESNO | MB_ICONQUESTION) == IDYES)
 			return 0;
 
 		return 1;
@@ -101,7 +119,7 @@ int APIENTRY _tWinMain(HINSTANCE	/*hInstance*/,
 
 void MarkWindowAsUnpinnable(HWND hWnd)
 {
-	typedef HRESULT (WINAPI *SHGPSFW) (HWND hwnd,REFIID riid,void** ppv);
+	using SHGPSFW = HRESULT(WINAPI*)(HWND hwnd, REFIID riid, void** ppv);
 
 	CAutoLibrary hShell = AtlLoadSystemLibraryUsingFullPath(L"Shell32.dll");
 
@@ -121,7 +139,7 @@ void MarkWindowAsUnpinnable(HWND hWnd)
 	}
 }
 
-static SIZE GetTextSize(HWND hWnd, const TCHAR* str)
+static SIZE GetTextSize(HWND hWnd, const wchar_t* str)
 {
 	HDC hDC = ::GetWindowDC(hWnd);
 	HFONT font = reinterpret_cast<HFONT>(::SendMessage(hWnd, WM_GETFONT, 0, 0));
@@ -188,7 +206,7 @@ void SetTheme(HWND hWnd)
 }
 
 // Message handler for password box.
-INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lParam*/)
+INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	static HBRUSH hbrBkgnd = nullptr;
 	switch (message)
@@ -197,6 +215,7 @@ INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lPar
 		{
 			MarkWindowAsUnpinnable(hDlg);
 			SetTheme(hDlg);
+			m_dpi = CDPIAware::Instance().GetDPI(hDlg);
 
 			RECT rect;
 			::GetWindowRect(hDlg,&rect);
@@ -228,6 +247,7 @@ INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lPar
 			::SendMessage(textfield, EM_SETLIMITTEXT, MAX_LOADSTRING - 1, 0);
 			if (!StrStrI(g_Prompt, L"pass"))
 				::SendMessage(textfield, EM_SETPASSWORDCHAR, 0, 0);
+			::ShowWindow(hDlg, SW_SHOW);
 			::FlashWindow(hDlg, TRUE);
 		}
 		return TRUE;
@@ -261,6 +281,24 @@ INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lPar
 		SetTheme(hDlg);
 		break;
 
+	case WM_DPICHANGED:
+		{
+			CDPIAware::Instance().Invalidate();
+			const auto newDPI = CDPIAware::Instance().GetDPI(hDlg);
+			RECT* rect = reinterpret_cast<RECT*>(lParam);
+			RECT oldRect{};
+			GetWindowRect(hDlg, &oldRect);
+			const double zoom = (static_cast<double>(newDPI) / (static_cast<double>(m_dpi) / 100.0)) / 100.0;
+			rect->right = static_cast<LONG>(rect->left + (oldRect.right - oldRect.left) * zoom);
+			rect->bottom = static_cast<LONG>(rect->top + (oldRect.bottom - oldRect.top) * zoom);
+			const CDPIAware::DPIAdjustData data{ hDlg, zoom };
+			::SetWindowPos(hDlg, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
+			::EnumChildWindows(hDlg, CDPIAware::DPIAdjustChildren, reinterpret_cast<LPARAM>(&data));
+			::RedrawWindow(hDlg, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
+			m_dpi = newDPI;
+			break;
+		}
+
 	case WM_COMMAND:
 
 		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
@@ -270,7 +308,7 @@ INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lPar
 				::GetWindowText(password, g_PassWord, MAX_LOADSTRING);
 
 			// overwrite textfield contents with garbage in order to wipe the cache
-			TCHAR gargabe[MAX_LOADSTRING];
+			wchar_t gargabe[MAX_LOADSTRING];
 			wmemset(gargabe, L'*', _countof(gargabe));
 			gargabe[_countof(gargabe) - 1] = L'\0';
 			::SetWindowText(password, gargabe);

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2021, 2023-2025 - TortoiseGit
 // Copyright (C) 2003-2011, 2014-2016, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,19 +17,20 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
+#include "Git.h"
 #include "StatGraphDlg.h"
 #include "AppUtils.h"
 #include "PathUtils.h"
 #include "registry.h"
 #include "FormatMessageWrapper.h"
 #include "SysProgressDlg.h"
-
 #include <cmath>
-#include <locale>
 #include <utility>
 #include <strsafe.h>
+#include <iterator>
 
 using namespace Gdiplus;
 
@@ -37,10 +38,11 @@ using namespace Gdiplus;
 template<class DataType>
 class MoreCommitsThan {
 public:
-	typedef std::map<tstring, DataType> MapType;
+	using MapType = std::map<std::wstring, DataType>;
 	MoreCommitsThan(MapType &author_commits) : m_authorCommits(author_commits) {}
 
-	bool operator()(const tstring& lhs, const tstring& rhs) {
+	bool operator()(const std::wstring& lhs, const std::wstring& rhs)
+	{
 		return (m_authorCommits)[lhs] > (m_authorCommits)[rhs];
 	}
 
@@ -53,25 +55,10 @@ IMPLEMENT_DYNAMIC(CStatGraphDlg, CResizableStandAloneDialog)
 CStatGraphDlg::CStatGraphDlg(CWnd* pParent /*=nullptr*/)
 : CResizableStandAloneDialog(CStatGraphDlg::IDD, pParent)
 , m_bStacked(FALSE)
-, m_GraphType(MyGraph::Bar)
 , m_bAuthorsCaseSensitive(TRUE)
 , m_bSortByCommitCount(TRUE)
 , m_bUseCommitterNames(FALSE)
 , m_bUseCommitDates(TRUE)
-, m_nWeeks(-1)
-, m_nDays(-1)
-, m_langOrder(0)
-, m_firstInterval(0)
-, m_lastInterval(0)
-, m_nTotalCommits(0)
-, m_nTotalLinesInc(0)
-, m_nTotalLinesDec(0)
-, m_nTotalLinesNew(0)
-, m_nTotalLinesDel(0)
-, m_bDiffFetched(FALSE)
-, m_minDate(0)
-, m_maxDate(0)
-, m_nTotalFileChanges(0)
 {
 }
 
@@ -180,12 +167,10 @@ BOOL CStatGraphDlg::OnInitDialog()
 	LoadStatQueries(IDS_STATGRAPH_LINES_BYDATE_WO, LinesWOByDate);
 
 	// set the dialog title to "Statistics - path/to/whatever/we/show/the/statistics/for"
-	CString sTitle;
-	GetWindowText(sTitle);
 	if (m_path.IsEmpty())
-		CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sTitle);
+		CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 	else
-		CAppUtils::SetWindowTitle(m_hWnd, m_path.GetUIPathString(), sTitle);
+		CAppUtils::SetWindowTitle(*this, m_path.GetUIPathString());
 
 	int iconWidth = GetSystemMetrics(SM_CXSMICON);
 	int iconHeight = GetSystemMetrics(SM_CYSMICON);
@@ -266,6 +251,7 @@ BOOL CStatGraphDlg::OnInitDialog()
 	AddAnchor(IDC_SKIPPERLABEL, BOTTOM_LEFT);
 	AddAnchor(IDOK, BOTTOM_RIGHT);
 	EnableSaveRestore(L"StatGraphDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	// set the min/max values on the skipper
 	SetSkipper (true);
@@ -289,23 +275,23 @@ BOOL CStatGraphDlg::OnInitDialog()
 	int statspage = lastStatsPage % 10;
 	switch (statspage) {
 		case 1 :
-			m_GraphType = MyGraph::Bar;
+		m_GraphType = MyGraph::GraphType::Bar;
 			m_bStacked = true;
 			break;
 		case 2 :
-			m_GraphType = MyGraph::Bar;
+			m_GraphType = MyGraph::GraphType::Bar;
 			m_bStacked = false;
 			break;
 		case 3 :
-			m_GraphType = MyGraph::Line;
+			m_GraphType = MyGraph::GraphType::Line;
 			m_bStacked = true;
 			break;
 		case 4 :
-			m_GraphType = MyGraph::Line;
+			m_GraphType = MyGraph::GraphType::Line;
 			m_bStacked = false;
 			break;
 		case 5 :
-			m_GraphType = MyGraph::PieChart;
+			m_GraphType = MyGraph::GraphType::PieChart;
 			break;
 
 		default : return TRUE;
@@ -316,7 +302,7 @@ BOOL CStatGraphDlg::OnInitDialog()
 	bool bUseSystemLocale = !!static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\UseSystemLocaleForDates", TRUE));
 	LCID locale = bUseSystemLocale ? MAKELCID(MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), SORT_DEFAULT) : m_locale;
 
-	TCHAR langBuf[11] = { 0 };
+	wchar_t langBuf[11] = { 0 };
 	GetLocaleInfo(locale, LOCALE_IDATE, langBuf, _countof(langBuf));
 
 	m_langOrder = _wtoi(langBuf);
@@ -433,7 +419,7 @@ int CStatGraphDlg::GetCalendarWeek(const CTime& time)
 	int iYear = time.GetYear();
 	int iFirstDayOfWeek = 0;
 	int iFirstWeekOfYear = 0;
-	TCHAR loc[2] = { 0 };
+	wchar_t loc[2] = { 0 };
 	GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_IFIRSTDAYOFWEEK, loc, _countof(loc));
 	iFirstDayOfWeek = int(loc[0]-'0');
 	GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_IFIRSTWEEKOFYEAR, loc, _countof(loc));
@@ -499,7 +485,7 @@ int CStatGraphDlg::GetCalendarWeek(const CTime& time)
 					dDateFirstJanuary = CTime(iYear-1,1,1,0,0,0);
 					iDayOfWeek =
 						(dDateFirstJanuary.GetDayOfWeek()+5+iFirstDayOfWeek)%7;
-					// and we correct this in the same we we done this before but
+					// and we correct this in the same way we done this before but
 					// the result is now 52 or 53 and not 0
 					iWeekOfYear =
 						static_cast<int>(((time-dDateFirstJanuary).GetDays()+iDayOfWeek) / 7) +
@@ -532,7 +518,7 @@ int CStatGraphDlg::GetCalendarWeek(const CTime& time)
 					dDateFirstJanuary = CTime(iYear-1,1,1,0,0,0);
 					iDayOfWeek =
 						(dDateFirstJanuary.GetDayOfWeek()+5+iFirstDayOfWeek)%7;
-					// and we correct this in the same we we done this before but the result
+					// and we correct this in the same way we done this before but the result
 					// is now 52 or 53 and not 0
 					iWeekOfYear =
 						static_cast<int>(((time-dDateFirstJanuary).GetDays()+iDayOfWeek) / 7) +
@@ -647,7 +633,7 @@ int CStatGraphDlg::GatherData(BOOL fetchdiff, BOOL keepFetchedData)
 
 		if (progress.IsVisible() && (GetTickCount64() - starttime > 100UL))
 		{
-			progress.FormatNonPathLine(2, L"%s: %s", static_cast<LPCTSTR>(pLogEntry->m_CommitHash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCTSTR>(pLogEntry->GetSubject()));
+			progress.FormatNonPathLine(2, L"%s: %s", static_cast<LPCWSTR>(pLogEntry->m_CommitHash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCWSTR>(pLogEntry->GetSubject()));
 			progress.SetProgress64(i, m_ShowList.size());
 			starttime = GetTickCount64();
 		}
@@ -697,7 +683,7 @@ int CStatGraphDlg::GatherData(BOOL fetchdiff, BOOL keepFetchedData)
 		CString sAuth = m_parAuthors.GetAt(i);
 		if (!m_bAuthorsCaseSensitive)
 			sAuth = sAuth.MakeLower();
-		tstring author = tstring(sAuth);
+		std::wstring author = std::wstring(sAuth);
 		// Increase total commit count for this author
 		m_commitsPerAuthor[author]++;
 		// Increase the commit count for this author in this week
@@ -745,7 +731,7 @@ int CStatGraphDlg::GatherData(BOOL fetchdiff, BOOL keepFetchedData)
 	LoadListOfAuthors(m_commitsPerAuthor);
 
 	// Calculate percent of Contribution Authors
-	for (std::list<tstring>::iterator it = m_authorNames.begin(); it != m_authorNames.end(); ++it)
+	for (auto it = m_authorNames.begin(); it != m_authorNames.end(); ++it)
 	{
 		m_PercentageOfAuthorship[*it] =  (m_PercentageOfAuthorship[*it] *100)/ AllContributionAuthor;
 	}
@@ -756,8 +742,7 @@ int CStatGraphDlg::GatherData(BOOL fetchdiff, BOOL keepFetchedData)
 	return 0;
 }
 
-void CStatGraphDlg::FilterSkippedAuthors(std::list<tstring>& included_authors,
-										 std::list<tstring>& skipped_authors)
+void CStatGraphDlg::FilterSkippedAuthors(std::list<std::wstring>& included_authors, std::list<std::wstring>& skipped_authors)
 {
 	included_authors.clear();
 	skipped_authors.clear();
@@ -768,7 +753,7 @@ void CStatGraphDlg::FilterSkippedAuthors(std::list<tstring>& included_authors,
 		++included_authors_count;
 
 	// add the included authors first
-	std::list<tstring>::iterator author_it = m_authorNames.begin();
+	auto author_it = m_authorNames.begin();
 	while (included_authors_count > 0 && author_it != m_authorNames.end())
 	{
 		// Add him/her to the included list
@@ -844,8 +829,8 @@ void CStatGraphDlg::ShowPercentageOfAuthorship()
 	if (!graphData) return;
 
 	// Find out which authors are to be shown and which are to be skipped.
-	std::list<tstring> authors;
-	std::list<tstring> others;
+	std::list<std::wstring> authors;
+	std::list<std::wstring> others;
 
 
 	FilterSkippedAuthors(authors, others);
@@ -855,7 +840,7 @@ void CStatGraphDlg::ShowPercentageOfAuthorship()
 
 	if (!authors.empty())
 	{
-		for (std::list<tstring>::iterator it = authors.begin(); it != authors.end(); ++it)
+		for (auto it = authors.begin(); it != authors.end(); ++it)
 		{
 			int group = m_graph.AppendGroup(it->c_str());
 			graphData->SetData(group,  RollPercentageOfAuthorship(m_PercentageOfAuthorship[*it]));
@@ -879,8 +864,8 @@ void CStatGraphDlg::ShowCommitsByAuthor()
 	if (!graphData) return;
 
 	// Find out which authors are to be shown and which are to be skipped.
-	std::list<tstring> authors;
-	std::list<tstring> others;
+	std::list<std::wstring> authors;
+	std::list<std::wstring> others;
 	FilterSkippedAuthors(authors, others);
 
 	// Loop over all authors in the authors list and
@@ -888,7 +873,7 @@ void CStatGraphDlg::ShowCommitsByAuthor()
 
 	if (!authors.empty())
 	{
-		for (std::list<tstring>::iterator it = authors.begin(); it != authors.end(); ++it)
+		for (auto it = authors.begin(); it != authors.end(); ++it)
 		{
 			int group = m_graph.AppendGroup(it->c_str());
 			graphData->SetData(group, m_commitsPerAuthor[*it]);
@@ -922,17 +907,17 @@ void CStatGraphDlg::ShowByDate(int stringx, int title, IntervalDataMap &data)
 	m_graph.SetXAxisLabel(GetUnitString());
 
 	// Find out which authors are to be shown and which are to be skipped.
-	std::list<tstring> authors;
-	std::list<tstring> others;
+	std::list<std::wstring> authors;
+	std::list<std::wstring> others;
 	FilterSkippedAuthors(authors, others);
 
 	// Add a graph series for each author.
 	AuthorDataMap authorGraphMap;
-	for (std::list<tstring>::iterator it = authors.begin(); it != authors.end(); ++it)
+	for (auto it = authors.begin(); it != authors.end(); ++it)
 		authorGraphMap[*it] = m_graph.AppendGroup(it->c_str());
 	// If we have skipped authors, add a graph series for all those.
 	CString sOthers(MAKEINTRESOURCE(IDS_STATGRAPH_OTHERGROUP));
-	tstring othersName;
+	std::wstring othersName;
 	if (!others.empty())
 	{
 		sOthers.AppendFormat(L" (%Iu)", others.size());
@@ -950,7 +935,7 @@ void CStatGraphDlg::ShowByDate(int stringx, int title, IntervalDataMap &data)
 		// Collect data for authors listed by name.
 		if (!authors.empty())
 		{
-			for (std::list<tstring>::iterator it = authors.begin(); it != authors.end(); ++it)
+			for (auto it = authors.begin(); it != authors.end(); ++it)
 			{
 				// Do we have some data for the current author in the current interval?
 				AuthorDataMap::const_iterator data_it = data[i].find(*it);
@@ -962,7 +947,7 @@ void CStatGraphDlg::ShowByDate(int stringx, int title, IntervalDataMap &data)
 		// Collect data for all skipped authors.
 		if (!others.empty())
 		{
-			for (std::list<tstring>::iterator it = others.begin(); it != others.end(); ++it)
+			for (auto it = others.begin(); it != others.end(); ++it)
 			{
 				// Do we have some data for the author in the current interval?
 				AuthorDataMap::const_iterator data_it = data[i].find(*it);
@@ -1002,8 +987,8 @@ void CStatGraphDlg::ShowStats()
 	size_t nAuthors = m_authorNames.size();
 
 	// Find most and least active author names.
-	tstring mostActiveAuthor;
-	tstring leastActiveAuthor;
+	std::wstring mostActiveAuthor;
+	std::wstring leastActiveAuthor;
 	if (nAuthors > 0)
 	{
 		mostActiveAuthor = m_authorNames.front();
@@ -1087,12 +1072,12 @@ void CStatGraphDlg::ShowStats()
 		nWeeks = 1;
 	// Adjust the labels with the unit type (week, month, ...)
 	CString labelText;
-	labelText.Format(IDS_STATGRAPH_NUMBEROFUNIT, static_cast<LPCTSTR>(GetUnitString()));
+	labelText.Format(IDS_STATGRAPH_NUMBEROFUNIT, static_cast<LPCWSTR>(GetUnitString()));
 	SetDlgItemText(IDC_NUMWEEK, labelText);
-	labelText.Format(IDS_STATGRAPH_COMMITSBYUNIT, static_cast<LPCTSTR>(GetUnitString()));
+	labelText.Format(IDS_STATGRAPH_COMMITSBYUNIT, static_cast<LPCWSTR>(GetUnitString()));
 	SetDlgItemText(IDC_COMMITSEACHWEEK, labelText);
-	labelText.Format(IDS_STATGRAPH_FILECHANGESBYUNIT, static_cast<LPCTSTR>(GetUnitString()));
-	SetDlgItemText(IDC_FILECHANGESEACHWEEK, static_cast<LPCTSTR>(labelText));
+	labelText.Format(IDS_STATGRAPH_FILECHANGESBYUNIT, static_cast<LPCWSTR>(GetUnitString()));
+	SetDlgItemText(IDC_FILECHANGESEACHWEEK, static_cast<LPCWSTR>(labelText));
 	// We have now all data we want and we can fill in the labels...
 	CString number;
 	number.Format(L"%d", nWeeks);
@@ -1176,7 +1161,7 @@ void CStatGraphDlg::OnCbnSelchangeGraphcombo()
 		m_btnGraphLine.EnableWindow(TRUE);
 		m_btnGraphLineStacked.EnableWindow(TRUE);
 		m_btnGraphPie.EnableWindow(TRUE);
-		m_GraphType = MyGraph::Line;
+		m_GraphType = MyGraph::GraphType::Line;
 		m_bStacked = false;
 		break;
 	case PercentageOfAuthorship:
@@ -1185,7 +1170,7 @@ void CStatGraphDlg::OnCbnSelchangeGraphcombo()
 		m_btnGraphLine.EnableWindow(FALSE);
 		m_btnGraphLineStacked.EnableWindow(FALSE);
 		m_btnGraphPie.EnableWindow(TRUE);
-		m_GraphType = MyGraph::Bar;
+		m_GraphType = MyGraph::GraphType::Bar;
 		m_bStacked = false;
 		break;
 	}
@@ -1330,7 +1315,7 @@ void CStatGraphDlg::OnNeedText(NMHDR *pnmh, LRESULT * /*pResult*/)
 		// find the minimum number of commits that the shown authors have
 		int min_commits = 0;
 		included_authors_count = min(included_authors_count, m_authorNames.size());
-		std::list<tstring>::iterator author_it = m_authorNames.begin();
+		auto author_it = m_authorNames.begin();
 		advance(author_it, included_authors_count);
 		if (author_it != m_authorNames.begin())
 			min_commits = m_commitsPerAuthor[ *(--author_it) ];
@@ -1338,7 +1323,7 @@ void CStatGraphDlg::OnNeedText(NMHDR *pnmh, LRESULT * /*pResult*/)
 		CString string;
 		int percentage = int(min_commits*100.0/(m_nTotalCommits ? m_nTotalCommits : 1));
 		string.FormatMessage(IDS_STATGRAPH_AUTHORSLIDER_TT, m_Skipper.GetPos(), min_commits, percentage);
-		StringCchCopy(pttt->szText, _countof(pttt->szText), static_cast<LPCTSTR>(string));
+		StringCchCopy(pttt->szText, _countof(pttt->szText), static_cast<LPCWSTR>(string));
 	}
 }
 
@@ -1386,23 +1371,23 @@ void CStatGraphDlg::RedrawGraph()
 	m_btnGraphLineStacked.SetState(BST_UNCHECKED);
 	m_btnGraphPie.SetState(BST_UNCHECKED);
 
-	if ((m_GraphType == MyGraph::Bar)&&(m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Bar) && (m_bStacked))
 	{
 		m_btnGraphBarStacked.SetState(BST_CHECKED);
 	}
-	if ((m_GraphType == MyGraph::Bar)&&(!m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Bar) && (!m_bStacked))
 	{
 		m_btnGraphBar.SetState(BST_CHECKED);
 	}
-	if ((m_GraphType == MyGraph::Line)&&(m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Line) && (m_bStacked))
 	{
 		m_btnGraphLineStacked.SetState(BST_CHECKED);
 	}
-	if ((m_GraphType == MyGraph::Line)&&(!m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Line) && (!m_bStacked))
 	{
 		m_btnGraphLine.SetState(BST_CHECKED);
 	}
-	if (m_GraphType == MyGraph::PieChart)
+	if (m_GraphType == MyGraph::GraphType::PieChart)
 	{
 		m_btnGraphPie.SetState(BST_CHECKED);
 	}
@@ -1412,35 +1397,35 @@ void CStatGraphDlg::RedrawGraph()
 }
 void CStatGraphDlg::OnBnClickedGraphbarbutton()
 {
-	m_GraphType = MyGraph::Bar;
+	m_GraphType = MyGraph::GraphType::Bar;
 	m_bStacked = false;
 	RedrawGraph();
 }
 
 void CStatGraphDlg::OnBnClickedGraphbarstackedbutton()
 {
-	m_GraphType = MyGraph::Bar;
+	m_GraphType = MyGraph::GraphType::Bar;
 	m_bStacked = true;
 	RedrawGraph();
 }
 
 void CStatGraphDlg::OnBnClickedGraphlinebutton()
 {
-	m_GraphType = MyGraph::Line;
+	m_GraphType = MyGraph::GraphType::Line;
 	m_bStacked = false;
 	RedrawGraph();
 }
 
 void CStatGraphDlg::OnBnClickedGraphlinestackedbutton()
 {
-	m_GraphType = MyGraph::Line;
+	m_GraphType = MyGraph::GraphType::Line;
 	m_bStacked = true;
 	RedrawGraph();
 }
 
 void CStatGraphDlg::OnBnClickedGraphpiebutton()
 {
-	m_GraphType = MyGraph::PieChart;
+	m_GraphType = MyGraph::GraphType::PieChart;
 	m_bStacked = false;
 	RedrawGraph();
 }
@@ -1554,7 +1539,7 @@ void CStatGraphDlg::SaveGraph(CString sFilename)
 							bitmap.Save(tfile, &encoderClsid, nullptr);
 						}
 						else
-							sErrormessage.Format(IDS_REVGRAPH_ERR_NOENCODER, static_cast<LPCTSTR>(CPathUtils::GetFileExtFromPath(sFilename)));
+							sErrormessage.Format(IDS_REVGRAPH_ERR_NOENCODER, static_cast<LPCWSTR>(CPathUtils::GetFileExtFromPath(sFilename)));
 					}
 					else
 						sErrormessage.LoadString(IDS_REVGRAPH_ERR_NOBITMAP);
@@ -1570,7 +1555,7 @@ void CStatGraphDlg::SaveGraph(CString sFilename)
 		}
 		catch (CException * pE)
 		{
-			TCHAR szErrorMsg[2048] = { 0 };
+			wchar_t szErrorMsg[2048] = { 0 };
 			pE->GetErrorMessage(szErrorMsg, 2048);
 			pE->Delete();
 			::MessageBox(m_hWnd, szErrorMsg, L"TortoiseGit", MB_ICONERROR);
@@ -1613,15 +1598,15 @@ void CStatGraphDlg::StoreCurrentGraphType()
 	DWORD graphtype = static_cast<DWORD>(m_cGraphType.GetItemData(m_cGraphType.GetCurSel()));
 	// encode the current chart type
 	DWORD statspage = graphtype*10;
-	if ((m_GraphType == MyGraph::Bar)&&(m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Bar) && (m_bStacked))
 		statspage += 1;
-	if ((m_GraphType == MyGraph::Bar)&&(!m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Bar) && (!m_bStacked))
 		statspage += 2;
-	if ((m_GraphType == MyGraph::Line)&&(m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Line) && (m_bStacked))
 		statspage += 3;
-	if ((m_GraphType == MyGraph::Line)&&(!m_bStacked))
+	if ((m_GraphType == MyGraph::GraphType::Line) && (!m_bStacked))
 		statspage += 4;
-	if (m_GraphType == MyGraph::PieChart)
+	if (m_GraphType == MyGraph::GraphType::PieChart)
 		statspage += 5;
 
 	// store current chart type in registry
@@ -1688,10 +1673,10 @@ double CStatGraphDlg::CoeffContribution(int distFromEnd) { return distFromEnd  ?
 
 
 template <class MAP>
-void CStatGraphDlg::DrawOthers(const std::list<tstring> &others, MyGraphSeries *graphData, MAP &map)
+void CStatGraphDlg::DrawOthers(const std::list<std::wstring>& others, MyGraphSeries* graphData, MAP& map)
 {
 	int  nCommits = 0;
-	for (std::list<tstring>::const_iterator it = others.begin(); it != others.end(); ++it)
+	for (auto it = others.cbegin(); it != others.cend(); ++it)
 		nCommits += RollPercentageOfAuthorship(map[*it]);
 
 	CString sOthers(MAKEINTRESOURCE(IDS_STATGRAPH_OTHERGROUP));
@@ -1707,7 +1692,7 @@ void CStatGraphDlg::LoadListOfAuthors (MAP &map, bool reloadSkiper/*= false*/,  
 	m_authorNames.clear();
 	if (!map.empty())
 	{
-		for (MAP::const_iterator it = map.begin(); it != map.end(); ++it)
+		for (auto it = map.begin(); it != map.end(); ++it)
 		{
 			if ((compare && RollPercentageOfAuthorship(map[it->first]) != 0) || !compare)
 				m_authorNames.push_back(it->first);
@@ -1715,7 +1700,7 @@ void CStatGraphDlg::LoadListOfAuthors (MAP &map, bool reloadSkiper/*= false*/,  
 	}
 
 	// Sort the list of authors based on commit count
-	m_authorNames.sort(MoreCommitsThan<MAP::mapped_type>(map));
+	m_authorNames.sort(MoreCommitsThan<typename MAP::mapped_type>(map));
 
 	// Set Skipper
 	SetSkipper(reloadSkiper);
@@ -1728,7 +1713,7 @@ void CStatGraphDlg::OnBnClickedFetchDiff()
 		return;
 	if (GatherData(TRUE))
 		return;
-	this->m_bDiffFetched = TRUE;
+	m_bDiffFetched = true;
 	GetDlgItem(IDC_CALC_DIFF)->ShowWindow(!m_bDiffFetched);
 
 	ShowStats();

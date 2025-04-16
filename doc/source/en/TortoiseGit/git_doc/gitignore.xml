@@ -35,12 +35,11 @@ Patterns read from the command line for those commands that support
 <listitem>
 <simpara>
 Patterns read from a <emphasis>.gitignore</emphasis> file in the same directory
-   as the path, or in any parent directory, with patterns in the
-   higher level files (up to the toplevel of the work tree) being overridden
-   by those in lower level files down to the directory containing the file.
-   These patterns match relative to the location of the
-   <emphasis>.gitignore</emphasis> file.  A project normally includes such
-   <emphasis>.gitignore</emphasis> files in its repository, containing patterns for
+   as the path, or in any parent directory (up to the top-level of the working
+   tree), with patterns in the higher level files being overridden by those in
+   lower level files down to the directory containing the file. These patterns
+   match relative to the location of the <emphasis>.gitignore</emphasis> file.  A project normally
+   includes such <emphasis>.gitignore</emphasis> files in its repository, containing patterns for
    files generated as part of the project build.
 </simpara>
 </listitem>
@@ -129,7 +128,7 @@ An optional prefix "<emphasis>!</emphasis>" which negates the pattern; any
 </listitem>
 <listitem>
 <simpara>
-The slash <emphasis>/</emphasis> is used as the directory separator. Separators may
+The slash "<emphasis>/</emphasis>" is used as the directory separator. Separators may
    occur at the beginning, middle or end of the <emphasis>.gitignore</emphasis> search pattern.
 </simpara>
 </listitem>
@@ -212,15 +211,20 @@ those in <emphasis>$GIT_DIR/info/exclude</emphasis>.</simpara>
 <simpara>The purpose of gitignore files is to ensure that certain files
 not tracked by Git remain untracked.</simpara>
 <simpara>To stop tracking a file that is currently tracked, use
-<emphasis>git rm --cached</emphasis>.</simpara>
+<emphasis>git rm --cached</emphasis> to remove the file from the index. The filename
+can then be added to the <emphasis>.gitignore</emphasis> file to stop the file from
+being reintroduced in later commits.</simpara>
+<simpara>Git does not follow symbolic links when accessing a <emphasis>.gitignore</emphasis> file in
+the working tree. This keeps behavior consistent when the file is
+accessed from the index or a tree versus from the filesystem.</simpara>
 </simplesect>
 <simplesect id="gitignore(5)__examples">
 <title>EXAMPLES</title>
 <itemizedlist>
 <listitem>
 <simpara>
-The pattern <emphasis>hello.*</emphasis> matches any file or folder
-   whose name begins with <emphasis>hello</emphasis>. If one wants to restrict
+The pattern <emphasis>hello.*</emphasis> matches any file or directory
+   whose name begins with <emphasis>hello.</emphasis>. If one wants to restrict
    this only to the directory and not in its subdirectories,
    one can prepend the pattern with a slash, i.e. <emphasis>/hello.*</emphasis>;
    the pattern now matches <emphasis>hello.txt</emphasis>, <emphasis>hello.c</emphasis> but not
@@ -245,10 +249,10 @@ The pattern <emphasis>doc/frotz</emphasis> and <emphasis>/doc/frotz</emphasis> h
 </listitem>
 <listitem>
 <simpara>
-The pattern "foo/*", matches "foo/test.json"
-   (a regular file), "foo/bar" (a directory), but it does not match
-   "foo/bar/hello.c" (a regular file), as the asterisk in the
-   pattern does not match "bar/hello.c" which has a slash in it.
+The pattern <emphasis>foo/*</emphasis>, matches <emphasis>foo/test.json</emphasis>
+   (a regular file), <emphasis>foo/bar</emphasis> (a directory), but it does not match
+   <emphasis>foo/bar/hello.c</emphasis> (a regular file), as the asterisk in the
+   pattern does not match <emphasis>bar/hello.c</emphasis> which has a slash in it.
 </simpara>
 </listitem>
 </itemizedlist>

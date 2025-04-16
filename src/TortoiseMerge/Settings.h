@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2018-2019 - TortoiseGit
+// Copyright (C) 2018-2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2006, 2009, 2015, 2018, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include "DPIAware.h"
 
 class CSetMainPage;
 class CSetColorPage;
@@ -78,14 +78,14 @@ private:
 	}
 
 private:
-	CSetMainPage *		m_pMainPage;
-	CSetColorPage *		m_pColorPage;
+	CSetMainPage*		m_pMainPage = nullptr;
+	CSetColorPage*		m_pColorPage = nullptr;
 
-	int m_themeCallbackId;
+	int m_themeCallbackId = 0;
 
 public:
 	CSettings(UINT nIDCaption, CWnd* pParentWnd = nullptr, UINT iSelectPage = 0);
-	CSettings(LPCTSTR pszCaption, CWnd* pParentWnd = nullptr, UINT iSelectPage = 0);
+	CSettings(LPCWSTR pszCaption, CWnd* pParentWnd = nullptr, UINT iSelectPage = 0);
 	virtual ~CSettings();
 
 	/**
@@ -98,7 +98,7 @@ public:
 
 protected:
 	DECLARE_MESSAGE_MAP()
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 };
 
 

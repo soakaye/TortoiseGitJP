@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2013, 2015-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2009-2013, 2015-2016, 2018-2019, 2021-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,13 +25,12 @@
 #include "IconMenu.h"
 #include "AppUtils.h"
 #include "Git.h"
-#include "AppUtils.h"
+
 // CPatchListCtrl
 
 IMPLEMENT_DYNAMIC(CPatchListCtrl, CListCtrl)
 
 CPatchListCtrl::CPatchListCtrl()
-: m_ContextMenuMask(0xFFFFFFFF)
 {
 }
 
@@ -68,14 +67,19 @@ END_MESSAGE_MAP()
 void CPatchListCtrl::OnNMDblclk(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	*pResult = 0;
+
+	CPoint point(pNMItemActivate->ptAction);
+	UINT uFlags = 0;
+	HitTest(point, &uFlags);
+	if (uFlags == LVHT_ONITEMSTATEICON)
+		return;
 
 	CString path=GetItemText(pNMItemActivate->iItem,0);
 	CTGitPath gitpath;
 	gitpath.SetFromWin(path);
 
 	CAppUtils::StartUnifiedDiffViewer(path, gitpath.GetFilename(), 0, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000));
-
-	*pResult = 0;
 }
 
 void CPatchListCtrl::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
@@ -151,26 +155,35 @@ void CPatchListCtrl::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 int CPatchListCtrl::LaunchProc(const CString& command)
 {
 	CString tempfile=GetTempFile();
-	POSITION pos=this->GetFirstSelectedItemPosition();
-	CFile file;
-	file.Open(tempfile,CFile::modeWrite|CFile::modeCreate);
+	if (tempfile.IsEmpty())
+	{
+		MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return -1;
+	}
 
+	CTGitPathList paths;
+	POSITION pos = GetFirstSelectedItemPosition();
 	while(pos)
 	{
 		int index = this->GetNextSelectedItem(pos);
-		CString one=this->GetItemText(index,0);
-		file.Write(static_cast<LPCTSTR>(one), sizeof(TCHAR) * one.GetLength());
-		file.Write(L"\n", sizeof(TCHAR) * 1);
+		paths.AddPath(GetItemText(index, 0));
 	}
-
-	file.Close();
+	if (!paths.WriteToFile(tempfile, false))
+	{
+		MessageBox(L"Could not write to temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return -1;
+	}
 
 	CString cmd = L"/command:";
 	cmd += command;
 	cmd += L" /pathfile:\"";
 	cmd += tempfile;
 	cmd += L"\" /deletepathfile";
-	CAppUtils::RunTortoiseGitProc(cmd);
+	if (!CAppUtils::RunTortoiseGitProc(cmd))
+	{
+		MessageBox(L"Could not start TortoiseGitProc.exe.", L"TortoiseGit", MB_ICONERROR);
+		return -1;
+	}
 	return 0;
 }
 
@@ -187,7 +200,6 @@ void CPatchListCtrl::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
 			*pResult = CDRF_NOTIFYITEMDRAW;
 			return;
 		}
-		break;
 	case CDDS_ITEMPREPAINT:
 		{
 			// This is the prepaint stage for an item. Here's where we set the

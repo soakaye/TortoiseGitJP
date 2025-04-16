@@ -1,6 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseSVN
+// Copyright (C) 2023 - TortoiseGit
+// Copyright (C) 2020-2021, 2024 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -78,18 +79,18 @@ public:
 		SIZE_T cbData;
 	};
 
-	bool CanHaveDarkMode();
-	void AllowDarkModeForApp(BOOL allow);
-	void AllowDarkModeForWindow(HWND hwnd, BOOL allow);
-	BOOL ShouldAppsUseDarkMode();
-	BOOL IsDarkModeAllowedForWindow(HWND hwnd);
-	BOOL IsDarkModeAllowedForApp();
-	BOOL ShouldSystemUseDarkMode();
-	void RefreshImmersiveColorPolicyState();
-	BOOL GetIsImmersiveColorUsingHighContrast(IMMERSIVE_HC_CACHE_MODE mode);
-	void FlushMenuThemes();
-	BOOL SetWindowCompositionAttribute(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA* data);
-	void RefreshTitleBarThemeColor(HWND hWnd, BOOL dark);
+	bool CanHaveDarkMode() const;
+	void AllowDarkModeForApp(BOOL allow) const;
+	void AllowDarkModeForWindow(HWND hwnd, BOOL allow) const;
+	BOOL ShouldAppsUseDarkMode() const;
+	BOOL IsDarkModeAllowedForWindow(HWND hwnd) const;
+	BOOL IsDarkModeAllowedForApp() const;
+	BOOL ShouldSystemUseDarkMode() const;
+	void RefreshImmersiveColorPolicyState() const;
+	BOOL GetIsImmersiveColorUsingHighContrast(IMMERSIVE_HC_CACHE_MODE mode) const;
+	void FlushMenuThemes() const;
+	BOOL SetWindowCompositionAttribute(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA* data) const;
+	void RefreshTitleBarThemeColor(HWND hWnd, BOOL dark) const;
 
 private:
 	DarkModeHelper();
@@ -98,18 +99,23 @@ private:
 	DarkModeHelper(const DarkModeHelper& t) = delete;
 	DarkModeHelper& operator=(const DarkModeHelper& t) = delete;
 
-	typedef void(WINAPI* AllowDarkModeForAppFPN)(BOOL allow);
-	typedef PreferredAppMode(WINAPI* SetPreferredAppModeFPN)(PreferredAppMode appMode);
-	typedef void(WINAPI* AllowDarkModeForWindowFPN)(HWND hwnd, BOOL allow);
-	typedef BOOL(WINAPI* ShouldAppsUseDarkModeFPN)();
-	typedef BOOL(WINAPI* IsDarkModeAllowedForWindowFPN)(HWND hwnd);
-	typedef BOOL(WINAPI* IsDarkModeAllowedForAppFPN)();
-	typedef BOOL(WINAPI* ShouldSystemUseDarkModeFPN)();
-	typedef void(WINAPI* RefreshImmersiveColorPolicyStateFN)();
-	typedef BOOL(WINAPI* GetIsImmersiveColorUsingHighContrastFN)(IMMERSIVE_HC_CACHE_MODE mode);
-	typedef void(WINAPI* FlushMenuThemesFN)();
-	typedef HTHEME(WINAPI* OpenNCThemeDataFPN)(HWND hWnd, LPCWSTR pszClassList);
-	typedef BOOL(WINAPI* SetWindowCompositionAttributeFPN)(HWND hwnd, WINDOWCOMPOSITIONATTRIBDATA* data);
+	using AllowDarkModeForAppFPN = void(WINAPI*)(BOOL allow);
+	using SetPreferredAppModeFPN = PreferredAppMode(WINAPI*)(PreferredAppMode appMode);
+	using AllowDarkModeForWindowFPN   = void(WINAPI*)(HWND hwnd, BOOL allow);
+	using ShouldAppsUseDarkModeFPN = BOOL(WINAPI*)();
+	using IsDarkModeAllowedForWindowFPN = BOOL(WINAPI*)(HWND hwnd);
+	using IsDarkModeAllowedForAppFPN = BOOL(WINAPI*)();
+	using ShouldSystemUseDarkModeFPN = BOOL(WINAPI*)();
+	using RefreshImmersiveColorPolicyStateFN = void(WINAPI*)();
+	using GetIsImmersiveColorUsingHighContrastFN = BOOL(WINAPI*)(IMMERSIVE_HC_CACHE_MODE mode);
+	using FlushMenuThemesFN = void(WINAPI*)();
+	using OpenNcThemeDataFPN = HTHEME(WINAPI*)(HWND hWnd, LPCWSTR pszClassList);
+	using SetWindowCompositionAttributeFPN = BOOL(WINAPI*)(HWND hwnd, WINDOWCOMPOSITIONATTRIBDATA* data);
+	using OpenNcThemeDataType = HTHEME(WINAPI*)(HWND hwnd, LPCWSTR classList);
+
+	static LONG DetourOpenNcThemeData();
+	static LONG RestoreOpenNcThemeData();
+	static HTHEME WINAPI DetouredOpenNcThemeData(HWND hwnd, LPCWSTR classList);
 
 	AllowDarkModeForAppFPN m_pAllowDarkModeForApp = nullptr;
 	SetPreferredAppModeFPN m_pSetPreferredAppMode = nullptr;
@@ -124,4 +130,5 @@ private:
 	SetWindowCompositionAttributeFPN m_pSetWindowCompositionAttribute = nullptr;
 	HMODULE m_hUxthemeLib = nullptr;
 	bool m_bCanHaveDarkMode = false;
+	static OpenNcThemeDataType m_openNcThemeData;
 };

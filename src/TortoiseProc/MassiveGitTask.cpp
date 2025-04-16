@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2011-2013 - Sven Strickroth <email@cs-ware.de>
-// Copyright (C) 2013-2016 - TortoiseGit
+// Copyright (C) 2013-2016, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -19,17 +19,17 @@
 //
 
 #include "stdafx.h"
+#include "resource.h"
 #include "MassiveGitTask.h"
 #include "ProgressDlg.h"
 
 CMassiveGitTask::CMassiveGitTask(CString gitParameters, BOOL isPath, bool ignoreErrors)
 	: CMassiveGitTaskBase(gitParameters, isPath, ignoreErrors)
-	, m_NotifyCallbackInstance(nullptr)
-	, m_NotifyCallbackAction(CGitProgressList::WC_File_NotificationData::git_wc_notify_add)
+	, m_NotifyCallbackAction(CGitProgressList::WC_File_NotificationData::Git_WC_Notify_Action::Add)
 {
 }
 
-CMassiveGitTask::~CMassiveGitTask(void)
+CMassiveGitTask::~CMassiveGitTask()
 {
 }
 
@@ -51,7 +51,9 @@ void CMassiveGitTask::ReportError(const CString& out, int exitCode)
 
 void CMassiveGitTask::ReportProgress(const CTGitPath& path, int index)
 {
-	if (m_NotifyCallbackInstance)
+	if (m_progressCallback)
+		m_progressCallback(path, index);
+	else if (m_NotifyCallbackInstance)
 	{
 		m_NotifyCallbackInstance->AddNotify(new CGitProgressList::WC_File_NotificationData(path, m_NotifyCallbackAction));
 		m_NotifyCallbackInstance->SetItemProgress(index);
@@ -64,7 +66,7 @@ void CMassiveGitTask::ReportUserCanceled()
 		m_NotifyCallbackInstance->ReportUserCanceled();
 }
 
-bool CMassiveGitTask::ExecuteWithNotify(CTGitPathList* pathList, volatile BOOL& cancel, CGitProgressList::WC_File_NotificationData::git_wc_notify_action_t action, CGitProgressList* instance)
+bool CMassiveGitTask::ExecuteWithNotify(CTGitPathList* pathList, volatile BOOL& cancel, CGitProgressList::WC_File_NotificationData::Git_WC_Notify_Action action, CGitProgressList* instance)
 {
 	SetPaths(pathList);
 	m_NotifyCallbackInstance = instance;

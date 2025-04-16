@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2017 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2017, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -51,14 +51,14 @@ struct SLogCacheRevFileHeader
 {
 	DWORD m_Magic;
 	DWORD m_Action;
-	DWORD m_Stage;
+	DWORD m_Stage; // TODO: unused, can be removed
 	DWORD m_ParentNo;
 	DWORD m_Add;
 	DWORD m_Del;
 	DWORD m_IsSubmodule;
 	DWORD m_FileNameSize;
 	DWORD m_OldFileNameSize;
-	TCHAR m_FileName[1];
+	wchar_t m_FileName[1];
 };
 
 struct SLogCacheRevItemHeader
@@ -74,13 +74,24 @@ struct SLogCacheDataFileHeader
 };
 # pragma pack ()
 
-class CGitHashMap : public std::unordered_map<CGitHash, GitRevLoglist>
+class CGitHashMap : private std::unordered_map<CGitHash, GitRevLoglist>
 {
 public:
 	bool IsExist(CGitHash &hash)
 	{
 		return find(hash) != end();
 	}
+
+	using std::unordered_map<CGitHash, GitRevLoglist>::begin;
+	using std::unordered_map<CGitHash, GitRevLoglist>::end;
+	using std::unordered_map<CGitHash, GitRevLoglist>::cbegin;
+	using std::unordered_map<CGitHash, GitRevLoglist>::cend;
+	using std::unordered_map<CGitHash, GitRevLoglist>::clear;
+	using std::unordered_map<CGitHash, GitRevLoglist>::emplace;
+	using std::unordered_map<CGitHash, GitRevLoglist>::empty;
+	using std::unordered_map<CGitHash, GitRevLoglist>::find;
+	using std::unordered_map<CGitHash, GitRevLoglist>::size;
+	using std::unordered_map<CGitHash, GitRevLoglist>::operator[];
 };
 
 #define INDEX_FILE_NAME L"tortoisegit.index"
@@ -91,18 +102,18 @@ class CLogCache
 public:
 
 protected:
-	BOOL m_bEnabled;
+	BOOL m_bEnabled = TRUE;
 
-	HANDLE m_IndexFile;
-	HANDLE m_IndexFileMap;
-	SLogCacheIndexFile *m_pCacheIndex;
+	HANDLE m_IndexFile = INVALID_HANDLE_VALUE;
+	HANDLE m_IndexFileMap = nullptr;
+	SLogCacheIndexFile* m_pCacheIndex = nullptr;
 
+	std::set<CGitHash> m_shallowAnchors;
 
-
-	HANDLE m_DataFile;
-	HANDLE m_DataFileMap;
-	BYTE  *m_pCacheData;
-	DWORD m_DataFileLength;
+	HANDLE m_DataFile = INVALID_HANDLE_VALUE;
+	HANDLE m_DataFileMap = nullptr;
+	BYTE* m_pCacheData = nullptr;
+	size_t m_DataFileLength = 0;
 
 	void CloseDataHandles();
 	void CloseIndexHandles();
@@ -145,7 +156,7 @@ protected:
 		return TRUE;
 	}
 
-	int SaveOneItem(const GitRevLoglist& Rev, LONG offset);
+	int SaveOneItem(const GitRevLoglist& rev, LARGE_INTEGER offset);
 
 	CString m_GitDir;
 	int RebuildCacheFile();

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2021 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -20,7 +20,6 @@
 #include "GitHash.h"
 #include "gitdll.h"
 #include "GitStatus.h"
-#include "UnicodeUtils.h"
 #include "ReaderWriterLock.h"
 #include "GitAdminDir.h"
 #include "StringUtils.h"
@@ -35,84 +34,94 @@
 #define S_ISLNK(m) (((m) & _S_IFMT) == _S_IFLNK)
 #endif
 
-class CGitIndex
+struct CGitIndex
 {
-public:
+	/* m_Size and m_ModifyTime are only uint32_t in libgit2, cf. https://github.com/libgit2/libgit2/blob/8535fdb9cbad8fcd15ee4022ed29c4138547e22d/include/git2/index.h#L48-L51 and https://tortoisegit.org/issue/4108 */
 	CString    m_FileName;
-	mutable __time64_t	m_ModifyTime;
+	mutable int32_t	m_ModifyTime;
+	mutable uint32_t	m_ModifyTimeNanos;
 	uint16_t	m_Flags;
 	uint16_t	m_FlagsExtended;
 	CGitHash	m_IndexHash;
-	__int64		m_Size;
+	uint32_t	m_Size;
 	uint32_t	m_Mode;
 
 	int Print();
 };
 
-class CGitIndexList:public std::vector<CGitIndex>
+class CGitIndexList : private std::vector<CGitIndex>
 {
 public:
-	__time64_t  m_LastModifyTime;
-	__int64		m_LastFileSize;
-	BOOL		m_bHasConflicts;
+	BOOL		m_bHasConflicts = FALSE;
+	CString		m_branch;
+	size_t		m_incoming = static_cast<size_t>(-1);
+	size_t		m_outgoing = static_cast<size_t>(-1);
+	size_t		m_stashCount = 0;
 	inline bool IsIgnoreCase() const { return m_iIndexCaps & GIT_INDEX_CAPABILITY_IGNORE_CASE; }
 
 	CGitIndexList();
 	~CGitIndexList();
 
-	int ReadIndex(CString dotgitdir);
+	bool HasIndexChangedOnDisk(const CString& gitdir) const;
+	int ReadIndex(const CString& dotgitdir);
+	int ReadIncomingOutgoing(git_repository* repo);
 	int GetFileStatus(const CString& gitdir, const CString& path, git_wc_status2_t& status, CGitHash* pHash = nullptr) const;
 	int GetFileStatus(CAutoRepository& repository, const CString& gitdir, const CGitIndex& entry, git_wc_status2_t& status, __int64 time, __int64 filesize, bool isSymlink) const;
-#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
+
+	using std::vector<CGitIndex>::begin;
+	using std::vector<CGitIndex>::end;
+	using std::vector<CGitIndex>::cbegin;
+	using std::vector<CGitIndex>::cend;
+	using std::vector<CGitIndex>::empty;
+	using std::vector<CGitIndex>::size;
+	using std::vector<CGitIndex>::operator[];
+
+#ifdef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 	FRIEND_TEST(GitIndexCBasicGitWithTestRepoFixture, GetFileStatus);
 #endif
-protected:
-	int		m_iIndexCaps;
-	__int64 m_iMaxCheckSize;
+private:
+	__time64_t m_LastModifyTime = 0;
+	__int64 m_LastFileSize = -1;
+
+	int		m_iIndexCaps = GIT_INDEX_CAPABILITY_IGNORE_CASE | GIT_INDEX_CAPABILITY_NO_SYMLINKS;
+	__int64 m_iMaxCheckSize = 10 * 1024 * 1024;
+	bool	m_bCalculateIncomingOutgoing = true;
 	CAutoConfig config;
 	int GetFileStatus(const CString& gitdir, const CString& path, git_wc_status2_t& status, __int64 time, __int64 filesize, bool isSymlink, CGitHash* pHash = nullptr) const;
 };
 
-typedef std::shared_ptr<const CGitIndexList> SHARED_INDEX_PTR;
-typedef CComCritSecLock<CComCriticalSection> CAutoLocker;
+using SHARED_INDEX_PTR = std::shared_ptr<const CGitIndexList>;
+using CAutoLocker = CComCritSecLock<CComCriticalSection>;
 
-class CGitIndexFileMap:public std::map<CString, SHARED_INDEX_PTR>
+template<typename SharedPtr>
+class SharedPtrMapTmpl : private std::map<CString, SharedPtr>
 {
 public:
-	CComAutoCriticalSection		m_critIndexSec;
-
-	SHARED_INDEX_PTR SafeGet(const CString& path)
+	[[nodiscard]] SharedPtr SafeGet(const CString& path)
 	{
 		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critIndexSec);
-		auto lookup = find(thePath);
-		if (lookup == cend())
-			return SHARED_INDEX_PTR();
+		CAutoLocker lock(m_critSec);
+		auto lookup = this->find(thePath);
+		if (lookup == this->cend())
+			return {};
 		return lookup->second;
-	}
-
-	void SafeSet(const CString& path, SHARED_INDEX_PTR ptr)
-	{
-		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critIndexSec);
-		(*this)[thePath] = ptr;
 	}
 
 	bool SafeClear(const CString& path)
 	{
 		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critIndexSec);
-		auto lookup = find(thePath);
-		if (lookup == cend())
+		CAutoLocker lock(m_critSec);
+		auto lookup = this->find(thePath);
+		if (lookup == this->cend())
 			return false;
-		erase(lookup);
+		this->erase(lookup);
 		return true;
 	}
 
 	bool SafeClearRecursively(const CString& path)
 	{
 		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critIndexSec);
+		CAutoLocker lock(m_critSec);
 		std::vector<CString> toRemove;
 		for (auto it = this->cbegin(); it != this->cend(); ++it)
 		{
@@ -124,19 +133,45 @@ public:
 		return !toRemove.empty();
 	}
 
-	bool HasIndexChangedOnDisk(const CString& gitdir);
-	int LoadIndex(const CString &gitdir);
-
-	void CheckAndUpdate(const CString& gitdir)
+protected:
+	void SafeSet(const CString& path, SharedPtr ptr)
 	{
-		if (HasIndexChangedOnDisk(gitdir))
-			LoadIndex(gitdir);
+		CString thePath(CPathUtils::NormalizePath(path));
+		CAutoLocker lock(m_critSec);
+		(*this)[thePath] = ptr;
 	}
+
+private:
+	CComAutoCriticalSection m_critSec;
 };
 
-class CGitTreeItem
+class CGitIndexFileMap : protected SharedPtrMapTmpl<SHARED_INDEX_PTR>
 {
 public:
+	[[nodiscard]] SHARED_INDEX_PTR CheckAndUpdate(const CString& gitdir)
+	{
+		if (auto pIndex = SafeGet(gitdir); pIndex && !pIndex->HasIndexChangedOnDisk(gitdir))
+			return pIndex;
+
+		auto newIndex = std::make_shared<CGitIndexList>();
+		if (newIndex->ReadIndex(gitdir))
+		{
+			SafeClear(gitdir);
+			return {};
+		}
+
+		SafeSet(gitdir, newIndex);
+
+		return newIndex;
+	}
+
+	using SharedPtrMapTmpl<SHARED_INDEX_PTR>::SafeClear;
+	using SharedPtrMapTmpl<SHARED_INDEX_PTR>::SafeClearRecursively;
+	using SharedPtrMapTmpl<SHARED_INDEX_PTR>::SafeGet;
+};
+
+struct CGitTreeItem
+{
 	CString	m_FileName;
 	CGitHash	m_Hash;
 	int			m_Flags;
@@ -145,150 +180,97 @@ public:
 /* After object create, never change field against
  * that needn't lock to get field
 */
-class CGitHeadFileList:public std::vector<CGitTreeItem>
+class CGitHeadFileList : private std::vector<CGitTreeItem>
 {
 private:
 	int GetPackRef(const CString &gitdir);
 
-	__time64_t  m_LastModifyTimeHead;
-	__time64_t  m_LastModifyTimeRef;
-	__time64_t	m_LastModifyTimePackRef;
+	__time64_t	m_LastModifyTimeHead = 0;
+	__time64_t	m_LastModifyTimeRef = 0;
+	__time64_t	m_LastModifyTimePackRef = 0;
 
-	__int64		m_LastFileSizeHead;
-	__int64		m_LastFileSizePackRef;
+	__int64		m_LastFileSizeHead = -1;
+	__int64		m_LastFileSizePackRef = -1;
 
 	CString		m_HeadRefFile;
 	CGitHash	m_Head;
 	CString		m_HeadFile;
 	CString		m_Gitdir;
 	CString		m_PackRefFile;
-	bool		m_bRefFromPackRefFile;
+	bool		m_bRefFromPackRefFile = false;
 
 	std::map<CString,CGitHash> m_PackRefMap;
 
 public:
-	CGitHeadFileList()
-	: m_LastModifyTimeHead(0)
-	, m_LastModifyTimeRef(0)
-	, m_LastModifyTimePackRef(0)
-	, m_LastFileSizeHead(-1)
-	, m_LastFileSizePackRef(-1)
-	, m_bRefFromPackRefFile(false)
-	{
-	}
+	CGitHeadFileList() = default;
 
 	int ReadTree(bool ignoreCase);
 	int ReadHeadHash(const CString& gitdir);
 	bool CheckHeadUpdate() const;
 
+	using std::vector<CGitTreeItem>::begin;
+	using std::vector<CGitTreeItem>::end;
+	using std::vector<CGitTreeItem>::cbegin;
+	using std::vector<CGitTreeItem>::cend;
+	using std::vector<CGitTreeItem>::empty;
+	using std::vector<CGitTreeItem>::size;
+	using std::vector<CGitTreeItem>::operator[];
+
 private:
 	int ReadTreeRecursive(git_repository& repo, const git_tree* tree, const CString& base);
 };
 
-typedef std::shared_ptr<const CGitHeadFileList> SHARED_TREE_PTR;
-class CGitHeadFileMap:public std::map<CString,SHARED_TREE_PTR>
+using SHARED_TREE_PTR = std::shared_ptr<const CGitHeadFileList>;
+class CGitHeadFileMap : protected SharedPtrMapTmpl<SHARED_TREE_PTR>
 {
 public:
+	[[nodiscard]] SHARED_TREE_PTR CheckHeadAndUpdate(const CString& gitdir, bool ignoreCase);
 
-	CComAutoCriticalSection		m_critTreeSec;
-
-	SHARED_TREE_PTR SafeGet(const CString& path)
-	{
-		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critTreeSec);
-		auto lookup = find(thePath);
-		if (lookup == cend())
-			return SHARED_TREE_PTR();
-		return lookup->second;
-	}
-
-	void SafeSet(const CString& path, SHARED_TREE_PTR ptr)
-	{
-		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critTreeSec);
-		(*this)[thePath] = ptr;
-	}
-
-	bool SafeClear(const CString& path)
-	{
-		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critTreeSec);
-		auto lookup = find(thePath);
-		if (lookup == cend())
-			return false;
-		erase(lookup);
-		return true;
-	}
-
-	bool SafeClearRecursively(const CString& path)
-	{
-		CString thePath(CPathUtils::NormalizePath(path));
-		CAutoLocker lock(m_critTreeSec);
-		std::vector<CString> toRemove;
-		for (auto it = this->cbegin(); it != this->cend(); ++it)
-		{
-			if (CStringUtils::StartsWith((*it).first, thePath))
-				toRemove.push_back((*it).first);
-		}
-		for (auto it = toRemove.cbegin(); it != toRemove.cend(); ++it)
-			this->erase(*it);
-		return !toRemove.empty();
-	}
-	void CheckHeadAndUpdate(const CString& gitdir, bool ignoreCase);
+	using SharedPtrMapTmpl<SHARED_TREE_PTR>::SafeClear;
+	using SharedPtrMapTmpl<SHARED_TREE_PTR>::SafeClearRecursively;
+	using SharedPtrMapTmpl<SHARED_TREE_PTR>::SafeGet;
 };
 
-class CGitFileName
+struct CGitFileName
 {
-public:
-	CGitFileName() {}
-	CGitFileName(LPCTSTR filename, __int64 size, __int64 lastmodified)
+	CGitFileName() = default;
+	CGitFileName(LPCWSTR filename, __int64 size, __int64 lastmodified)
 	: m_FileName(filename)
 	, m_Size(size)
 	, m_LastModified(lastmodified)
-	, m_bSymlink(false)
 	{
 	}
 	CString m_FileName;
-	__int64 m_Size;
-	__int64 m_LastModified;
-	bool	m_bSymlink;
+	__int64 m_Size = -1;
+	__int64 m_LastModified = 0;
+	bool	m_bSymlink = false;
 };
 
 class CGitIgnoreItem
 {
 public:
-	CGitIgnoreItem()
-	: m_LastModifyTime(0)
-	, m_LastFileSize(-1)
-	, m_pExcludeList(nullptr)
-	, m_buffer(nullptr)
-	, m_iIgnoreCase(nullptr)
-	{
-	}
-
 	~CGitIgnoreItem()
 	{
 		if(m_pExcludeList)
 			git_free_exclude_list(m_pExcludeList);
-		free(m_buffer);
 	}
 
-	__time64_t  m_LastModifyTime;
-	__int64		m_LastFileSize;
+	__time64_t	m_LastModifyTime = 0;
+	__int64		m_LastFileSize = -1;
 	CStringA m_BaseDir;
-	BYTE *m_buffer;
-	EXCLUDE_LIST m_pExcludeList;
-	int* m_iIgnoreCase;
+	std::unique_ptr<char[]> m_buffer;
+	EXCLUDE_LIST m_pExcludeList = nullptr;
+	int* m_iIgnoreCase = nullptr;
 
 	int FetchIgnoreList(const CString& projectroot, const CString& file, bool isGlobal, int* ignoreCase);
 
 	/**
-	* patha: the filename to be checked whether is is ignored or not
+	* patha: the filename to be checked whether it is ignored or not
 	* base: must be a pointer to the beginning of the base filename WITHIN patha
 	* type: DT_DIR or DT_REG
 	*/
 	int IsPathIgnored(const CStringA& patha, const char* base, int& type);
-#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
+#ifdef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 	int IsPathIgnored(const CStringA& patha, int& type);
 #endif
 };
@@ -306,7 +288,6 @@ private:
 	std::map<CString, CString> m_CoreExcludesfiles;
 	std::map<CString, int> m_IgnoreCase;
 	CString m_sGitSystemConfigPath;
-	CString m_sGitProgramDataConfigPath;
 	ULONGLONG m_dGitSystemConfigPathLastChecked = 0LL;
 	CReaderWriterLock	m_coreExcludefilesSharedMutex;
 	// checks if the msysgit path has changed and return true/false
@@ -338,15 +319,10 @@ inline void DoSortFilenametSortVector(T& vector, bool ignoreCase)
 
 static const size_t NPOS = static_cast<size_t>(-1); // bad/missing length/position
 static_assert(MAXSIZE_T == NPOS, "NPOS must equal MAXSIZE_T");
-#pragma warning(push)
-#if _MSC_VER < 1920
-#pragma warning(disable: 4309) // 'static_cast': truncation of constant value
-#endif
 static_assert(-1 == static_cast<int>(NPOS), "NPOS must equal -1");
-#pragma warning(pop)
 
 template<class T>
-inline int GetRangeInSortVector(const T& vector, LPCTSTR pstr, size_t len, bool ignoreCase, size_t* start, size_t* end, size_t pos)
+inline int GetRangeInSortVector(const T& vector, LPCWSTR pstr, size_t len, bool ignoreCase, size_t* start, size_t* end, size_t pos)
 {
 	if (ignoreCase)
 		return GetRangeInSortVector_int(vector, pstr, len, _wcsnicmp, start, end, pos);
@@ -355,8 +331,9 @@ inline int GetRangeInSortVector(const T& vector, LPCTSTR pstr, size_t len, bool 
 }
 
 template<class T, class V>
-int GetRangeInSortVector_int(const T& vector, LPCTSTR pstr, size_t len, V compare, size_t* start, size_t* end, size_t pos)
+int GetRangeInSortVector_int(const T& vector, LPCWSTR pstr, size_t len, V compare, size_t* start, size_t* end, size_t pos)
 {
+	static_assert(std::is_convertible_v<V, std::function<int(const wchar_t*, const wchar_t*, size_t)>>, "Wrong signature for the compare method, needs to be a wcsncmp equivalent");
 	if (pos == NPOS)
 		return -1;
 	if (!start || !end)
@@ -399,7 +376,7 @@ int GetRangeInSortVector_int(const T& vector, LPCTSTR pstr, size_t len, V compar
 }
 
 template<class T>
-inline size_t SearchInSortVector(const T& vector, LPCTSTR pstr, int len, bool ignoreCase)
+inline size_t SearchInSortVector(const T& vector, LPCWSTR pstr, int len, bool ignoreCase)
 {
 	if (ignoreCase)
 	{
@@ -416,8 +393,9 @@ inline size_t SearchInSortVector(const T& vector, LPCTSTR pstr, int len, bool ig
 }
 
 template<class T, class V>
-size_t SearchInSortVector_int(const T& vector, LPCTSTR pstr, V compare)
+size_t SearchInSortVector_int(const T& vector, LPCWSTR pstr, V compare)
 {
+	static_assert(std::is_convertible_v<V, std::function<int(const wchar_t*, const wchar_t*)>>, "Wrong signature for the compare method, needs to be a wcscmp equivalent");
 	size_t end = vector.size() - 1;
 	size_t start = 0;
 	size_t mid = (start + end) / 2;
@@ -427,7 +405,7 @@ size_t SearchInSortVector_int(const T& vector, LPCTSTR pstr, V compare)
 
 	while(!( start == end && start==mid))
 	{
-		int cmp = compare(vector[mid].m_FileName, pstr);
+		const int cmp = compare(vector[mid].m_FileName, pstr);
 		if (cmp == 0)
 			return mid;
 		else if (cmp < 0)
@@ -445,7 +423,7 @@ size_t SearchInSortVector_int(const T& vector, LPCTSTR pstr, V compare)
 	return NPOS;
 };
 
-class CGitAdminDirMap:public std::map<CString, CString>
+class CGitAdminDirMap : private std::map<CString, CString>
 {
 public:
 	CComAutoCriticalSection		m_critIndexSec;
@@ -518,4 +496,8 @@ public:
 			return gitDir;
 		return lookup->second;
 	}
+
+#ifdef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
+	using std::map<CString, CString>::clear;
+#endif
 };

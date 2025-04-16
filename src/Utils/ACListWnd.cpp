@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (c) 2003 by Andreas Kapust <info@akinstaller.de>; <http://www.codeproject.com/Articles/2607/AutoComplete-without-IAutoComplete>
-// Copyright (C) 2009, 2012-2013, 2015-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2009, 2012-2013, 2015-2016, 2018-2020, 2023 - TortoiseGit
 
 // Licensed under: The Code Project Open License (CPOL); <http://www.codeproject.com/info/cpol10.aspx>
 
@@ -45,19 +45,6 @@ void DoPaintMessageLoop()
 
 CACListWnd::CACListWnd()
 {
-	m_lTopIndex = 0;
-	m_lCount = 0;
-	m_ItemHeight = 16;
-	m_lSelItem = -1;
-	m_VisibleItems = 0;
-	m_pEditParent = nullptr;
-	m_LastSize.SetRectEmpty();
-	m_PrefixChar = 0;
-	m_lMode = 0;
-	pFontDC = nullptr;
-	m_nIDTimer = 0;
-	SecureZeroMemory(&logfont, sizeof(LOGFONT));
-
 	NONCLIENTMETRICS metrics = { 0 };
 	metrics.cbSize = sizeof(NONCLIENTMETRICS);
 	SystemParametersInfo(SPI_GETNONCLIENTMETRICS, 0, &metrics, FALSE);
@@ -218,7 +205,7 @@ void CACListWnd::OnPaint()
 void CACListWnd::Init(CWnd *pWnd)
 {
 	VERIFY(m_VertBar.Create(WS_VISIBLE|SBS_VERT|SBS_LEFTALIGN,
-		CRect(0, 0, GetSystemMetrics(SM_CYVSCROLL), CDPIAware::Instance().ScaleX(100)), this, 0));
+		CRect(0, 0, GetSystemMetrics(SM_CYVSCROLL), CDPIAware::Instance().ScaleX(*pWnd, 100)), this, 0));
 
 	SetScroller();
 	m_pEditParent = static_cast<CEdit*>(pWnd);
@@ -252,7 +239,7 @@ void CACListWnd::SetScroller()
 		rcBar.left = (rcWnd.Width()-GetSystemMetrics(SM_CYVSCROLL));
 		rcBar.bottom-= GetSystemMetrics(SM_CYHSCROLL);
 		m_VertBar.MoveWindow(rcBar);
-		rcBar.top = rcWnd.bottom - CDPIAware::Instance().ScaleY(20);
+		rcBar.top = rcWnd.bottom - CDPIAware::Instance().ScaleY(m_VertBar.GetSafeHwnd() , 20);
 		rcBar.bottom = rcWnd.bottom;
 
 		m_VertBar.SetScrollPos(m_lTopIndex,true);
@@ -550,7 +537,7 @@ bool CACListWnd::SelectItem(int item)
 
 /*********************************************************************/
 
-int CACListWnd::FindStringExact( int nStartAfter, LPCTSTR lpszString )
+int CACListWnd::FindStringExact( int nStartAfter, LPCWSTR lpszString )
 {
 	if(nStartAfter > m_SearchList.GetSize())
 		return -1;
@@ -566,7 +553,7 @@ int CACListWnd::FindStringExact( int nStartAfter, LPCTSTR lpszString )
 ** Vers. 1.1
 * NEW: m_bDisplayOnly
 */
-int CACListWnd::FindString(int nStartAfter, LPCTSTR lpszString, bool m_bDisplayOnly)
+int CACListWnd::FindString(int nStartAfter, LPCWSTR lpszString, bool m_bDisplayOnly)
 {
 	long m_AktCount = static_cast<long>(m_DisplayList.GetSize());
 
@@ -678,7 +665,7 @@ int CACListWnd::FindString(int nStartAfter, LPCTSTR lpszString, bool m_bDisplayO
 
 /*********************************************************************/
 
-int CACListWnd::SelectString(LPCTSTR lpszString )
+int CACListWnd::SelectString(LPCWSTR lpszString )
 {
 	int item = FindString(-1, lpszString);
 	SelectItem(item);
@@ -909,21 +896,21 @@ void CACListWnd::SortList(CStringArray& list)
 		CStringArray m_Liste1;
 		m_Liste1.Copy(list);
 
-		LPCTSTR* ppSortArray = new LPCTSTR[m_Count+1];
+		LPCWSTR* ppSortArray = new LPCWSTR[m_Count+1];
 
 
 		for (int i = 0; i < m_Count; ++i)
 		{
-			ppSortArray[i] = static_cast<LPCTSTR>(m_Liste1.GetAt(i));
+			ppSortArray[i] = static_cast<LPCWSTR>(m_Liste1.GetAt(i));
 		}
 
 		list.RemoveAll();
 
-		qsort(ppSortArray, m_Count, sizeof(LPCTSTR), CompareString);
+		qsort(ppSortArray, m_Count, sizeof(LPCWSTR), CompareString);
 
 		for (int i = 0; i < m_Count; ++i)
 		{
-			list.Add(static_cast<LPCTSTR>(ppSortArray[i]));
+			list.Add(static_cast<LPCWSTR>(ppSortArray[i]));
 		}
 		m_Liste1.RemoveAll();
 		delete [] ppSortArray;

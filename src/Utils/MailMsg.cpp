@@ -4,7 +4,7 @@
   Copyright (c) 2003, Michael Carruth
   All rights reserved.
 
-  Adjusted by Sven Strickroth <email@cs-ware.de>, 2011-2020
+  Adjusted by Sven Strickroth <email@cs-ware.de>, 2011-2020, 2023, 2025
    * make it work with no attachments
    * added flag to show mail compose dialog
    * make it work with 32-64bit inconsistencies (http://msdn.microsoft.com/en-us/library/dd941355.aspx)
@@ -51,14 +51,12 @@
 
 #include "stdafx.h"
 #include "MailMsg.h"
-#include "UnicodeUtils.h"
 #include "StringUtils.h"
 #include <MAPI.h>
 #include "MapiUnicodeHelp.h"
 
 CMailMsg::CMailMsg()
 {
-	m_bShowComposeDialog	= FALSE;
 }
 
 void CMailMsg::SetFrom(const CString& sAddress, const CString& sName)
@@ -126,7 +124,7 @@ void CMailMsg::AddAttachment(const CString& sAttachment, CString sTitle)
 BOOL CMailMsg::DetectMailClient(CString& sMailClientName)
 {
 	CRegKey regKey;
-	TCHAR buf[1024] = L"";
+	wchar_t buf[1024] = L"";
 	LONG lResult = regKey.Open(HKEY_CURRENT_USER, L"SOFTWARE\\Clients\\Mail", KEY_READ);
 	if(lResult!=ERROR_SUCCESS)
 	{
@@ -146,7 +144,7 @@ BOOL CMailMsg::DetectMailClient(CString& sMailClientName)
 	}
 	else
 	{
-		sMailClientName = "Not Detected";
+		sMailClientName = L"Not Detected";
 	}
 
 	return FALSE;
@@ -179,7 +177,7 @@ BOOL CMailMsg::Send()
 	originator.lpszName = const_cast<LPWSTR>(static_cast<LPCWSTR>(m_from.name));
 
 	std::vector<MapiRecipDescW> recipients;
-	auto addRecipient = [&recipients](ULONG ulRecipClass, const MailAddress& recipient)
+	const auto addRecipient = [&recipients](ULONG ulRecipClass, const MailAddress& recipient)
 	{
 		MapiRecipDescW repipDesc = { 0 };
 		repipDesc.ulRecipClass = ulRecipClass;
@@ -188,9 +186,9 @@ BOOL CMailMsg::Send()
 		recipients.emplace_back(repipDesc);
 	};
 	// add to recipients
-	std::for_each(m_to.cbegin(), m_to.cend(), std::bind(addRecipient, MAPI_TO, std::placeholders::_1));
+	std::for_each(m_to.cbegin(), m_to.cend(), [&addRecipient](const auto& recipient) { addRecipient(MAPI_TO, recipient); });
 	// add cc receipients
-	std::for_each(m_cc.cbegin(), m_cc.cend(), std::bind(addRecipient, MAPI_CC, std::placeholders::_1));
+	std::for_each(m_cc.cbegin(), m_cc.cend(), [&addRecipient](const auto& recipient) { addRecipient(MAPI_CC, recipient); });
 
 	// add attachments
 	std::vector<MapiFileDescW> attachments;

@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2012, 2015 - TortoiseSVN
-// Copyright (C) 2012-2019 - TortoiseGit
+// Copyright (C) 2012-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,31 +17,24 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
-#include "Revisiongraphwnd.h"
+#include "RevisionGraphWnd.h"
 #include "MessageBox.h"
 #include "Git.h"
 #include "AppUtils.h"
 #include "PathUtils.h"
 #include "StringUtils.h"
-#include "TempFile.h"
-#include "UnicodeUtils.h"
-#include "TGitPath.h"
 #include "RevisionGraphDlg.h"
-#include "BrowseFolder.h"
-#include "GitProgressDlg.h"
-#include "ChangedDlg.h"
 #include "FormatMessageWrapper.h"
 #include "GitRevLoglist.h"
 
 #pragma warning(push)
 #pragma warning(disable: 4100) // unreferenced formal parameter
-#include <ogdf/planarity/PlanarizationLayout.h>
-#include <ogdf/planarity/VariableEmbeddingInserter.h>
-#include <ogdf/planarity/FastPlanarSubgraph.h>
-#include <ogdf/orthogonal/OrthoLayout.h>
-#include <ogdf/planarity/EmbedderMinDepthMaxFaceLayers.h>
+#include <ogdf/layered/OptimalRanking.h>
+#include <ogdf/layered/MedianHeuristic.h>
+#include <ogdf/layered/FastHierarchyLayout.h>
 #pragma warning(pop)
 
 #ifdef _DEBUG
@@ -83,27 +76,16 @@ enum RevisionGraphContextMenuCommands
 
 CRevisionGraphWnd::CRevisionGraphWnd()
 	: CWnd()
-	, m_SelectedEntry1(nullptr)
-	, m_SelectedEntry2(nullptr)
-	, m_HeadNode(nullptr)
-	, m_pDlgTip(nullptr)
 	, m_nFontSize(12)
 	, m_bTweakTrunkColors(true)
 	, m_bTweakTagsColors(true)
 	, m_fZoomFactor(DEFAULT_ZOOM)
-	, m_ptRubberEnd(0,0)
-	, m_ptMoveCanvas(0,0)
 	, m_bShowOverview(false)
-	, m_parent(nullptr)
-	, m_hoverIndex(nullptr)
-	, m_hoverGlyphs (0)
-	, m_tooltipIndex(nullptr)
 	, m_showHoverGlyphs (false)
 	, m_bIsCanvasMove(false)
 	, m_previewWidth(0)
 	, m_previewHeight(0)
 	, m_previewZoom(1)
-	, m_ullTicks(0)
 	, m_logEntries(&m_LogCache)
 	, m_bCurrentBranch(false)
 	, m_bLocalBranches(FALSE)
@@ -135,9 +117,7 @@ CRevisionGraphWnd::CRevisionGraphWnd()
 	m_szTip[0] = '\0';
 	m_wszTip[0] = L'\0';
 
-	m_GraphAttr.init(this->m_Graph, ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics |
-		ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle |
-		ogdf::GraphAttributes::nodeStyle | ogdf::GraphAttributes::nodeTemplate);
+	m_GraphAttr.init(this->m_Graph, ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics);
 
 	m_SugiyamLayout.setRanking(::new ogdf::OptimalRanking());
 	m_SugiyamLayout.setCrossMin(::new ogdf::MedianHeuristic());
@@ -146,32 +126,7 @@ CRevisionGraphWnd::CRevisionGraphWnd()
 	m_ArrowCos = cos(pi/8);
 	m_ArrowSin = sin(pi/8);
 	this->m_ArrowSize = 8;
-#if 0
-	ogdf::node one = this->m_Graph.newNode();
-	ogdf::node two = this->m_Graph.newNode();
-	ogdf::node three = this->m_Graph.newNode();
-	ogdf::node four = this->m_Graph.newNode();
 
-
-	m_GraphAttr.width(one)=100;
-	m_GraphAttr.height(one)=200;
-	m_GraphAttr.width(two)=100;
-	m_GraphAttr.height(two)=100;
-	m_GraphAttr.width(three)=100;
-	m_GraphAttr.height(three)=20;
-	m_GraphAttr.width(four)=100;
-	m_GraphAttr.height(four)=20;
-
-	m_GraphAttr.labelNode(one)="One";
-	m_GraphAttr.labelNode(two)="Two";
-	m_GraphAttr.labelNode(three)="three";
-
-	this->m_Graph.newEdge(one, two);
-	this->m_Graph.newEdge(one, three);
-	this->m_Graph.newEdge(two, four);
-	this->m_Graph.newEdge(three, four);
-
-#endif
 	auto pOHL = ::new ogdf::FastHierarchyLayout;
 	//It will auto delte when m_SugiyamLayout destroy
 
@@ -179,60 +134,6 @@ CRevisionGraphWnd::CRevisionGraphWnd()
 	pOHL->nodeDistance(25.0);
 
 	m_SugiyamLayout.setLayout(pOHL);
-
-#if 0
-	//this->m_OHL.layerDistance(30.0);
-	//this->m_OHL.nodeDistance(25.0);
-	//this->m_OHL.weightBalancing(0.8);
-	m_SugiyamLayout.setLayout(&m_OHL);
-	m_SugiyamLayout.call(m_GraphAttr);
-#endif
-#if 0
-	PlanarizationLayout pl;
-
-	FastPlanarSubgraph *ps = ::new FastPlanarSubgraph;
-	ps->runs(100);
-	VariableEmbeddingInserter *ves = ::new VariableEmbeddingInserter;
-	ves->removeReinsert(EdgeInsertionModule::rrAll);
-	pl.setSubgraph(ps);
-	pl.setInserter(ves);
-
-	EmbedderMinDepthMaxFaceLayers *emb = ::new EmbedderMinDepthMaxFaceLayers;
-	pl.setEmbedder(emb);
-
-	OrthoLayout *ol =::new OrthoLayout;
-	ol->separation(20.0);
-	ol->cOverhang(0.4);
-	ol->setOptions(2+4);
-	ol->preferedDir(OrthoDir::odEast);
-	pl.setPlanarLayouter(ol);
-
-	pl.call(m_GraphAttr);
-
-	node v;
-	forall_nodes(v,m_Graph) {
-		TRACE(L"node  x %f y %f %f %f\n",/* m_GraphAttr.idNode(v), */
-			m_GraphAttr.x(v),
-			m_GraphAttr.y(v),
-			m_GraphAttr.width(v),
-			m_GraphAttr.height(v)
-		);
-	}
-
-	edge e;
-	forall_edges(e, m_Graph)
-	{
-		// get connection and point position
-		const DPolyline &dpl = this->m_GraphAttr.bends(e);
-
-		ListConstIterator<DPoint> it;
-		for(it = dpl.begin(); it.valid(); ++it)
-		{
-			TRACE(L"edge %f %f\n", (*it).m_x, (*it).m_y);
-		}
-	}
-	m_GraphAttr.writeGML("test.gml");
-#endif
 }
 
 CRevisionGraphWnd::~CRevisionGraphWnd()
@@ -327,8 +228,7 @@ ogdf::node CRevisionGraphWnd::GetHitNode(CPoint point, CSize /*border*/) const
 	return nodeList->GetAt (GetLogCoordinates (point), border);
 #endif
 
-	ogdf::node v;
-	forall_nodes(v,m_Graph)
+	for (auto v : m_Graph.nodes)
 	{
 		 RectF noderect (GetNodeRect (v, CPoint(GetScrollPos(SB_HORZ),  GetScrollPos(SB_VERT))));
 		 if(point.x>noderect.X && point.x <(noderect.X+noderect.Width) &&
@@ -1033,7 +933,7 @@ void CRevisionGraphWnd::SaveGraphAs(CString sSavePath)
 						bitmap.Save(tfile, &encoderClsid, nullptr);
 					}
 					else
-						sErrormessage.Format(IDS_REVGRAPH_ERR_NOENCODER, static_cast<LPCTSTR>(CPathUtils::GetFileExtFromPath(sSavePath)));
+						sErrormessage.Format(IDS_REVGRAPH_ERR_NOENCODER, static_cast<LPCWSTR>(CPathUtils::GetFileExtFromPath(sSavePath)));
 				}
 				else
 					sErrormessage.LoadString(IDS_REVGRAPH_ERR_NOBITMAP);
@@ -1046,7 +946,7 @@ void CRevisionGraphWnd::SaveGraphAs(CString sSavePath)
 		}
 		catch (CException * pE)
 		{
-			TCHAR szErrorMsg[2048] = { 0 };
+			wchar_t szErrorMsg[2048] = { 0 };
 			pE->GetErrorMessage(szErrorMsg, 2048);
 			pE->Delete();
 			::MessageBox(m_hWnd, szErrorMsg, L"TortoiseGit", MB_ICONERROR);
@@ -1168,13 +1068,13 @@ void CRevisionGraphWnd::DoShowLog()
 
 	if(m_SelectedEntry2)
 		sCmd.Format(L"/command:log %s /startrev:%s /endrev:%s",
-			this->m_sPath.IsEmpty() ? L"" : static_cast<LPCTSTR>(L"/path:\"" + this->m_sPath + L'"'),
-			static_cast<LPCTSTR>(this->m_logEntries[m_SelectedEntry1->index()].ToString()),
-			static_cast<LPCTSTR>(this->m_logEntries[m_SelectedEntry2->index()].ToString()));
+			this->m_sPath.IsEmpty() ? L"" : static_cast<LPCWSTR>(L"/path:\"" + this->m_sPath + L'"'),
+			static_cast<LPCWSTR>(this->m_logEntries[m_SelectedEntry1->index()].ToString()),
+			static_cast<LPCWSTR>(this->m_logEntries[m_SelectedEntry2->index()].ToString()));
 	else
 		sCmd.Format(L"/command:log %s /endrev:%s",
-			static_cast<LPCTSTR>(this->m_sPath.IsEmpty() ? L"" : (L"/path:\"" + this->m_sPath + L'"')),
-			static_cast<LPCTSTR>(this->m_logEntries[m_SelectedEntry1->index()].ToString()));
+			static_cast<LPCWSTR>(this->m_sPath.IsEmpty() ? CString() : (L"/path:\"" + this->m_sPath + L'"')),
+			static_cast<LPCWSTR>(this->m_logEntries[m_SelectedEntry1->index()].ToString()));
 
 	CAppUtils::RunTortoiseGitProc(sCmd);
 }
@@ -1191,8 +1091,8 @@ void CRevisionGraphWnd::DoBrowseRepo()
 
 	CString sCmd;
 	sCmd.Format(L"/command:repobrowser %s /rev:%s",
-		this->m_sPath.IsEmpty() ? L"" : static_cast<LPCTSTR>(L"/path:\"" + this->m_sPath + L'"'),
-		static_cast<LPCTSTR>(GetFriendRefName(m_SelectedEntry1)));
+		this->m_sPath.IsEmpty() ? L"" : static_cast<LPCWSTR>(L"/path:\"" + this->m_sPath + L'"'),
+		static_cast<LPCWSTR>(GetFriendRefName(m_SelectedEntry1)));
 
 	CAppUtils::RunTortoiseGitProc(sCmd);
 }
@@ -1249,7 +1149,7 @@ void CRevisionGraphWnd::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 		if (branchNames.size() == 1)
 		{
 			CString text;
-			text.Format(L"%s \"%s\"", static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_SWITCH_BRANCH))), static_cast<LPCTSTR>(branchNames[0]));
+			text.Format(L"%s \"%s\"", static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_SWITCH_BRANCH))), static_cast<LPCWSTR>(branchNames[0]));
 			AppendMenu(popup, text, ID_SWITCH, &branchNames[0]);
 		}
 		else if (branchNames.size() > 1)
@@ -1328,7 +1228,7 @@ void CRevisionGraphWnd::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 	{
 	case ID_COMPAREREVS:
 		if (m_SelectedEntry1)
-			CompareRevs(false);
+			CompareRevs(L"");
 		break;
 	case ID_UNIDIFFREVS:
 		if (m_SelectedEntry1)
@@ -1462,7 +1362,7 @@ BOOL CRevisionGraphWnd::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
 	CRect viewRect = GetViewRect();
 
-	LPTSTR cursorID = IDC_ARROW;
+	LPWSTR cursorID = IDC_ARROW;
 	HINSTANCE resourceHandle = nullptr;
 
 	if ((nHitTest == HTCLIENT)&&(pWnd == this)&&(viewRect.Width())&&(viewRect.Height())&&(message))
@@ -1546,17 +1446,16 @@ ULONG CRevisionGraphWnd::GetGestureStatus(CPoint /*ptTouch*/)
 
 void CRevisionGraphWnd::ScrollTo(int i, bool select)
 {
-	bool found = false;
-	ogdf::node v;
-	forall_nodes(v, m_Graph)
+	ogdf::node v = nullptr;
+	for (auto vIT : m_Graph.nodes)
 	{
-		if (v->index() == i)
+		if (vIT->index() == i)
 		{
-			found = true;
+			v = vIT;
 			break;
 		}
 	}
-	if (!found)
+	if (!v)
 		return;
 
 	SCROLLINFO sinfo = { 0 };

@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2013-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2013-2017, 2019-2025 - TortoiseGit
 // Copyright (C) 2006-2014, 2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
-#include <dlgs.h>
 #include "TortoiseMerge.h"
 #include "MainFrm.h"
 #include "AboutDlg.h"
@@ -28,7 +28,6 @@
 #include "AppUtils.h"
 #include "PathUtils.h"
 #include "BrowseFolder.h"
-#include "DirFileEnum.h"
 #include "SelectFileFilter.h"
 #include "FileDlgEventHandler.h"
 #include "TempFile.h"
@@ -81,7 +80,7 @@ CTortoiseMergeApp::~CTortoiseMergeApp()
 // The one and only CTortoiseMergeApp object
 CTortoiseMergeApp theApp;
 CString sOrigCWD;
-#if ENABLE_CRASHHANLDER
+#if ENABLE_CRASHHANLDER && !_M_ARM64
 CCrashReportTGit g_crasher(L"TortoiseGitMerge " _T(APP_X64_STRING), TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD, TGIT_VERDATE);
 #endif
 
@@ -100,7 +99,7 @@ BOOL CTortoiseMergeApp::InitInstance()
 		DWORD len = GetCurrentDirectory(0, nullptr);
 		if (len)
 		{
-			auto originalCurrentDirectory = std::make_unique<TCHAR[]>(len);
+			auto originalCurrentDirectory = std::make_unique<wchar_t[]>(len);
 			if (GetCurrentDirectory(len, originalCurrentDirectory.get()))
 			{
 				sOrigCWD = originalCurrentDirectory.get();
@@ -116,7 +115,7 @@ BOOL CTortoiseMergeApp::InitInstance()
 	HINSTANCE hInst = nullptr;
 	do
 	{
-		langDll.Format(L"%sLanguages\\TortoiseMerge%ld.dll", static_cast<LPCTSTR>(CPathUtils::GetAppParentDirectory()), langId);
+		langDll.Format(L"%sLanguages\\TortoiseMerge%ld.dll", static_cast<LPCWSTR>(CPathUtils::GetAppParentDirectory()), langId);
 
 		hInst = LoadLibrary(langDll);
 		if (!CI18NHelper::DoVersionStringsMatch(CPathUtils::GetVersionFromFile(langDll), _T(STRPRODUCTVER)))
@@ -208,9 +207,11 @@ BOOL CTortoiseMergeApp::InitInstance()
 	if (!pFrame)
 		return FALSE;
 	m_pMainWnd = pFrame;
-
+	m_nCmdShow = SW_HIDE;
 	// create and load the frame with its resources
 	if (!pFrame->LoadFrame(IDR_MAINFRAME, WS_OVERLAPPEDWINDOW | FWS_ADDTOTITLE, nullptr, nullptr))
+		return FALSE;
+	if (pFrame->InitRibbon())
 		return FALSE;
 
 	// Fill in the command line options
@@ -433,8 +434,13 @@ BOOL CTortoiseMergeApp::InitInstance()
 	pFrame->resolveMsgLParam = parser.HasVal(L"resolvemsglparam") ? static_cast<LPARAM>(parser.GetLongLongVal(L"resolvemsglparam"))  : 0;
 
 	// The one and only window has been initialized, so show and update it
+	BOOL cloak = TRUE;
+	DwmSetWindowAttribute(pFrame->GetSafeHwnd(), DWMWA_CLOAK, &cloak, sizeof(cloak)); // hide the window until we're ready
 	pFrame->ActivateFrame();
 	pFrame->ShowWindow(SW_SHOW);
+	::RedrawWindow(pFrame->GetSafeHwnd(), nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
+	cloak = FALSE;
+	DwmSetWindowAttribute(pFrame->GetSafeHwnd(), DWMWA_CLOAK, &cloak, sizeof(cloak)); // show the window again
 	pFrame->UpdateWindow();
 	pFrame->ShowDiffBar(!pFrame->m_bOneWay);
 	if (!pFrame->m_Data.IsBaseFileInUse() && pFrame->m_Data.m_sPatchPath.IsEmpty() && pFrame->m_Data.m_sDiffFile.IsEmpty())
@@ -453,6 +459,13 @@ BOOL CTortoiseMergeApp::InitInstance()
 	return pFrame->LoadViews(line);
 }
 
+BOOL CTortoiseMergeApp::LoadWindowPlacement(CRect& rectNormalPosition, int& nFflags, int& nShowCmd)
+{
+	BOOL b = CWinAppEx::LoadWindowPlacement(rectNormalPosition, nFflags, nShowCmd);
+	nShowCmd = SW_HIDE;
+	return b;
+}
+
 // CTortoiseMergeApp message handlers
 
 void CTortoiseMergeApp::OnAppAbout()
@@ -467,7 +480,17 @@ int CTortoiseMergeApp::ExitInstance()
 	// remove them. But only delete 'old' files
 	CTempFiles::DeleteOldTempFiles(L"*tsm*.*");
 
-	return CWinAppEx::ExitInstance();
+	CWinAppEx::ExitInstance();
+	return m_hasConflicts ? 1 : 0;
+}
+
+void CTortoiseMergeApp::OnClosingMainFrame(CFrameImpl* /*pFrameImpl*/)
+{
+	if (auto pFrame = dynamic_cast<CMainFrame*>(m_pMainWnd))
+	{
+		if (pFrame->CheckResolved() >= 0)
+			m_hasConflicts = true;
+	}
 }
 
 bool CTortoiseMergeApp::HasClipboardPatch()
@@ -509,8 +532,8 @@ bool CTortoiseMergeApp::TrySavePatchFromClipboard(std::wstring& resultFile)
 	auto lpstr = static_cast<LPCSTR>(GlobalLock(hglb));
 
 	DWORD len = GetTempPath(0, nullptr);
-	auto path = std::make_unique<TCHAR[]>(len + 1);
-	auto tempF = std::make_unique<TCHAR[]>(len + 100);
+	auto path = std::make_unique<wchar_t[]>(len + 1);
+	auto tempF = std::make_unique<wchar_t[]>(len + 100);
 	GetTempPath (len+1, path.get());
 	GetTempFileName (path.get(), L"tsm", 0, tempF.get());
 	std::wstring sTempFile = std::wstring(tempF.get());

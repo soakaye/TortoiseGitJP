@@ -161,22 +161,22 @@
         <Image Source="ribbon/UseRightLeft.bmp" />
       </Command.LargeImages>
     </Command>
-    <Command Name="cmdUseTheirsBlock" LabelTitle="Use 'theirs' text block" Id="32819">
+    <Command Name="cmdUseTheirsBlock" LabelTitle="Use left text block" Id="32819">
       <Command.LargeImages>
         <Image Source="ribbon/UseTheirs.bmp" />
       </Command.LargeImages>
     </Command>
-    <Command Name="cmdUseMineBlock" LabelTitle="Use 'mine' text block" Id="32820">
+    <Command Name="cmdUseMineBlock" LabelTitle="Use right text block" Id="32820">
       <Command.LargeImages>
         <Image Source="ribbon/UseMine.bmp" />
       </Command.LargeImages>
     </Command>
-    <Command Name="cmdUseTheirsThenMineBlock" LabelTitle="Use 'theirs' text block then 'mine'" Id="32821">
+    <Command Name="cmdUseTheirsThenMineBlock" LabelTitle="Use left text block then right" Id="32821">
       <Command.LargeImages>
         <Image Source="ribbon/UseTheirsMine.bmp" />
       </Command.LargeImages>
     </Command>
-    <Command Name="cmdUseMineThenTheirsBlock" LabelTitle="Use 'mine' text block then 'theirs'" Id="32822">
+    <Command Name="cmdUseMineThenTheirsBlock" LabelTitle="Use right text block then left" Id="32822">
       <Command.LargeImages>
         <Image Source="ribbon/UseMineTheirs.bmp" />
       </Command.LargeImages>
@@ -267,6 +267,12 @@
     <Command Name="cmdViewIgnoreComments" LabelTitle="Ignore Comments" Id="32896">
       <Command.LargeImages>
         <Image Source="ribbon/Comment.bmp" />
+      </Command.LargeImages>
+    </Command>
+
+    <Command Name="cmdViewIgnoreEOL" LabelTitle="Ignore line endings" Id="32899">
+      <Command.LargeImages>
+        <Image Source="ribbon/EOL.bmp" />
       </Command.LargeImages>
     </Command>
 
@@ -480,7 +486,7 @@
             <ToggleButton CommandName="cmdIgnoreAllWhitespaceChanges" />
           </Group>
 
-          <Group CommandName="cmdGroupDiff" SizeDefinition="FourButtons">
+          <Group CommandName="cmdGroupDiff" SizeDefinition="FiveButtons">
             <ToggleButton CommandName="cmdViewInlineDiff" />
             <ToggleButton CommandName="cmdViewInlineDiffWord" />
             <SplitButtonGallery CommandName="cmdRegexFilterConfig1" Type="Items">
@@ -489,6 +495,7 @@
               </SplitButtonGallery.MenuLayout>
             </SplitButtonGallery>
             <ToggleButton CommandName="cmdViewIgnoreComments" />
+            <ToggleButton CommandName="cmdViewIgnoreEOL" />
           </Group>
 
           <Group CommandName="cmdGroupView" SizeDefinition="FiveButtons">

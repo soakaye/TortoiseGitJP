@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2020 - TortoiseGit
+// Copyright (C) 2020, 2023, 2025 - TortoiseGit
 // Copyright (C) 2013, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,10 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "resource.h"
-#include <afxcmn.h>
-#include "HistoryCombo.h"
 #include "FileTextLines.h"
 #include "StandAloneDlg.h"
 
@@ -42,16 +41,16 @@ public:
 // Dialog Data
 	enum { IDD = IDD_ENCODING };
 
-	CFileTextLines::UnicodeType texttype;
-	EOL lineendings;
+	CFileTextLines::UnicodeType texttype = CFileTextLines::UnicodeType::ASCII;
+	EOL lineendings = EOL::AutoLine;
 	CString view;
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
-	virtual void OnCancel();
-	virtual void OnOK();
-	virtual BOOL OnInitDialog() override;
+	void OnCancel() override;
+	void OnOK() override;
+	BOOL OnInitDialog() override;
 	CComboBox m_Encoding;
 	CComboBox m_EOL;
 };

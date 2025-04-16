@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2019, 2023-2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,10 +17,10 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "GitProgressDlg.h"
-#include "AppUtils.h"
 #include "SmartHandle.h"
 #include "StringUtils.h"
 #include "CmdLineParser.h"
@@ -28,9 +28,23 @@
 IMPLEMENT_DYNAMIC(CGitProgressDlg, CResizableStandAloneDialog)
 CGitProgressDlg::CGitProgressDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CGitProgressDlg::IDD, pParent)
-	, m_AutoClose(AUTOCLOSE_NO)
-	, m_hAccel(nullptr)
 {
+	int autoClose = CRegDWORD(L"Software\\TortoiseGit\\AutoCloseGitProgress", 0);
+	CCmdLineParser parser(AfxGetApp()->m_lpCmdLine);
+	if (parser.HasKey(L"closeonend"))
+		autoClose = parser.GetLongVal(L"closeonend");
+	switch (autoClose)
+	{
+	case 1:
+		m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_OPTIONS;
+		break;
+	case 2:
+		m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
+		break;
+	default:
+		m_AutoClose = GitProgressAutoClose::AUTOCLOSE_NO;
+		break;
+	}
 }
 
 CGitProgressDlg::~CGitProgressDlg()
@@ -72,7 +86,7 @@ BOOL CGitProgressDlg::OnInitDialog()
 	// were running elevated. It's OK to make the call all the time, since if we're
 	// not elevated, this is a no-op.
 	CHANGEFILTERSTRUCT cfs = { sizeof(CHANGEFILTERSTRUCT) };
-	typedef BOOL STDAPICALLTYPE ChangeWindowMessageFilterExDFN(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
+	using ChangeWindowMessageFilterExDFN = BOOL(STDAPICALLTYPE)(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
 	CAutoLibrary hUser = AtlLoadSystemLibraryUsingFullPath(L"user32.dll");
 	if (hUser)
 	{
@@ -107,26 +121,10 @@ BOOL CGitProgressDlg::OnInitDialog()
 	if (GetExplorerHWND())
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"GITProgressDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	m_background_brush.CreateSolidBrush(GetSysColor(COLOR_WINDOW));
 	m_ProgList.Init();
-
-	int autoClose = CRegDWORD(L"Software\\TortoiseGit\\AutoCloseGitProgress", 0);
-	CCmdLineParser parser(AfxGetApp()->m_lpCmdLine);
-	if (parser.HasKey(L"closeonend"))
-		autoClose = parser.GetLongVal(L"closeonend");
-	switch (autoClose)
-	{
-	case 1:
-		m_AutoClose = AUTOCLOSE_IF_NO_OPTIONS;
-		break;
-	case 2:
-		m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
-		break;
-	default:
-		m_AutoClose = AUTOCLOSE_NO;
-		break;
-	}
 
 	return TRUE;
 }
@@ -275,7 +273,7 @@ LRESULT	CGitProgressDlg::OnCmdEnd(WPARAM /*wParam*/, LPARAM /*lParam*/)
 		{
 			++i;
 			m_cMenuButton.AddEntry(entry.label, entry.icon);
-			TCHAR accellerator = CStringUtils::GetAccellerator(entry.label);
+			wchar_t accellerator = CStringUtils::GetAccellerator(entry.label);
 			if (accellerator == L'\0')
 				continue;
 			++m_accellerators[accellerator].cnt;
@@ -300,6 +298,7 @@ LRESULT	CGitProgressDlg::OnCmdEnd(WPARAM /*wParam*/, LPARAM /*lParam*/)
 			}
 			m_hAccel = CreateAcceleratorTable(lpaccelNew, static_cast<int>(m_accellerators.size()));
 		}
+		m_cMenuButton.EnableWindow(TRUE);
 		m_cMenuButton.ShowWindow(SW_SHOW);
 	}
 
@@ -308,7 +307,7 @@ LRESULT	CGitProgressDlg::OnCmdEnd(WPARAM /*wParam*/, LPARAM /*lParam*/)
 	{
 		SendMessage(DM_SETDEFID, IDOK);
 		GetDlgItem(IDOK)->SetFocus();
-		if (!m_ProgList.DidErrorsOccur() && (m_AutoClose == AUTOCLOSE_IF_NO_OPTIONS && m_PostCmdList.empty() || m_AutoClose == AUTOCLOSE_IF_NO_ERRORS))
+		if (!m_ProgList.DidErrorsOccur() && (m_AutoClose == GitProgressAutoClose::AUTOCLOSE_IF_NO_OPTIONS && m_PostCmdList.empty() || m_AutoClose == GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS))
 			PostMessage(WM_COMMAND, 1, reinterpret_cast<LPARAM>(pWndOk->GetSafeHwnd()));
 	}
 

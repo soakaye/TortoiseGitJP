@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2008 - TortoiseSVN
-// Copyright (C) 2011, 2018 - Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2011, 2018, 2023, 2025 - Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "SettingsPropPage.h"
-#include "SetProgsAdvDlg.h"
 #include "FileDropEdit.h"
 
 /**
@@ -39,9 +39,9 @@ public:
 	enum { IDD = IDD_SETTINGSPROGSALTERNATIVEEDITOR };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL OnApply() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
+	BOOL OnApply() override;
 	afx_msg void OnBnClickedAlternativeEditorOff();
 	afx_msg void OnBnClickedAlternativeEditorOn();
 	afx_msg void OnBnClickedAlternativeEditorBrowse();

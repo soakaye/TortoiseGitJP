@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2009, 2011 - TortoiseSVN
-// Copyright (C) 2012, 2018-2020 - TortoiseGit
+// Copyright (C) 2012, 2018-2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,13 +17,10 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "StandAloneDlg.h"
-//#include "RevisionGraph/AllGraphOptions.h"
-#include "ProgressDlg.h"
-#include "Colors.h"
 #include "RevisionGraphWnd.h"
-#include "StandAloneDlg.h"
 #include "FindDlg.h"
 
 /**
@@ -72,17 +69,17 @@ protected:
 
 	CString		 	m_sFilter;
 
-	HACCEL			m_hAccel;
+	HACCEL			m_hAccel = nullptr;
 
 	BOOL			InitializeToolbar();
 	bool			InitialSetMenu(const CString& settingName, bool defaultValue, int nId);
 	bool			ToggleSetMenu(const CString& settingName, int nId);
 
-	virtual void	DoDataExchange(CDataExchange* pDX) override;		// DDX/DDV support
-	virtual BOOL	OnInitDialog() override;
-	virtual void	OnCancel() override;
-	virtual void	OnOK() override;
-	virtual BOOL	PreTranslateMessage(MSG* pMsg) override;
+	void	DoDataExchange(CDataExchange* pDX) override;		// DDX/DDV support
+	BOOL	OnInitDialog() override;
+	void	OnCancel() override;
+	void	OnOK() override;
+	BOOL	PreTranslateMessage(MSG* pMsg) override;
 	afx_msg void	OnSize(UINT nType, int cx, int cy);
 	afx_msg void	OnViewFilter();
 	afx_msg void	OnViewZoomin();
@@ -105,12 +102,13 @@ protected:
 	afx_msg void	OnChangeZoom();
 	afx_msg BOOL	OnToolTipNotify (UINT id, NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void	OnWindowPosChanging(WINDOWPOS* lpwndpos);
+	afx_msg LRESULT	OnDPIChanged(WPARAM, LPARAM lParam);
 
-	CFindDlg* m_pFindDialog;
+	CFindDlg* m_pFindDialog = nullptr;
 	static const UINT m_FindDialogMessage;
 	afx_msg void OnFind();
 	afx_msg LRESULT OnFindDialogMessage(WPARAM wParam, LPARAM lParam);
-	int m_nSearchIndex;
+	int m_nSearchIndex = 0;
 
 	DECLARE_MESSAGE_MAP()
 
@@ -129,7 +127,6 @@ private:
 	CRevGraphToolBar			m_ToolBar;
 	bool						m_bVisible;
 	CString						m_outputPath;
-	ULONG_PTR					m_gdiPlusToken;
+	ULONG_PTR					m_gdiPlusToken = 0;
 	CComPtr<ITaskbarList3>		m_pTaskbarList;
-	int							m_themeCallbackId;
 };

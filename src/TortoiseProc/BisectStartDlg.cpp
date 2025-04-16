@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014-2020 TortoiseGit
+// Copyright (C) 2014-2020, 2024 TortoiseGit
 
 // with code of PullFetchDlg.cpp
 
@@ -87,10 +87,9 @@ BOOL CBisectStartDlg::OnInitDialog()
 	AddAnchor(IDC_COMBOBOXEX_BAD, TOP_LEFT, TOP_RIGHT);
 
 	EnableSaveRestore(L"BisectStartDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	STRING_VECTOR list;
 	int current = -1;

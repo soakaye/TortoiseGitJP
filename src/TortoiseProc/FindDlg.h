@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2018, 2020 - TortoiseGit
+// Copyright (C) 2011-2018, 2020, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -51,11 +51,11 @@ public:
 	enum { IDD = IDD_FIND };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual void OnCancel() override;
-	virtual void PostNcDestroy() override;
-	virtual void OnOK() override;
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void OnCancel() override;
+	void PostNcDestroy() override;
+	void OnOK() override;
+	BOOL OnInitDialog() override;
 	afx_msg void OnCbnEditchangeFindcombo();
 	afx_msg void OnNMClickListRef(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnEnChangeEditFilter();
@@ -63,15 +63,15 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-	UINT			m_FindMsg;
-	bool			m_bTerminating;
+	UINT			m_FindMsg = 0;
+	bool			m_bTerminating = false;
 	bool			m_bFindNext;
 	BOOL			m_bMatchCase;
 	BOOL			m_bRegex;
 	bool			m_bIsRef;
 	CHistoryCombo	m_FindCombo;
 	CString			m_FindString;
-	CWnd			*m_pParent;
+	CWnd*			m_pParent = nullptr;
 	STRING_VECTOR	m_RefList;
 	CRegDWORD		m_regMatchCase;
 	CRegDWORD		m_regRegex;

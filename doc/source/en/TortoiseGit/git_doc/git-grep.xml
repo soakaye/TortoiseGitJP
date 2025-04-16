@@ -27,11 +27,12 @@
            [--break] [--heading] [-p | --show-function]
            [-A &lt;post-context&gt;] [-B &lt;pre-context&gt;] [-C &lt;context&gt;]
            [-W | --function-context]
+           [(-m | --max-count) &lt;num&gt;]
            [--threads &lt;num&gt;]
            [-f &lt;file&gt;] [-e] &lt;pattern&gt;
            [--and|--or|--not|(|)|-e &lt;pattern&gt;&#8230;]
            [--recurse-submodules] [--parent-basename &lt;basename&gt;]
-           [ [--[no-]exclude-standard] [--cached | --no-index | --untracked] | &lt;tree&gt;&#8230;]
+           [ [--[no-]exclude-standard] [--cached | --untracked | --no-index] | &lt;tree&gt;&#8230;]
            [--] [&lt;pathspec&gt;&#8230;]</literallayout>
 </blockquote>
 </simplesect>
@@ -41,88 +42,6 @@
 registered in the index file, or blobs in given tree objects.  Patterns
 are lists of one or more search expressions separated by newline
 characters.  An empty string as search expression matches all lines.</simpara>
-</simplesect>
-<simplesect id="git-grep(1)__configuration">
-<title>CONFIGURATION</title>
-<variablelist>
-<varlistentry>
-<term>
-grep.lineNumber
-</term>
-<listitem>
-<simpara>
-        If set to true, enable <emphasis>-n</emphasis> option by default.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-grep.column
-</term>
-<listitem>
-<simpara>
-        If set to true, enable the <emphasis>--column</emphasis> option by default.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-grep.patternType
-</term>
-<listitem>
-<simpara>
-        Set the default matching behavior. Using a value of <emphasis>basic</emphasis>, <emphasis>extended</emphasis>,
-        <emphasis>fixed</emphasis>, or <emphasis>perl</emphasis> will enable the <emphasis>--basic-regexp</emphasis>, <emphasis>--extended-regexp</emphasis>,
-        <emphasis>--fixed-strings</emphasis>, or <emphasis>--perl-regexp</emphasis> option accordingly, while the
-        value <emphasis>default</emphasis> will return to the default matching behavior.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-grep.extendedRegexp
-</term>
-<listitem>
-<simpara>
-        If set to true, enable <emphasis>--extended-regexp</emphasis> option by default. This
-        option is ignored when the <emphasis>grep.patternType</emphasis> option is set to a value
-        other than <emphasis>default</emphasis>.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-grep.threads
-</term>
-<listitem>
-<simpara>
-        Number of grep worker threads to use. If unset (or set to 0), Git will
-        use as many threads as the number of logical cores available.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-grep.fullName
-</term>
-<listitem>
-<simpara>
-        If set to true, enable <emphasis>--full-name</emphasis> option by default.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-grep.fallbackToNoIndex
-</term>
-<listitem>
-<simpara>
-        If set to true, fall back to git grep --no-index if git grep
-        is executed outside of a git repository.  Defaults to false.
-</simpara>
-</listitem>
-</varlistentry>
-</variablelist>
 </simplesect>
 <simplesect id="git-grep(1)__options">
 <title>OPTIONS</title>
@@ -140,16 +59,6 @@ grep.fallbackToNoIndex
 </varlistentry>
 <varlistentry>
 <term>
---no-index
-</term>
-<listitem>
-<simpara>
-        Search files in the current directory that is not managed by Git.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 --untracked
 </term>
 <listitem>
@@ -157,6 +66,23 @@ grep.fallbackToNoIndex
         In addition to searching in the tracked files in the working
         tree, search also in untracked files.
 </simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--no-index
+</term>
+<listitem>
+<simpara>
+        Search files in the current directory that is not managed by Git,
+        or by ignoring that the current directory is managed by Git.  This
+        is rather similar to running the regular <emphasis>grep(1)</emphasis> utility with its
+        <emphasis>-r</emphasis> option specified, but with some additional benefits, such as
+        using pathspec patterns to limit paths;  see the <emphasis>pathspec</emphasis> entry
+        in <xref linkend="gitglossary(7)" /> for more information.
+</simpara>
+<simpara>This option cannot be used together with <emphasis>--cached</emphasis> or <emphasis>--untracked</emphasis>.
+See also <emphasis>grep.fallbackToNoIndex</emphasis> in <emphasis>CONFIGURATION</emphasis> below.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -190,9 +116,9 @@ grep.fallbackToNoIndex
 <simpara>
         Recursively search in each submodule that is active and
         checked out in the repository.  When used in combination with the
-        &lt;tree&gt; option the prefix of all submodule output will be the name of
-        the parent project's &lt;tree&gt; object. This option has no effect
-        if <emphasis>--no-index</emphasis> is given.
+        <emphasis>&lt;tree&gt;</emphasis> option the prefix of all submodule output will be the name of
+        the parent project's <emphasis>&lt;tree&gt;</emphasis> object.  This option cannot be used together
+        with <emphasis>--untracked</emphasis>, and it has no effect if <emphasis>--no-index</emphasis> is specified.
 </simpara>
 </listitem>
 </varlistentry>
@@ -479,7 +405,7 @@ providing this option will cause it to die.</simpara>
         Use \0 as the delimiter for pathnames in the output, and print
         them verbatim. Without this option, pathnames with "unusual"
         characters are quoted as explained for the configuration
-        variable core.quotePath (see <xref linkend="git-config(1)" />).
+        variable <emphasis>core.quotePath</emphasis> (see <xref linkend="git-config(1)" />).
 </simpara>
 </listitem>
 </varlistentry>
@@ -637,12 +563,29 @@ providing this option will cause it to die.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+-m &lt;num&gt;
+</term>
+<term>
+--max-count &lt;num&gt;
+</term>
+<listitem>
+<simpara>
+        Limit the amount of matches per file. When using the <emphasis>-v</emphasis> or
+        <emphasis>--invert-match</emphasis> option, the search stops after the specified
+        number of non-matches. A value of -1 will return unlimited
+        results (the default). A value of 0 will exit immediately with
+        a non-zero status.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 --threads &lt;num&gt;
 </term>
 <listitem>
 <simpara>
-        Number of grep worker threads to use.
-        See <emphasis>grep.threads</emphasis> in <emphasis>CONFIGURATION</emphasis> for more information.
+        Number of <emphasis>grep</emphasis> worker threads to use.  See <emphasis>NOTES ON THREADS</emphasis>
+        and <emphasis>grep.threads</emphasis> in <emphasis>CONFIGURATION</emphasis> for more information.
 </simpara>
 </listitem>
 </varlistentry>
@@ -817,12 +760,98 @@ in <xref linkend="gitglossary(7)" />.</simpara>
 </simplesect>
 <simplesect id="git-grep(1)__notes_on_threads">
 <title>NOTES ON THREADS</title>
-<simpara>The <emphasis>--threads</emphasis> option (and the grep.threads configuration) will be ignored when
+<simpara>The <emphasis>--threads</emphasis> option (and the <emphasis>grep.threads</emphasis> configuration) will be ignored when
 <emphasis>--open-files-in-pager</emphasis> is used, forcing a single-threaded execution.</simpara>
 <simpara>When grepping the object store (with <emphasis>--cached</emphasis> or giving tree objects), running
-with multiple threads might perform slower than single threaded if <emphasis>--textconv</emphasis>
-is given and there're too many text conversions. So if you experience low
-performance in this case, it might be desirable to use <emphasis>--threads=1</emphasis>.</simpara>
+with multiple threads might perform slower than single-threaded if <emphasis>--textconv</emphasis>
+is given and there are too many text conversions.  Thus, if low performance is
+experienced in this case, it might be desirable to use <emphasis>--threads=1</emphasis>.</simpara>
+</simplesect>
+<simplesect id="git-grep(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+grep.lineNumber
+</term>
+<listitem>
+<simpara>
+        If set to true, enable <emphasis>-n</emphasis> option by default.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+grep.column
+</term>
+<listitem>
+<simpara>
+        If set to true, enable the <emphasis>--column</emphasis> option by default.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+grep.patternType
+</term>
+<listitem>
+<simpara>
+        Set the default matching behavior. Using a value of <emphasis>basic</emphasis>, <emphasis>extended</emphasis>,
+        <emphasis>fixed</emphasis>, or <emphasis>perl</emphasis> will enable the <emphasis>--basic-regexp</emphasis>, <emphasis>--extended-regexp</emphasis>,
+        <emphasis>--fixed-strings</emphasis>, or <emphasis>--perl-regexp</emphasis> option accordingly, while the
+        value <emphasis>default</emphasis> will use the <emphasis>grep.extendedRegexp</emphasis> option to choose
+        between <emphasis>basic</emphasis> and <emphasis>extended</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+grep.extendedRegexp
+</term>
+<listitem>
+<simpara>
+        If set to true, enable <emphasis>--extended-regexp</emphasis> option by default. This
+        option is ignored when the <emphasis>grep.patternType</emphasis> option is set to a value
+        other than <emphasis>default</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+grep.threads
+</term>
+<listitem>
+<simpara>
+        Number of grep worker threads to use. If unset (or set to 0), Git will
+        use as many threads as the number of logical cores available.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+grep.fullName
+</term>
+<listitem>
+<simpara>
+        If set to true, enable <emphasis>--full-name</emphasis> option by default.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+grep.fallbackToNoIndex
+</term>
+<listitem>
+<simpara>
+        If set to true, fall back to <emphasis>git grep --no-index</emphasis> if <emphasis>git grep</emphasis>
+        is executed outside of a git repository.  Defaults to false.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
 </simplesect>
 <simplesect id="git-grep(1)__git">
 <title>GIT</title>

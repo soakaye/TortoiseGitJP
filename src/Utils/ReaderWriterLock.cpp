@@ -40,11 +40,6 @@ Email questions, comments or suggestions to quynhnguyenhuu@gmail.com
 // CReaderWriterLockNonReentrance implementation
 
 CReaderWriterLockNonReentrance::CReaderWriterLockNonReentrance() noexcept
-	: m_hSafeToReadEvent(NULL)
-	, m_hSafeToWriteEvent(NULL)
-	, m_iNumOfWriter(0)
-	, m_iNumOfReaderWaiting(0)
-	, m_iNumOfReaderEntered(0)
 {
 	SecureZeroMemory(this, sizeof(*this));
 #if (_WIN32_WINNT >= 0x0403)
@@ -56,20 +51,17 @@ CReaderWriterLockNonReentrance::CReaderWriterLockNonReentrance() noexcept
 
 CReaderWriterLockNonReentrance::~CReaderWriterLockNonReentrance()
 {
-	_ASSERT( (NULL == m_hSafeToReadEvent) &&
-		(NULL == m_hSafeToWriteEvent) );
+	_ASSERT(!m_hSafeToReadEvent && !m_hSafeToWriteEvent);
 	DeleteCriticalSection(&m_cs);
 }
 
-bool CReaderWriterLockNonReentrance::_ReaderWait(DWORD dwTimeout) noexcept
+bool CReaderWriterLockNonReentrance::_ReaderWait(ULONGLONG dwTimeout) noexcept
 {
 	bool blCanRead;
 
 	++m_iNumOfReaderWaiting;
-	if(NULL == m_hSafeToReadEvent)
-	{
-		m_hSafeToReadEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	}
+	if (!m_hSafeToReadEvent)
+		m_hSafeToReadEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 
 	if(INFINITE == dwTimeout) // INFINITE is a special value
 	{
@@ -89,13 +81,12 @@ bool CReaderWriterLockNonReentrance::_ReaderWait(DWORD dwTimeout) noexcept
 	{
 		LeaveCS();
 
-		DWORD const dwBeginTime = GetTickCount();
-		DWORD dwConsumedTime = 0;
+		ULONGLONG const dwBeginTime = GetTickCount64();
+		ULONGLONG dwConsumedTime = 0;
 
 		while(TRUE)
 		{
-			blCanRead = (WAIT_OBJECT_0 == WaitForSingleObject(m_hSafeToReadEvent,
-				dwTimeout - dwConsumedTime));
+			blCanRead = (WAIT_OBJECT_0 == WaitForSingleObject(m_hSafeToReadEvent, static_cast<DWORD>(dwTimeout - dwConsumedTime)));
 
 			EnterCS();
 
@@ -108,7 +99,7 @@ bool CReaderWriterLockNonReentrance::_ReaderWait(DWORD dwTimeout) noexcept
 				break;
 			}
 
-			if(FALSE == blCanRead)
+			if (!blCanRead)
 			{
 				// Timeout after waiting
 				break;
@@ -118,7 +109,7 @@ bool CReaderWriterLockNonReentrance::_ReaderWait(DWORD dwTimeout) noexcept
 			// So leave CS and prepare to try again
 			LeaveCS();
 
-			dwConsumedTime = GetTickCount() - dwBeginTime;
+			dwConsumedTime = GetTickCount64() - dwBeginTime;
 			if(dwConsumedTime > dwTimeout)
 			{
 				// Don't worry why the code here looks stupid
@@ -134,7 +125,7 @@ bool CReaderWriterLockNonReentrance::_ReaderWait(DWORD dwTimeout) noexcept
 	if(0==--m_iNumOfReaderWaiting)
 	{
 		CloseHandle(m_hSafeToReadEvent);
-		m_hSafeToReadEvent = NULL;
+		m_hSafeToReadEvent = nullptr;
 	}
 
 	return blCanRead;
@@ -145,40 +136,39 @@ void CReaderWriterLockNonReentrance::_ReaderRelease() noexcept
 	INT _iNumOfReaderEntered = --m_iNumOfReaderEntered;
 	_ASSERT(0 <= _iNumOfReaderEntered);
 
-	if( (0 == _iNumOfReaderEntered) &&
-		(NULL != m_hSafeToWriteEvent) )
+	if (0 == _iNumOfReaderEntered && m_hSafeToWriteEvent)
 	{
 		SetEvent(m_hSafeToWriteEvent);
 	}
 }
 
-bool CReaderWriterLockNonReentrance::_WriterWaitAndLeaveCSIfSuccess(DWORD dwTimeout) noexcept
+bool CReaderWriterLockNonReentrance::_WriterWaitAndLeaveCSIfSuccess(ULONGLONG dwTimeout) noexcept
 {
 	//EnterCS();
 	_ASSERT(0 != dwTimeout);
 
 	// Increase Writer-counter & reset Reader-event if necessary
 	INT _iNumOfWriter = ++m_iNumOfWriter;
-	if(	(1 == _iNumOfWriter) && (NULL != m_hSafeToReadEvent) )
+	if (_iNumOfWriter == 1 && m_hSafeToReadEvent)
 	{
 		ResetEvent(m_hSafeToReadEvent);
 	}
 
-	if(NULL == m_hSafeToWriteEvent)
+	if (!m_hSafeToWriteEvent)
 	{
-		m_hSafeToWriteEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+		m_hSafeToWriteEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	}
 	LeaveCS();
 
-	bool blCanWrite = (WAIT_OBJECT_0 == WaitForSingleObject(m_hSafeToWriteEvent, dwTimeout));
-	if(FALSE == blCanWrite)
+	bool blCanWrite = (WAIT_OBJECT_0 == WaitForSingleObject(m_hSafeToWriteEvent, static_cast<DWORD>(dwTimeout)));
+	if (!blCanWrite)
 	{
 		// Undo what we changed after timeout
 		EnterCS();
 		if(0 == --m_iNumOfWriter)
 		{
 			CloseHandle(m_hSafeToWriteEvent);
-			m_hSafeToWriteEvent = NULL;
+			m_hSafeToWriteEvent = nullptr;
 
 			if(0 == m_iNumOfReaderEntered)
 			{
@@ -196,7 +186,7 @@ bool CReaderWriterLockNonReentrance::_WriterWaitAndLeaveCSIfSuccess(DWORD dwTime
 	return blCanWrite;
 }
 
-bool CReaderWriterLockNonReentrance::_UpgradeToWriterLockAndLeaveCS(DWORD dwTimeout) noexcept
+bool CReaderWriterLockNonReentrance::_UpgradeToWriterLockAndLeaveCS(ULONGLONG dwTimeout) noexcept
 {
 	_ASSERT(m_iNumOfReaderEntered > 0);
 
@@ -208,7 +198,7 @@ bool CReaderWriterLockNonReentrance::_UpgradeToWriterLockAndLeaveCS(DWORD dwTime
 
 	--m_iNumOfReaderEntered;
 	bool blCanWrite = _WriterWaitAndLeaveCSIfSuccess(dwTimeout);
-	if(FALSE == blCanWrite)
+	if (!blCanWrite)
 	{
 		// Now analyze why it was failed to have suitable action
 		if(0 == m_iNumOfWriter)
@@ -248,10 +238,10 @@ void CReaderWriterLockNonReentrance::_WriterRelease(bool blDowngrade) noexcept
 
 	if(0 == --m_iNumOfWriter)
 	{
-		if(NULL != m_hSafeToWriteEvent)
+		if (m_hSafeToWriteEvent)
 		{
 			CloseHandle(m_hSafeToWriteEvent);
-			m_hSafeToWriteEvent = NULL;
+			m_hSafeToWriteEvent = nullptr;
 		}
 
 		if(m_hSafeToReadEvent)
@@ -263,9 +253,9 @@ void CReaderWriterLockNonReentrance::_WriterRelease(bool blDowngrade) noexcept
 	{
 		//////////////////////////////////////////////////////////////////////////
 		// Some WRITERs are queued
-		_ASSERT( (0 < m_iNumOfWriter) && (NULL != m_hSafeToWriteEvent));
+		_ASSERT(m_iNumOfWriter > 0 && m_hSafeToWriteEvent);
 
-		if(FALSE == blDowngrade)
+		if (!blDowngrade)
 		{
 			SetEvent(m_hSafeToWriteEvent);
 		}
@@ -573,13 +563,9 @@ void CReaderWriterLock::GetCurrentThreadStatus(DWORD* lpdwReaderLockCounter,
 {
 	const DWORD dwThreadState = GetCurrentThreadStatus();
 
-	if(NULL != lpdwReaderLockCounter)
-	{
+	if (lpdwReaderLockCounter)
 		*lpdwReaderLockCounter = (dwThreadState & READER_RECURRENCE_MASK);
-	}
 
-	if(NULL != lpdwWriterLockCounter)
-	{
+	if (lpdwWriterLockCounter)
 		*lpdwWriterLockCounter = (dwThreadState / WRITER_RECURRENCE_UNIT);
-	}
 }

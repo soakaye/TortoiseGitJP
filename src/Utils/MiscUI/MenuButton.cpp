@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011, 2015-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2011, 2015-2017, 2019-2020, 2023 - TortoiseGit
 // Copyright (C) 2011,2015-2016 - Sven Strickroth <email@cs-ware.de>
 
 //based on:
@@ -33,11 +33,7 @@ static char THIS_FILE[]=__FILE__;
 
 IMPLEMENT_DYNCREATE(CMenuButton, CMFCMenuButton)
 
-CMenuButton::CMenuButton(void) : CThemeMFCMenuButton()
-	, m_nDefault(0)
-	, m_bMarkDefault(TRUE)
-	, m_bShowCurrentItem(true)
-	, m_bAlwaysShowArrow(false)
+CMenuButton::CMenuButton() : CThemeMFCMenuButton()
 {
 	m_bOSMenu = TRUE;
 	m_bDefaultClick = TRUE;
@@ -48,7 +44,7 @@ CMenuButton::CMenuButton(void) : CThemeMFCMenuButton()
 	m_hMenu = m_btnMenu.GetSafeHmenu();
 }
 
-CMenuButton::~CMenuButton(void)
+CMenuButton::~CMenuButton()
 {
 }
 
@@ -169,7 +165,7 @@ void CMenuButton::OnDestroy()
 	__super::OnDestroy();
 }
 
-BOOL CMenuButton::IsPressed()
+BOOL CMenuButton::IsPressed() const
 {
 	return __super::IsPressed() || m_bChecked;
 }

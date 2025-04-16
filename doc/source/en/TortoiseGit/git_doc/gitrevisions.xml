@@ -80,8 +80,9 @@ characters and to avoid word splitting.</simpara></note>
 <listitem>
 <simpara>
 If <emphasis>$GIT_DIR/&lt;refname&gt;</emphasis> exists, that is what you mean (this is usually
-    useful only for <emphasis>HEAD</emphasis>, <emphasis>FETCH_HEAD</emphasis>, <emphasis>ORIG_HEAD</emphasis>, <emphasis>MERGE_HEAD</emphasis>
-    and <emphasis>CHERRY_PICK_HEAD</emphasis>);
+    useful only for <emphasis>HEAD</emphasis>, <emphasis>FETCH_HEAD</emphasis>, <emphasis>ORIG_HEAD</emphasis>, <emphasis>MERGE_HEAD</emphasis>,
+    <emphasis>REBASE_HEAD</emphasis>, <emphasis>REVERT_HEAD</emphasis>, <emphasis>CHERRY_PICK_HEAD</emphasis>, <emphasis>BISECT_HEAD</emphasis>
+    and <emphasis>AUTO_MERGE</emphasis>);
 </simpara>
 </listitem>
 <listitem>
@@ -108,23 +109,115 @@ otherwise, <emphasis>refs/remotes/&lt;refname&gt;</emphasis> if it exists;
 <simpara>
 otherwise, <emphasis>refs/remotes/&lt;refname&gt;/HEAD</emphasis> if it exists.
 </simpara>
-<simpara><emphasis>HEAD</emphasis> names the commit on which you based the changes in the working tree.
-<emphasis>FETCH_HEAD</emphasis> records the branch which you fetched from a remote repository
-with your last <emphasis>git fetch</emphasis> invocation.
-<emphasis>ORIG_HEAD</emphasis> is created by commands that move your <emphasis>HEAD</emphasis> in a drastic
-way, to record the position of the <emphasis>HEAD</emphasis> before their operation, so that
-you can easily change the tip of the branch back to the state before you ran
-them.
-<emphasis>MERGE_HEAD</emphasis> records the commit(s) which you are merging into your branch
-when you run <emphasis>git merge</emphasis>.
-<emphasis>CHERRY_PICK_HEAD</emphasis> records the commit which you are cherry-picking
-when you run <emphasis>git cherry-pick</emphasis>.</simpara>
+</listitem>
+</orderedlist>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    names the commit on which you based the changes in the working tree.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>FETCH_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the branch which you fetched from a remote repository with
+    your last <emphasis>git fetch</emphasis> invocation.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>ORIG_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    is created by commands that move your <emphasis>HEAD</emphasis> in a drastic way (<emphasis>git
+    am</emphasis>, <emphasis>git merge</emphasis>, <emphasis>git rebase</emphasis>, <emphasis>git reset</emphasis>), to record the position
+    of the <emphasis>HEAD</emphasis> before their operation, so that you can easily change
+    the tip of the branch back to the state before you ran them.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>MERGE_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the commit(s) which you are merging into your branch when you
+    run <emphasis>git merge</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>REBASE_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    during a rebase, records the commit at which the operation is
+    currently stopped, either because of conflicts or an <emphasis>edit</emphasis> command in
+    an interactive rebase.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>REVERT_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the commit which you are reverting when you run <emphasis>git revert</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>CHERRY_PICK_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the commit which you are cherry-picking when you run <emphasis>git
+    cherry-pick</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>BISECT_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the current commit to be tested when you run <emphasis>git bisect
+    --no-checkout</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>AUTO_MERGE</emphasis>
+</term>
+<listitem>
+<simpara>
+    records a tree object corresponding to the state the
+    <emphasis>ort</emphasis> merge strategy wrote to the working tree when a merge operation
+    resulted in conflicts.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
 <simpara>Note that any of the <emphasis>refs/*</emphasis> cases above may come either from
 the <emphasis>$GIT_DIR/refs</emphasis> directory or from the <emphasis>$GIT_DIR/packed-refs</emphasis> file.
 While the ref name encoding is unspecified, UTF-8 is preferred as
 some output processing may assume ref names in UTF-8.</simpara>
-</listitem>
-</orderedlist>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -201,12 +294,9 @@ some output processing may assume ref names in UTF-8.</simpara>
 </term>
 <listitem>
 <simpara>
-  The suffix <emphasis>@{upstream}</emphasis> to a branchname (short form <emphasis>&lt;branchname&gt;@{u}</emphasis>)
-  refers to the branch that the branch specified by branchname is set to build on
-  top of (configured with <emphasis>branch.&lt;name&gt;.remote</emphasis> and
-  <emphasis>branch.&lt;name&gt;.merge</emphasis>).  A missing branchname defaults to the
-  current one. These suffixes are also accepted when spelled in uppercase, and
-  they mean the same thing no matter the case.
+  A branch B may be set up to build on top of a branch X (configured with
+  <emphasis>branch.&lt;name&gt;.merge</emphasis>) at a remote R (configured with
+  the branch X taken from remote R, typically found at <emphasis>refs/remotes/R/X</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -218,9 +308,8 @@ some output processing may assume ref names in UTF-8.</simpara>
 <simpara>
   The suffix <emphasis>@{push}</emphasis> reports the branch "where we would push to" if
   <emphasis>git push</emphasis> were run while <emphasis>branchname</emphasis> was checked out (or the current
-  <emphasis>HEAD</emphasis> if no branchname is specified). Since our push destination is
-  in a remote repository, of course, we report the local tracking branch
-  that corresponds to that branch (i.e., something in <emphasis>refs/remotes/</emphasis>).
+  <emphasis>HEAD</emphasis> if no branchname is specified). Like for <emphasis>@{upstream}</emphasis>, we report
+  the remote-tracking branch that corresponds to that branch at the remote.
 </simpara>
 <simpara>Here's an example to make it more clear:</simpara>
 <screen>$ git config push.default current
@@ -413,6 +502,8 @@ commit.</simpara>
 any of the given commits.</simpara>
 <simpara>A commit's reachable set is the commit itself and the commits in
 its ancestry chain.</simpara>
+<simpara>There are several notations to specify a set of connected commits
+(called a "revision range"), illustrated below.</simpara>
 <section id="gitrevisions(7)__commit_exclusions">
 <title>Commit Exclusions</title>
 <variablelist>
@@ -450,7 +541,7 @@ The <emphasis>..</emphasis> (two-dot) Range Notation
 </varlistentry>
 <varlistentry>
 <term>
-The <emphasis>&#8230;</emphasis> (three-dot) Symmetric Difference Notation
+The <emphasis>...</emphasis> (three-dot) Symmetric Difference Notation
 </term>
 <listitem>
 <simpara>
@@ -469,6 +560,20 @@ did I do since I forked from the origin branch?"  Similarly, <emphasis>..origin<
 is a shorthand for <emphasis>HEAD..origin</emphasis> and asks "What did the origin do since
 I forked from them?"  Note that <emphasis>..</emphasis> would mean <emphasis>HEAD..HEAD</emphasis> which is an
 empty range that is both reachable and unreachable from HEAD.</simpara>
+<simpara>Commands that are specifically designed to take two distinct ranges
+(e.g. "git range-diff R1 R2" to compare two ranges) do exist, but
+they are exceptions.  Unless otherwise noted, all "git" commands
+that operate on a set of commits work on a single revision range.
+In other words, writing two "two-dot range notation" next to each
+other, e.g.</simpara>
+<literallayout class="monospaced">$ git log A..B C..D</literallayout>
+<simpara>does <emphasis role="strong">not</emphasis> specify two revision ranges for most commands.  Instead
+it will name a single connected set of commits, i.e. those that are
+reachable from either B or D but are reachable from neither A or C.
+In a linear history like this:</simpara>
+<literallayout class="monospaced">---A---B---o---o---C---D</literallayout>
+<simpara>because A and B are reachable from C, the revision range specified
+by these two dotted ranges is a single commit D.</simpara>
 </section>
 <section id="gitrevisions(7)__other_lt_rev_gt_94_parent_shorthand_notations">
 <title>Other &lt;rev&gt;&#94; Parent Shorthand Notations</title>
@@ -556,7 +661,7 @@ three notations also consider its parents. For example you can say
 <listitem>
 <simpara>
   A suffix <emphasis>&#94;</emphasis> followed by an exclamation mark is the same
-  as giving commit <emphasis>&lt;rev&gt;</emphasis> and then all its parents prefixed with
+  as giving commit <emphasis>&lt;rev&gt;</emphasis> and all its parents prefixed with
   <emphasis>&#94;</emphasis> to exclude them (and their ancestors).
 </simpara>
 </listitem>

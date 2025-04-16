@@ -16,8 +16,8 @@
 <literallayout><emphasis>git blame</emphasis> [-c] [-b] [-l] [--root] [-t] [-f] [-n] [-s] [-e] [-p] [-w] [--incremental]
             [-L &lt;range&gt;] [-S &lt;revs-file&gt;] [-M] [-C] [-C] [-C] [--since=&lt;date&gt;]
             [--ignore-rev &lt;rev&gt;] [--ignore-revs-file &lt;file&gt;]
-            [--progress] [--abbrev=&lt;n&gt;] [&lt;rev&gt; | --contents &lt;file&gt; | --reverse &lt;rev&gt;..&lt;rev&gt;]
-            [--] &lt;file&gt;</literallayout>
+            [--color-lines] [--color-by-age] [--progress] [--abbrev=&lt;n&gt;]
+            [ --contents &lt;file&gt; ] [&lt;rev&gt; | --reverse &lt;rev&gt;..&lt;rev&gt;] [--] &lt;file&gt;</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-blame(1)__description">
@@ -54,7 +54,7 @@ ea4c7f9bf69e781dd0cd88d2bccb2bf5cc15c9a7 git-blame: Make the output</screen>
 <listitem>
 <simpara>
         Show blank SHA-1 for boundary commits.  This can also
-        be controlled via the <emphasis>blame.blankboundary</emphasis> config option.
+        be controlled via the <emphasis>blame.blankBoundary</emphasis> config option.
 </simpara>
 </listitem>
 </varlistentry>
@@ -246,11 +246,9 @@ in <xref linkend="gitattributes(5)" />).</simpara>
 </term>
 <listitem>
 <simpara>
-        When &lt;rev&gt; is not specified, the command annotates the
-        changes starting backwards from the working tree copy.
-        This flag makes the command pretend as if the working
-        tree copy has the contents of the named file (specify
-        <emphasis>-</emphasis> to make the command read from the standard input).
+        Annotate using the contents from the named file, starting from &lt;rev&gt;
+        if it is specified, and HEAD otherwise. You may specify <emphasis>-</emphasis> to make
+        the command read from the standard input for the file contents.
 </simpara>
 </listitem>
 </varlistentry>
@@ -362,6 +360,31 @@ take effect.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--color-lines
+</term>
+<listitem>
+<simpara>
+        Color line annotations in the default format differently if they come from
+        the same commit as the preceding line. This makes it easier to distinguish
+        code blocks introduced by different commits. The color defaults to cyan and
+        can be adjusted using the <emphasis>color.blame.repeatedLines</emphasis> config option.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--color-by-age
+</term>
+<listitem>
+<simpara>
+        Color line annotations depending on the age of the line in the default format.
+        The <emphasis>color.blame.highlightRecent</emphasis> config option controls what color is used for
+        each range of age.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 -h
 </term>
 <listitem>
@@ -443,7 +466,7 @@ take effect.</simpara>
 </term>
 <listitem>
 <simpara>
-        Show the author email instead of author name (Default: off).
+        Show the author email instead of the author name (Default: off).
         This can also be controlled via the <emphasis>blame.showEmail</emphasis> config
         option.
 </simpara>
@@ -475,6 +498,30 @@ take effect.</simpara>
 </listitem>
 </varlistentry>
 </variablelist>
+</simplesect>
+<simplesect id="git-blame(1)__the_default_format">
+<title>THE DEFAULT FORMAT</title>
+<simpara>When neither <emphasis>--porcelain</emphasis> nor <emphasis>--incremental</emphasis> option is specified,
+<emphasis>git blame</emphasis> will output annotation for each line with:</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+abbreviated object name for the commit the line came from;
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+author ident (by default the author name and date, unless <emphasis>-s</emphasis> or <emphasis>-e</emphasis>
+  is specified); and
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+line number
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>before the line contents.</simpara>
 </simplesect>
 <simplesect id="git-blame(1)__the_porcelain_format">
 <title>THE PORCELAIN FORMAT</title>
@@ -525,7 +572,7 @@ the first line of the commit log message ("summary").
 </simpara>
 </listitem>
 </itemizedlist>
-<simpara>The contents of the actual line is output after the above
+<simpara>The contents of the actual line are output after the above
 header, prefixed by a TAB. This is to allow adding more
 header elements later.</simpara>
 <simpara>The porcelain format generally suppresses commit information that has
@@ -557,7 +604,7 @@ git blame -L 40,+21 foo</literallayout>
 <simpara>which limits the annotation to the body of the <emphasis>hello</emphasis> subroutine.</simpara>
 <simpara>When you are not interested in changes older than version
 v2.6.18, or changes older than 3 weeks, you can use revision
-range specifiers  similar to <emphasis>git rev-list</emphasis>:</simpara>
+range specifiers similar to <emphasis>git rev-list</emphasis>:</simpara>
 <literallayout class="monospaced">git blame v2.6.18.. -- foo
 git blame --since=3.weeks -- foo</literallayout>
 <simpara>When revision range specifiers are used to limit the annotation,
@@ -590,7 +637,7 @@ annotated.</simpara>
 <simpara>
 Each blame entry always starts with a line of:
 </simpara>
-<literallayout class="monospaced">&lt;40-byte hex sha1&gt; &lt;sourceline&gt; &lt;resultline&gt; &lt;num_lines&gt;</literallayout>
+<literallayout class="monospaced">&lt;40-byte-hex-sha1&gt; &lt;sourceline&gt; &lt;resultline&gt; &lt;num-lines&gt;</literallayout>
 <simpara>Line numbers count from 1.</simpara>
 </listitem>
 <listitem>
@@ -620,54 +667,109 @@ commit commentary), a blame viewer will not care.</simpara></note>
 </simplesect>
 <simplesect id="git-blame(1)__mapping_authors">
 <title>MAPPING AUTHORS</title>
-<simpara>If the file <emphasis>.mailmap</emphasis> exists at the toplevel of the repository, or at
-the location pointed to by the mailmap.file or mailmap.blob
-configuration options, it
-is used to map author and committer names and email addresses to
-canonical real names and email addresses.</simpara>
-<simpara>In the simple form, each line in the file consists of the canonical
-real name of an author, whitespace, and an email address used in the
-commit (enclosed by <emphasis>&lt;</emphasis> and <emphasis>&gt;</emphasis>) to map to the name. For example:</simpara>
-<literallayout class="monospaced">Proper Name &lt;commit@email.xx&gt;</literallayout>
-<simpara>The more complex forms are:</simpara>
-<literallayout class="monospaced">&lt;proper@email.xx&gt; &lt;commit@email.xx&gt;</literallayout>
-<simpara>which allows mailmap to replace only the email part of a commit, and:</simpara>
-<literallayout class="monospaced">Proper Name &lt;proper@email.xx&gt; &lt;commit@email.xx&gt;</literallayout>
-<simpara>which allows mailmap to replace both the name and the email of a
-commit matching the specified commit email address, and:</simpara>
-<literallayout class="monospaced">Proper Name &lt;proper@email.xx&gt; Commit Name &lt;commit@email.xx&gt;</literallayout>
-<simpara>which allows mailmap to replace both the name and the email of a
-commit matching both the specified commit name and email address.</simpara>
-<simpara>Example 1: Your history contains commits by two authors, Jane
-and Joe, whose names appear in the repository under several forms:</simpara>
-<screen>Joe Developer &lt;joe@example.com&gt;
-Joe R. Developer &lt;joe@example.com&gt;
-Jane Doe &lt;jane@example.com&gt;
-Jane Doe &lt;jane@laptop.(none)&gt;
-Jane D. &lt;jane@desktop.(none)&gt;</screen>
-<simpara>Now suppose that Joe wants his middle name initial used, and Jane
-prefers her family name fully spelled out. A proper <emphasis>.mailmap</emphasis> file
-would look like:</simpara>
-<screen>Jane Doe         &lt;jane@desktop.(none)&gt;
-Joe R. Developer &lt;joe@example.com&gt;</screen>
-<simpara>Note how there is no need for an entry for <emphasis>&lt;jane@laptop.(none)&gt;</emphasis>, because the
-real name of that author is already correct.</simpara>
-<simpara>Example 2: Your repository contains commits from the following
-authors:</simpara>
-<screen>nick1 &lt;bugs@company.xx&gt;
-nick2 &lt;bugs@company.xx&gt;
-nick2 &lt;nick2@company.xx&gt;
-santa &lt;me@company.xx&gt;
-claus &lt;me@company.xx&gt;
-CTO &lt;cto@coompany.xx&gt;</screen>
-<simpara>Then you might want a <emphasis>.mailmap</emphasis> file that looks like:</simpara>
-<screen>&lt;cto@company.xx&gt;                       &lt;cto@coompany.xx&gt;
-Some Dude &lt;some@dude.xx&gt;         nick1 &lt;bugs@company.xx&gt;
-Other Author &lt;other@author.xx&gt;   nick2 &lt;bugs@company.xx&gt;
-Other Author &lt;other@author.xx&gt;         &lt;nick2@company.xx&gt;
-Santa Claus &lt;santa.claus@northpole.xx&gt; &lt;me@company.xx&gt;</screen>
-<simpara>Use hash <emphasis>#</emphasis> for comments that are either on their own line, or after
-the email address.</simpara>
+<simpara>See <xref linkend="gitmailmap(5)" />.</simpara>
+</simplesect>
+<simplesect id="git-blame(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+blame.blankBoundary
+</term>
+<listitem>
+<simpara>
+        Show blank commit object name for boundary commits in
+        <xref linkend="git-blame(1)" />. This option defaults to false.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.coloring
+</term>
+<listitem>
+<simpara>
+        This determines the coloring scheme to be applied to blame
+        output. It can be <emphasis>repeatedLines</emphasis>, <emphasis>highlightRecent</emphasis>,
+        or <emphasis>none</emphasis> which is the default.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.date
+</term>
+<listitem>
+<simpara>
+        Specifies the format used to output dates in <xref linkend="git-blame(1)" />.
+        If unset the iso format is used. For supported values,
+        see the discussion of the <emphasis>--date</emphasis> option at <xref linkend="git-log(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.showEmail
+</term>
+<listitem>
+<simpara>
+        Show the author email instead of author name in <xref linkend="git-blame(1)" />.
+        This option defaults to false.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.showRoot
+</term>
+<listitem>
+<simpara>
+        Do not treat root commits as boundaries in <xref linkend="git-blame(1)" />.
+        This option defaults to false.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.ignoreRevsFile
+</term>
+<listitem>
+<simpara>
+        Ignore revisions listed in the file, one unabbreviated object name per
+        line, in <xref linkend="git-blame(1)" />.  Whitespace and comments beginning with
+        <emphasis>#</emphasis> are ignored.  This option may be repeated multiple times.  Empty
+        file names will reset the list of ignored revisions.  This option will
+        be handled before the command line option <emphasis>--ignore-revs-file</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.markUnblamableLines
+</term>
+<listitem>
+<simpara>
+        Mark lines that were changed by an ignored revision that we could not
+        attribute to another commit with a <emphasis>*</emphasis> in the output of
+        <xref linkend="git-blame(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+blame.markIgnoredLines
+</term>
+<listitem>
+<simpara>
+        Mark lines that were changed by an ignored revision that we attributed to
+        another commit with a <emphasis>?</emphasis> in the output of <xref linkend="git-blame(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
 </simplesect>
 <simplesect id="git-blame(1)__see_also">
 <title>SEE ALSO</title>

@@ -1,11 +1,11 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2021 - TortoiseGit
+// Copyright (C) 2008-2024 - TortoiseGit
 
 #define TGIT_VERMAJOR		2
-#define TGIT_VERMINOR		12
+#define TGIT_VERMINOR		17
 #define TGIT_VERMICRO		0
-#define TGIT_VERBUILD		0
+#define TGIT_VERBUILD		1
 #define TGIT_VERDATE		__DATE__
 
 #define FILEVER TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD
@@ -15,7 +15,9 @@
 #define STRFILEVER			MAKEVERSIONSTR(".", TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD)
 #define STRPRODUCTVER		STRFILEVER
 
-#ifdef _WIN64
+#if _M_ARM64
+#define TGIT_PLATFORM		"ARM64"
+#elif defined(WIN64)
 #define TGIT_PLATFORM		"64 Bit"
 #else
 #define TGIT_PLATFORM		"32 Bit"

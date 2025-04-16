@@ -13,7 +13,7 @@
 <simplesect id="git-request-pull(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git request-pull</emphasis> [-p] &lt;start&gt; &lt;url&gt; [&lt;end&gt;]</literallayout>
+<literallayout><emphasis>git request-pull</emphasis> [-p] &lt;start&gt; &lt;URL&gt; [&lt;end&gt;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-request-pull(1)__description">
@@ -21,11 +21,11 @@
 <simpara>Generate a request asking your upstream project to pull changes into
 their tree.  The request, printed to the standard output,
 begins with the branch description, summarizes
-the changes and indicates from where they can be pulled.</simpara>
+the changes, and indicates from where they can be pulled.</simpara>
 <simpara>The upstream project is expected to have the commit named by
 <emphasis>&lt;start&gt;</emphasis> and the output asks it to integrate the changes you made
 since that commit, up to the commit named by <emphasis>&lt;end&gt;</emphasis>, by visiting
-the repository named by <emphasis>&lt;url&gt;</emphasis>.</simpara>
+the repository named by <emphasis>&lt;URL&gt;</emphasis>.</simpara>
 </simplesect>
 <simplesect id="git-request-pull(1)__options">
 <title>OPTIONS</title>
@@ -53,7 +53,7 @@ the repository named by <emphasis>&lt;url&gt;</emphasis>.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
-&lt;url&gt;
+&lt;URL&gt;
 </term>
 <listitem>
 <simpara>
@@ -70,7 +70,7 @@ the repository named by <emphasis>&lt;url&gt;</emphasis>.</simpara>
         Commit to end at (defaults to HEAD).  This names the commit
         at the tip of the history you are asking to be pulled.
 </simpara>
-<simpara>When the repository named by <emphasis>&lt;url&gt;</emphasis> has the commit at a tip of a
+<simpara>When the repository named by <emphasis>&lt;URL&gt;</emphasis> has the commit at a tip of a
 ref that is different from the ref you have locally, you can use the
 <emphasis>&lt;local&gt;:&lt;remote&gt;</emphasis> syntax, to have its local name, a colon <emphasis>:</emphasis>, and
 its remote name.</simpara>
@@ -81,7 +81,7 @@ its remote name.</simpara>
 <simplesect id="git-request-pull(1)__examples">
 <title>EXAMPLES</title>
 <simpara>Imagine that you built your work on your <emphasis>master</emphasis> branch on top of
-the <emphasis>v1.0</emphasis> release, and want it to be integrated to the project.
+the <emphasis>v1.0</emphasis> release, and want it to be integrated into the project.
 First you push that change to your public repository for others to
 see:</simpara>
 <literallayout class="monospaced">git push https://git.ko.xz/project master</literallayout>

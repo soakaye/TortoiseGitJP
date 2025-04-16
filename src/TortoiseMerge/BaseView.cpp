@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2003-2021 - TortoiseSVN
-// Copyright (C) 2011-2012, 2017-2021 Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2011-2012, 2017-2025 TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@
 #define new DEBUG_NEW
 #endif
 
-#define HEADERHEIGHT (CDPIAware::Instance().ScaleY(10))
+#define HEADERHEIGHT (CDPIAware::Instance().ScaleY(GetSafeHwnd(), 10))
 
 #define IDT_SCROLLTIMER 101
 
@@ -70,57 +70,7 @@ allviewstate CBaseView::m_AllState;
 IMPLEMENT_DYNCREATE(CBaseView, CView)
 
 CBaseView::CBaseView()
-	: m_pCacheBitmap(nullptr)
-	, m_pViewData(nullptr)
-	, m_pOtherViewData(nullptr)
-	, m_pOtherView(nullptr)
-	, m_nLineHeight(-1)
-	, m_nCharWidth(-1)
-	, m_nScreenChars(-1)
-	, m_nLastScreenChars(-1)
-	, m_nMaxLineLength(-1)
-	, m_nScreenLines(-1)
-	, m_nTopLine(0)
-	, m_nOffsetChar(0)
-	, m_nDigits(0)
-	, m_nMouseLine(-1)
-	, m_nLDownLine(-1)
-	, m_mouseInMargin(false)
-	, m_bIsHidden(FALSE)
-	, m_lineendings(EOL_AUTOLINE)
-	, m_bReadonly(true)
-	, m_bReadonlyIsChangable(false)
-	, m_bTarget(false)
-	, m_nCaretGoalPos(0)
-	, m_nSelViewBlockStart(-1)
-	, m_nSelViewBlockEnd(-1)
-	, m_bFocused(FALSE)
-	, m_bShowSelection(true)
-	, m_texttype(CFileTextLines::AUTOTYPE)
-	, m_bModified(FALSE)
-	, m_bOtherDiffChecked(false)
-	, m_bInlineWordDiff(true)
-	, m_bWhitespaceInlineDiffs(false)
-	, m_pState(nullptr)
-	, m_pFindDialog(nullptr)
-	, m_nStatusBarID(0)
-	, m_bMatchCase(false)
-	, m_bLimitToDiff(true)
-	, m_bWholeWord(false)
-	, m_pDC(nullptr)
-	, m_pWorkingFile(nullptr)
-	, m_bInsertMode(true)
-	, m_bEditorConfigEnabled(false)
-	, m_bEditorConfigLoaded(2) // 2 = not evaluated
-	, m_bDark(false)
-	, m_themeCallbackId(0)
-	, m_MarkedWordCount(0)
 {
-	m_ptCaretViewPos.x = 0;
-	m_ptCaretViewPos.y = 0;
-	m_ptSelectionViewPosStart = m_ptCaretViewPos;
-	m_ptSelectionViewPosEnd = m_ptSelectionViewPosStart;
-	m_ptSelectionViewPosOrigin = m_ptSelectionViewPosEnd;
 	m_bViewWhitespace = CRegDWORD(L"Software\\TortoiseGitMerge\\ViewWhitespaces", 1);
 	m_bViewLinenumbers = CRegDWORD(L"Software\\TortoiseGitMerge\\ViewLinenumbers", 1);
 	m_bShowInlineDiff = CRegDWORD(L"Software\\TortoiseGitMerge\\DisplayBinDiff", TRUE);
@@ -134,7 +84,7 @@ CBaseView::CBaseView()
 	m_WhiteSpaceFg = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\Whitespace", CTheme::Instance().GetThemeColor(GetSysColor(COLOR_3DSHADOW)));
 	m_sWordSeparators = CRegString(L"Software\\TortoiseGitMerge\\WordSeparators", L"[]();:.,{}!@#$%^&*-+=|/\\<>'`~\"?");
 	m_bIconLFs = CRegDWORD(L"Software\\TortoiseGitMerge\\IconLFs", 0);
-	m_nTabSize = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4));
+	m_nTabSize = std::min(TABSIZE_MAX, std::max(TABSIZE_MIN, static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4))));
 	m_nTabMode = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabMode", TABMODE_NONE));
 	m_bEditorConfigEnabled = !!static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGitMerge\\EnableEditorConfig", FALSE));
 	std::fill_n(m_apFonts, fontsCount, static_cast<CFont*>(nullptr));
@@ -161,23 +111,20 @@ CBaseView::CBaseView()
 
 	m_szTip[0]  = 0;
 	m_wszTip[0] = 0;
-	SecureZeroMemory(&m_lfBaseFont, sizeof(m_lfBaseFont));
 	EnableToolTips();
 
-	m_Eols[EOL_LF]   = L"\n"; // x0a
-	m_Eols[EOL_CR]   = L"\r"; // x0d
-	m_Eols[EOL_CRLF] = L"\r\n"; // x0d x0a
-	m_Eols[EOL_LFCR] = L"\n\r";
-	m_Eols[EOL_VT]   = L"\v"; // x0b
-	m_Eols[EOL_FF]   = L"\f"; // x0c
-	m_Eols[EOL_NEL]  = L"\x85";
-	m_Eols[EOL_LS]   = L"\x2028";
-	m_Eols[EOL_PS]   = L"\x2029";
-	m_Eols[EOL_AUTOLINE] = m_Eols[m_lineendings==EOL_AUTOLINE
-								? EOL_CRLF
-								: m_lineendings];
-	m_SaveParams.m_LineEndings = EOL::EOL_AUTOLINE;
-	m_SaveParams.m_UnicodeType = CFileTextLines::AUTOTYPE;
+	m_Eols[static_cast<int>(EOL::LF)] = L"\n"; // x0a
+	m_Eols[static_cast<int>(EOL::CR)] = L"\r"; // x0d
+	m_Eols[static_cast<int>(EOL::CRLF)] = L"\r\n"; // x0d x0a
+	m_Eols[static_cast<int>(EOL::LFCR)] = L"\n\r";
+	m_Eols[static_cast<int>(EOL::VT)] = L"\v"; // x0b
+	m_Eols[static_cast<int>(EOL::FF)] = L"\f"; // x0c
+	m_Eols[static_cast<int>(EOL::NEL)] = L"\x85";
+	m_Eols[static_cast<int>(EOL::LS)] = L"\x2028";
+	m_Eols[static_cast<int>(EOL::PS)] = L"\x2029";
+	m_Eols[static_cast<int>(EOL::AutoLine)] = m_Eols[static_cast<int>(m_lineendings == EOL::AutoLine ? EOL::CRLF : m_lineendings)];
+	m_SaveParams.m_LineEndings = EOL::AutoLine;
+	m_SaveParams.m_UnicodeType = CFileTextLines::UnicodeType::AUTOTYPE;
 
 	m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme()); });
 }
@@ -253,14 +200,12 @@ void CBaseView::DocumentUpdated()
 	m_nDigits = 0;
 	m_nMouseLine = -1;
 	m_nLDownLine = -1;
-	m_nTabSize = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4));
+	m_nTabSize = std::min(TABSIZE_MAX, std::max(TABSIZE_MIN, static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4))));
 	m_nTabMode = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabMode", TABMODE_NONE));
 	m_bViewLinenumbers = CRegDWORD(L"Software\\TortoiseGitMerge\\ViewLinenumbers", 1);
 	m_bIconLFs = CRegDWORD(L"Software\\TortoiseGitMerge\\IconLFs", 0);
 	m_nInlineDiffMaxLineLength = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineDiffMaxLineLength", 3000);
-	m_Eols[EOL_AUTOLINE] = m_Eols[m_lineendings==EOL_AUTOLINE
-								? EOL_CRLF
-								: m_lineendings];
+	m_Eols[static_cast<int>(EOL::AutoLine)] = m_Eols[static_cast<int>(m_lineendings == EOL::AutoLine ? EOL::CRLF : m_lineendings)];
 	SetEditorConfigEnabled(m_bEditorConfigEnabled);
 	DeleteFonts();
 	ClearCurrentSelection();
@@ -272,7 +217,7 @@ void CBaseView::DocumentUpdated()
 void CBaseView::SetEditorConfigEnabled(bool bEditorConfigEnabled)
 {
 	m_bEditorConfigEnabled = bEditorConfigEnabled;
-	m_nTabSize = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4));
+	m_nTabSize = std::min(TABSIZE_MAX, std::max(TABSIZE_MIN, static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4))));
 	m_nTabMode = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabMode", TABMODE_NONE));
 	if (m_bEditorConfigEnabled)
 	{
@@ -282,11 +227,28 @@ void CBaseView::SetEditorConfigEnabled(bool bEditorConfigEnabled)
 		{
 			m_bEditorConfigLoaded = TRUE;
 			if (ec.m_nTabWidth != nullptr)
-				m_nTabSize = ec.m_nTabWidth;
+				m_nTabSize = std::min(TABSIZE_MAX, std::max(TABSIZE_MIN, static_cast<int>(ec.m_nTabWidth)));
 			if (ec.m_bIndentStyle != nullptr)
 				m_nTabMode = (m_nTabMode & ~TABMODE_USESPACES) | (ec.m_bIndentStyle ? TABMODE_USESPACES : TABMODE_NONE);
 		}
 	}
+}
+
+void CBaseView::DPIChanged()
+{
+	ReleaseBitmap();
+	m_nLineHeight = -1;
+	m_nCharWidth = -1;
+	m_nScreenChars = -1;
+	m_nLastScreenChars = -1;
+	m_nMaxLineLength = -1;
+	m_nScreenLines = -1;
+	m_nDigits = 0;
+	DeleteFonts();
+	UpdateStatusBar();
+	SetTheme(CTheme::Instance().IsDarkTheme());
+	EnsureCaretVisible();
+	Invalidate();
 }
 
 static CString GetTabModeString(int nTabMode, int nTabSize, bool bEditorConfig)
@@ -314,24 +276,24 @@ void CBaseView::UpdateStatusBar()
 	{
 		for (int i=0; i<m_pViewData->GetCount(); i++)
 		{
-			DiffStates state = m_pViewData->GetState(i);
+			DiffState state = m_pViewData->GetState(i);
 			switch (state)
 			{
-			case DIFFSTATE_ADDED:
-			case DIFFSTATE_IDENTICALADDED:
-			case DIFFSTATE_THEIRSADDED:
-			case DIFFSTATE_YOURSADDED:
-			case DIFFSTATE_CONFLICTADDED:
+			case DiffState::Added:
+			case DiffState::IdenticalAdded:
+			case DiffState::TheirsAdded:
+			case DiffState::YoursAdded:
+			case DiffState::ConflictAdded:
 				nAddedLines++;
 				break;
-			case DIFFSTATE_IDENTICALREMOVED:
-			case DIFFSTATE_REMOVED:
-			case DIFFSTATE_THEIRSREMOVED:
-			case DIFFSTATE_YOURSREMOVED:
+			case DiffState::IdenticalRemoved:
+			case DiffState::Removed:
+			case DiffState::TheirsRemoved:
+			case DiffState::YoursRemoved:
 				nRemovedLines++;
 				break;
-			case DIFFSTATE_CONFLICTED:
-			case DIFFSTATE_CONFLICTED_IGNORED:
+			case DiffState::Conflicted:
+			case DiffState::Conflicted_Ignored:
 				nConflictedLines++;
 				break;
 			}
@@ -456,8 +418,11 @@ void CBaseView::UpdateStatusBar()
 					pButton->SetDescription(GetTabModeString(m_nTabMode, m_nTabSize, m_bEditorConfigEnabled && m_bEditorConfigLoaded));
 				}
 			}
-			m_pwndRibbonStatusBar->RecalcLayout();
-			m_pwndRibbonStatusBar->Invalidate();
+			if (m_pwndRibbonStatusBar->GetSafeHwnd())
+			{
+				m_pwndRibbonStatusBar->RecalcLayout();
+				m_pwndRibbonStatusBar->Invalidate();
+			}
 		}
 	}
 }
@@ -496,8 +461,8 @@ CFont* CBaseView::GetFont(BOOL bItalic /*= FALSE*/, BOOL bBold /*= FALSE*/)
 		m_lfBaseFont.lfCharSet = DEFAULT_CHARSET;
 		m_lfBaseFont.lfWeight = bBold ? FW_BOLD : FW_NORMAL;
 		m_lfBaseFont.lfItalic = static_cast<BYTE>(bItalic);
-		m_lfBaseFont.lfHeight = -CDPIAware::Instance().PointsToPixelsY(static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGitMerge\\LogFontSize", 10)));
-		wcsncpy_s(m_lfBaseFont.lfFaceName, static_cast<LPCTSTR>(static_cast<CString>(CRegString(L"Software\\TortoiseGitMerge\\LogFontName", L"Consolas"))), _countof(m_lfBaseFont.lfFaceName) - 1);
+		m_lfBaseFont.lfHeight = -CDPIAware::Instance().PointsToPixelsY(*this, static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGitMerge\\LogFontSize", 10)));
+		wcsncpy_s(m_lfBaseFont.lfFaceName, static_cast<LPCWSTR>(static_cast<CString>(CRegString(L"Software\\TortoiseGitMerge\\LogFontName", L"Consolas"))), _countof(m_lfBaseFont.lfFaceName) - 1);
 		if (!m_apFonts[nIndex]->CreateFontIndirect(&m_lfBaseFont))
 		{
 			delete m_apFonts[nIndex];
@@ -739,27 +704,27 @@ void CBaseView::GetWhitespaceBlock(CViewData *viewData, int nLineIndex, int & nS
 	enum { MAX_WHITESPACEBLOCK_SIZE = 8 };
 	ASSERT(viewData);
 
-	DiffStates origstate = viewData->GetState(nLineIndex);
+	DiffState origstate = viewData->GetState(nLineIndex);
 
 	// Go back and forward at most MAX_WHITESPACEBLOCK_SIZE lines to see where this block ends
 	nStartBlock = nLineIndex;
 	nEndBlock = nLineIndex;
 	while ((nStartBlock > 0) && (nStartBlock > (nLineIndex - MAX_WHITESPACEBLOCK_SIZE)))
 	{
-		DiffStates state = viewData->GetState(nStartBlock - 1);
-		if ((origstate == DIFFSTATE_EMPTY) && (state != DIFFSTATE_NORMAL))
+		DiffState state = viewData->GetState(nStartBlock - 1);
+		if ((origstate == DiffState::Empty) && (state != DiffState::Normal))
 			origstate = state;
-		if ((origstate == state) || (state == DIFFSTATE_EMPTY))
+		if ((origstate == state) || (state == DiffState::Empty))
 			nStartBlock--;
 		else
 			break;
 	}
 	while ((nEndBlock < (viewData->GetCount() - 1)) && (nEndBlock < (nLineIndex + MAX_WHITESPACEBLOCK_SIZE)))
 	{
-		DiffStates state = viewData->GetState(nEndBlock + 1);
-		if ((origstate == DIFFSTATE_EMPTY) && (state != DIFFSTATE_NORMAL))
+		DiffState state = viewData->GetState(nEndBlock + 1);
+		if ((origstate == DiffState::Empty) && (state != DiffState::Normal))
 			origstate = state;
-		if ((origstate == state) || (state == DIFFSTATE_EMPTY))
+		if ((origstate == state) || (state == DiffState::Empty))
 			nEndBlock++;
 		else
 			break;
@@ -783,7 +748,7 @@ CString CBaseView::GetWhitespaceString(CViewData *viewData, int nStartBlock, int
 	for (int i = nStartBlock; i <= nEndBlock; ++i)
 	{
 		block += viewData->GetLine(i);
-		block += m_Eols[viewData->GetLineEnding(i)];
+		block += m_Eols[static_cast<int>(viewData->GetLineEnding(i))];
 	}
 	return block;
 }
@@ -798,7 +763,7 @@ bool CBaseView::IsBlockWhitespaceOnly(int nLineIndex, bool& bIdentical, int& blo
 		return false;
 	int viewLine = GetViewLineForScreen(nLineIndex);
 	if (
-		(m_pViewData->GetState(viewLine) == DIFFSTATE_NORMAL) &&
+		(m_pViewData->GetState(viewLine) == DiffState::Normal) &&
 		(m_pOtherViewData->GetLine(viewLine) == m_pViewData->GetLine(viewLine))
 		)
 	{
@@ -846,7 +811,7 @@ bool CBaseView::IsViewLineHidden(int nViewLine)
 
 bool CBaseView::IsViewLineHidden(CViewData * pViewData, int nViewLine)
 {
-	return m_pMainFrame->m_bCollapsed && (pViewData->GetHideState(nViewLine)!=HIDESTATE_SHOWN);
+	return m_pMainFrame->m_bCollapsed && (pViewData->GetHideState(nViewLine)!=HideState::Shown);
 }
 
 int CBaseView::GetLineNumber(int index) const
@@ -1251,29 +1216,29 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 		TScreenedViewLine::EIcon eIcon = m_ScreenedViewLine[nViewLine].eIcon;
 		if (eIcon==TScreenedViewLine::ICN_UNKNOWN)
 		{
-			DiffStates state = m_pViewData->GetState(nViewLine);
+			DiffState state = m_pViewData->GetState(nViewLine);
 			switch (state)
 			{
-			case DIFFSTATE_ADDED:
-			case DIFFSTATE_THEIRSADDED:
-			case DIFFSTATE_YOURSADDED:
-			case DIFFSTATE_IDENTICALADDED:
-			case DIFFSTATE_CONFLICTADDED:
+			case DiffState::Added:
+			case DiffState::TheirsAdded:
+			case DiffState::YoursAdded:
+			case DiffState::IdenticalAdded:
+			case DiffState::ConflictAdded:
 				eIcon = TScreenedViewLine::ICN_ADD;
 				break;
-			case DIFFSTATE_REMOVED:
-			case DIFFSTATE_THEIRSREMOVED:
-			case DIFFSTATE_YOURSREMOVED:
-			case DIFFSTATE_IDENTICALREMOVED:
+			case DiffState::Removed:
+			case DiffState::TheirsRemoved:
+			case DiffState::YoursRemoved:
+			case DiffState::IdenticalRemoved:
 				eIcon = TScreenedViewLine::ICN_REMOVED;
 				break;
-			case DIFFSTATE_CONFLICTED:
+			case DiffState::Conflicted:
 				eIcon = TScreenedViewLine::ICN_CONFLICT;
 				break;
-			case DIFFSTATE_CONFLICTED_IGNORED:
+			case DiffState::Conflicted_Ignored:
 				eIcon = TScreenedViewLine::ICN_CONFLICTIGNORED;
 				break;
-			case DIFFSTATE_EDITED:
+			case DiffState::Edited:
 				eIcon = TScreenedViewLine::ICN_EDIT;
 				break;
 			default:
@@ -1282,7 +1247,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 			bool bIdentical = false;
 			int blockstart = -1;
 			int blockend = -1;
-			if ((state != DIFFSTATE_EDITED)&&(IsBlockWhitespaceOnly(nLineIndex, bIdentical, blockstart, blockend)))
+			if ((state != DiffState::Edited)&&(IsBlockWhitespaceOnly(nLineIndex, bIdentical, blockstart, blockend)))
 			{
 				if (bIdentical)
 					eIcon = TScreenedViewLine::ICN_SAME;
@@ -1340,7 +1305,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 		int iconHeight = GetSystemMetrics(SM_CYSMICON);
 		if (icon)
 		{
-			::DrawIconEx(pdc->m_hDC, rect.left + CDPIAware::Instance().ScaleX(2), rect.top + (rect.Height() - iconHeight) / 2, icon, iconWidth, iconHeight, 0, nullptr, DI_NORMAL);
+			::DrawIconEx(pdc->m_hDC, rect.left + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2), rect.top + (rect.Height() - iconHeight) / 2, icon, iconWidth, iconHeight, 0, nullptr, DI_NORMAL);
 		}
 		if ((m_bViewLinenumbers)&&(m_nDigits))
 		{
@@ -1374,7 +1339,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 					pdc->SetTextColor(CTheme::Instance().IsDarkTheme() ? CTheme::darkTextColor : GetSysColor(COLOR_WINDOWTEXT));
 
 					pdc->SelectObject(GetFont());
-					pdc->ExtTextOut(rect.left + iconWidth + CDPIAware::Instance().ScaleX(2), rect.top, ETO_CLIPPED, &rect, sLinenumber, nullptr);
+					pdc->ExtTextOut(rect.left + iconWidth + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2), rect.top, ETO_CLIPPED, &rect, sLinenumber, nullptr);
 				}
 			}
 		}
@@ -1383,7 +1348,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 
 int CBaseView::GetMarginWidth()
 {
-	int marginWidth = GetSystemMetrics(SM_CXSMICON) + CDPIAware::Instance().ScaleX(4);
+	int marginWidth = GetSystemMetrics(SM_CXSMICON) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 4);
 
 	if ((m_bViewLinenumbers)&&(m_pViewData)&&(m_pViewData->GetCount()))
 	{
@@ -1396,7 +1361,7 @@ int CBaseView::GetMarginWidth()
 			m_nDigits = sMax.GetLength();
 		}
 		int nWidth = GetCharWidth();
-		marginWidth += (m_nDigits * nWidth) + CDPIAware::Instance().ScaleX(2);
+		marginWidth += (m_nDigits * nWidth) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
 	}
 
 	return marginWidth;
@@ -1408,15 +1373,15 @@ void CBaseView::DrawHeader(CDC *pdc, const CRect &rect)
 	COLORREF crBk, crFg;
 	if (IsBottomViewGood())
 	{
-		CDiffColors::GetInstance().GetColors(DIFFSTATE_NORMAL, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBk, crFg);
+		CDiffColors::GetInstance().GetColors(DiffState::Normal, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBk, crFg);
 		crBk = CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_SCROLLBAR));
 	}
 	else
 	{
-		DiffStates state = DIFFSTATE_REMOVED;
+		DiffState state = DiffState::Removed;
 		if (this == m_pwndRight)
 		{
-			state = DIFFSTATE_ADDED;
+			state = DiffState::Added;
 		}
 		CDiffColors::GetInstance().GetColors(state, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBk, crFg);
 	}
@@ -1505,52 +1470,52 @@ void CBaseView::OnDraw(CDC * pDC)
 	cacheDC.DeleteDC();
 }
 
-bool CBaseView::IsStateConflicted(DiffStates state)
+bool CBaseView::IsStateConflicted(DiffState state)
 {
 	switch (state)
 	{
-	 case DIFFSTATE_CONFLICTED:
-	 case DIFFSTATE_CONFLICTED_IGNORED:
-	 case DIFFSTATE_CONFLICTEMPTY:
-	 case DIFFSTATE_CONFLICTADDED:
+	 case DiffState::Conflicted:
+	 case DiffState::Conflicted_Ignored:
+	 case DiffState::ConflictEmpty:
+	 case DiffState::ConflictAdded:
 		return true;
 	}
 	return false;
 }
 
-bool CBaseView::IsStateEmpty(DiffStates state)
+bool CBaseView::IsStateEmpty(DiffState state)
 {
 	switch (state)
 	{
-	 case DIFFSTATE_CONFLICTEMPTY:
-	 case DIFFSTATE_UNKNOWN:
-	 case DIFFSTATE_EMPTY:
+	 case DiffState::ConflictEmpty:
+	 case DiffState::Unknown:
+	 case DiffState::Empty:
 		return true;
 	}
 	return false;
 }
 
-bool CBaseView::IsStateRemoved(DiffStates state)
+bool CBaseView::IsStateRemoved(DiffState state)
 {
 	switch (state)
 	{
-	 case DIFFSTATE_REMOVED:
-	 case DIFFSTATE_THEIRSREMOVED:
-	 case DIFFSTATE_YOURSREMOVED:
-	 case DIFFSTATE_IDENTICALREMOVED:
+	 case DiffState::Removed:
+	 case DiffState::TheirsRemoved:
+	 case DiffState::YoursRemoved:
+	 case DiffState::IdenticalRemoved:
 		return true;
 	}
 	return false;
 }
 
-DiffStates CBaseView::ResolveState(DiffStates state)
+DiffState CBaseView::ResolveState(DiffState state)
 {
 	if (IsStateConflicted(state))
 	{
-		if (state == DIFFSTATE_CONFLICTEMPTY)
-			return DIFFSTATE_CONFLICTRESOLVEDEMPTY;
+		if (state == DiffState::ConflictEmpty)
+			return DiffState::ConflictResolvedEmpty;
 		else
-			return DIFFSTATE_CONFLICTRESOLVED;
+			return DiffState::ConflictResolved;
 	}
 	return state;
 }
@@ -1568,7 +1533,7 @@ bool CBaseView::IsViewLineEmpty(int nViewLine)
 {
 	if (m_pViewData == 0)
 		return FALSE;
-	const DiffStates state = m_pViewData->GetState(nViewLine);
+	const DiffState state = m_pViewData->GetState(nViewLine);
 	return IsStateEmpty(state);
 }
 
@@ -1584,7 +1549,7 @@ bool CBaseView::IsViewLineRemoved(int nViewLine)
 {
 	if (m_pViewData == 0)
 		return FALSE;
-	const DiffStates state = m_pViewData->GetState(nViewLine);
+	const DiffState state = m_pViewData->GetState(nViewLine);
 	return IsStateRemoved(state);
 }
 
@@ -1604,7 +1569,7 @@ COLORREF CBaseView::InlineViewLineDiffColor(int nViewLine)
 
 void CBaseView::DrawLineEnding(CDC *pDC, const CRect &rc, int nLineIndex, const CPoint& origin)
 {
-	if (origin.x < (rc.left - GetCharWidth() +1))
+	if (origin.x < (rc.left - GetCharWidth() + 1))
 		return;
 	if (!(m_bViewWhitespace && m_pViewData && (nLineIndex >= 0) && (nLineIndex < GetLineCount())))
 		return;
@@ -1615,18 +1580,24 @@ void CBaseView::DrawLineEnding(CDC *pDC, const CRect &rc, int nLineIndex, const 
 		HICON hEndingIcon = nullptr;
 		switch (ending)
 		{
-		case EOL_CR:	hEndingIcon = m_hLineEndingCR;		break;
-		case EOL_CRLF:	hEndingIcon = m_hLineEndingCRLF;	break;
-		case EOL_LF:	hEndingIcon = m_hLineEndingLF;		break;
+		case EOL::CR:
+			hEndingIcon = m_hLineEndingCR;
+			break;
+		case EOL::CRLF:
+			hEndingIcon = m_hLineEndingCRLF;
+			break;
+		case EOL::LF:
+			hEndingIcon = m_hLineEndingLF;
+			break;
 		default: return;
 		}
 		// If EOL style has changed, color end-of-line markers as inline differences.
 		if(
 			m_bShowInlineDiff && m_pOtherViewData &&
 			(viewLine < m_pOtherViewData->GetCount()) &&
-			(ending != EOL_NOENDING) &&
+			(ending != EOL::NoEnding) &&
 			(ending != m_pOtherViewData->GetLineEnding(viewLine) &&
-			(m_pOtherViewData->GetLineEnding(viewLine) != EOL_NOENDING))
+			(m_pOtherViewData->GetLineEnding(viewLine) != EOL::NoEnding))
 			)
 		{
 			pDC->FillSolidRect(origin.x, origin.y, rc.Height(), rc.Height(), InlineDiffColor(nLineIndex));
@@ -1637,82 +1608,86 @@ void CBaseView::DrawLineEnding(CDC *pDC, const CRect &rc, int nLineIndex, const 
 	else
 	{
 		CPen pen(PS_SOLID, 0, CTheme::Instance().GetThemeColor(m_WhiteSpaceFg));
-		CPen * oldpen = pDC->SelectObject(&pen);
-		int yMiddle = origin.y + rc.Height()/2;
-		int xMiddle = origin.x+GetCharWidth()/2;
+		CPen* oldpen = pDC->SelectObject(&pen);
+		int yMiddle = origin.y + rc.Height() / 2;
+		int xMiddle = origin.x + GetCharWidth() / 2;
 		bool bMultiline = false;
-		if ((m_Screen2View.size() > nLineIndex + 1) && (GetViewLineForScreen(nLineIndex + 1) == viewLine))
+		const auto onepix = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 1);
+		const auto twopix = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
+		const auto fourpix = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 4);
+		const auto fivepix = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 5);
+		if (((int)m_Screen2View.size() > nLineIndex + 1) && (GetViewLineForScreen(nLineIndex + 1) == viewLine))
 		{
-			if (GetLineLength(nLineIndex+1))
+			if (GetLineLength(nLineIndex + 1))
 			{
 				// multiline
 				bMultiline = true;
-				pDC->MoveTo(origin.x, yMiddle - CDPIAware::Instance().ScaleY(2));
-				pDC->LineTo(origin.x + GetCharWidth() - CDPIAware::Instance().ScaleX(1), yMiddle - CDPIAware::Instance().ScaleY(2));
-				pDC->LineTo(origin.x + GetCharWidth() - CDPIAware::Instance().ScaleX(1), yMiddle + CDPIAware::Instance().ScaleY(2));
-				pDC->LineTo(origin.x, yMiddle + CDPIAware::Instance().ScaleY(2));
+				pDC->MoveTo(origin.x, yMiddle - twopix);
+				pDC->LineTo(origin.x + GetCharWidth() - onepix, yMiddle - twopix);
+				pDC->LineTo(origin.x + GetCharWidth() - onepix, yMiddle + twopix);
+				pDC->LineTo(origin.x, yMiddle + twopix);
 			}
 			else if (GetLineLength(nLineIndex) == 0)
 				bMultiline = true;
 		}
-		else if ((nLineIndex > 0) && (GetViewLineForScreen(nLineIndex-1) == viewLine) && (GetLineLength(nLineIndex) == 0))
+		else if ((nLineIndex > 0) && (GetViewLineForScreen(nLineIndex - 1) == viewLine) && (GetLineLength(nLineIndex) == 0))
 			bMultiline = true;
 
 		if (!bMultiline)
 		{
 			switch (ending)
 			{
-			case EOL_AUTOLINE:
-			case EOL_CRLF:
+			case EOL::AutoLine:
+			case EOL::CRLF:
 				// arrow from top to middle+2, then left
-				pDC->MoveTo(origin.x + GetCharWidth() - CDPIAware::Instance().ScaleX(1), rc.top + CDPIAware::Instance().ScaleY(1));
-				pDC->LineTo(origin.x + GetCharWidth() - CDPIAware::Instance().ScaleX(1), yMiddle);
-			case EOL_CR:
+				pDC->MoveTo(origin.x + GetCharWidth() - onepix, rc.top + onepix);
+				pDC->LineTo(origin.x + GetCharWidth() - onepix, yMiddle);
+			case EOL::CR:
 				// arrow from right to left
-				pDC->MoveTo(origin.x + GetCharWidth() - CDPIAware::Instance().ScaleX(1), yMiddle);
+				pDC->MoveTo(origin.x + GetCharWidth() - onepix, yMiddle);
 				pDC->LineTo(origin.x, yMiddle);
-				pDC->LineTo(origin.x + CDPIAware::Instance().ScaleX(4), yMiddle + CDPIAware::Instance().ScaleY(4));
+				pDC->LineTo(origin.x + fourpix, yMiddle + fourpix);
 				pDC->MoveTo(origin.x, yMiddle);
-				pDC->LineTo(origin.x + CDPIAware::Instance().ScaleX(4), yMiddle - CDPIAware::Instance().ScaleY(4));
+				pDC->LineTo(origin.x + fourpix, yMiddle - fourpix);
 				break;
-			case EOL_LFCR:
+			case EOL::LFCR:
 				// from right-upper to left then down
-				pDC->MoveTo(origin.x + GetCharWidth() - CDPIAware::Instance().ScaleX(1), yMiddle - CDPIAware::Instance().ScaleY(2));
-				pDC->LineTo(xMiddle, yMiddle - CDPIAware::Instance().ScaleY(2));
-				pDC->LineTo(xMiddle, rc.bottom - CDPIAware::Instance().ScaleY(1));
-				pDC->LineTo(xMiddle + CDPIAware::Instance().ScaleX(4), rc.bottom - CDPIAware::Instance().ScaleY(5));
-				pDC->MoveTo(xMiddle, rc.bottom - CDPIAware::Instance().ScaleY(1));
-				pDC->LineTo(xMiddle - CDPIAware::Instance().ScaleX(4), rc.bottom - CDPIAware::Instance().ScaleY(5));
+				pDC->MoveTo(origin.x + GetCharWidth() - onepix, yMiddle - twopix);
+				pDC->LineTo(xMiddle, yMiddle - twopix);
+				pDC->LineTo(xMiddle, rc.bottom - onepix);
+				pDC->LineTo(xMiddle + fourpix, rc.bottom - fivepix);
+				pDC->MoveTo(xMiddle, rc.bottom - onepix);
+				pDC->LineTo(xMiddle - fourpix, rc.bottom - fivepix);
 				break;
-			case EOL_LF:
+			case EOL::LF:
 				// arrow from top to bottom
 				pDC->MoveTo(xMiddle, rc.top);
-				pDC->LineTo(xMiddle, rc.bottom - CDPIAware::Instance().ScaleY(1));
-				pDC->LineTo(xMiddle + CDPIAware::Instance().ScaleX(4), rc.bottom - CDPIAware::Instance().ScaleY(5));
-				pDC->MoveTo(xMiddle, rc.bottom - CDPIAware::Instance().ScaleY(1));
-				pDC->LineTo(xMiddle - CDPIAware::Instance().ScaleX(4), rc.bottom - CDPIAware::Instance().ScaleY(5));
+				pDC->LineTo(xMiddle, rc.bottom - onepix);
+				pDC->LineTo(xMiddle + fourpix, rc.bottom - fivepix);
+				pDC->MoveTo(xMiddle, rc.bottom - onepix);
+				pDC->LineTo(xMiddle - fourpix, rc.bottom - fivepix);
 				break;
-			case EOL_FF:    // Form Feed, U+000C
-			case EOL_NEL:   // Next Line, U+0085
-			case EOL_LS:    // Line Separator, U+2028
-			case EOL_PS:    // Paragraph Separator, U+2029
+			case EOL::FF: // Form Feed, U+000C
+			case EOL::NEL: // Next Line, U+0085
+			case EOL::LS: // Line Separator, U+2028
+			case EOL::PS: // Paragraph Separator, U+2029
 				// draw a horizontal line at the bottom of this line
 				pDC->FillSolidRect(rc.left, rc.bottom - 1, rc.right, rc.bottom, CTheme::Instance().IsDarkTheme() ? CTheme::darkTextColor : GetSysColor(COLOR_WINDOWTEXT));
-				pDC->MoveTo(origin.x+GetCharWidth()-1, rc.bottom-GetCharWidth()-2);
-				pDC->LineTo(origin.x, rc.bottom-2);
-				pDC->LineTo(origin.x+5, rc.bottom-2);
-				pDC->MoveTo(origin.x, rc.bottom-2);
-				pDC->LineTo(origin.x+1, rc.bottom-6);
+				pDC->MoveTo(origin.x + GetCharWidth() - 1, rc.bottom - GetCharWidth() - 2);
+				pDC->LineTo(origin.x, rc.bottom - 2);
+				pDC->LineTo(origin.x + 5, rc.bottom - 2);
+				pDC->MoveTo(origin.x, rc.bottom - 2);
+				pDC->LineTo(origin.x + 1, rc.bottom - 6);
 				break;
 			default: // other EOLs
 				// arrow from top right to bottom left
-				pDC->MoveTo(origin.x+GetCharWidth()-1, rc.bottom-GetCharWidth());
-				pDC->LineTo(origin.x, rc.bottom-1);
-				pDC->LineTo(origin.x+5, rc.bottom-2);
-				pDC->MoveTo(origin.x, rc.bottom-1);
-				pDC->LineTo(origin.x+1, rc.bottom-6);
+				pDC->MoveTo(origin.x + GetCharWidth() - 1, rc.bottom - GetCharWidth());
+				pDC->LineTo(origin.x, rc.bottom - 1);
+				pDC->LineTo(origin.x + 5, rc.bottom - 2);
+				pDC->MoveTo(origin.x, rc.bottom - 1);
+				pDC->LineTo(origin.x + 1, rc.bottom - 6);
 				break;
-			case EOL_NOENDING:
+			case EOL::NoEnding:
 				break;
 			}
 		}
@@ -1813,9 +1788,9 @@ void CBaseView::DrawTextLine(
 	{
 		int nMarkLength = m_sMarkedWord.GetLength();
 		//int nViewLineLength = sViewLine.GetLength();
-		const TCHAR * text = sViewLine;
-		const TCHAR * findText = text;
-		while ((findText = wcsstr(findText, static_cast<LPCTSTR>(m_sMarkedWord)))!=0)
+		const wchar_t* text = sViewLine;
+		const wchar_t* findText = text;
+		while ((findText = wcsstr(findText, static_cast<LPCWSTR>(m_sMarkedWord))) != 0)
 		{
 			int nMarkStart = static_cast<int>(findText - text);
 			int nMarkEnd = nMarkStart + nMarkLength;
@@ -1898,7 +1873,7 @@ void CBaseView::DrawTextLine(
 	CString sLine = GetLineChars(nLineIndex);
 	int nLineLength = sLine.GetLength();
 	CString sLineExp = ExpandChars(sLine);
-	LPCTSTR textExp = sLineExp;
+	LPCWSTR textExp = sLineExp;
 	//int nLineLengthExp = sLineExp.GetLength();
 	int nStartExp = 0;
 	int nLeft = coords.x;
@@ -1920,7 +1895,7 @@ void CBaseView::DrawTextLine(
 			pDC->SetTextColor(second.text);
 			int nEndExp = CountExpandedChars(sLine, nEnd);
 			int nTextLength = nEndExp - nStartExp;
-			LPCTSTR p_zBlockText = textExp + nStartExp;
+			LPCWSTR p_zBlockText = textExp + nStartExp;
 			SIZE Size;
 			GetTextExtentPoint32(pDC->GetSafeHdc(), p_zBlockText, nTextLength, &Size); // falls time-2-tme
 			int nRight = nLeft + Size.cx;
@@ -1980,7 +1955,7 @@ void CBaseView::DrawSingleLine(CDC *pDC, const CRect &rc, int nLineIndex)
 	{
 		// Draw line beyond the text
 		COLORREF crBkgnd, crText;
-		CDiffColors::GetInstance().GetColors(DIFFSTATE_UNKNOWN, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBkgnd, crText);
+		CDiffColors::GetInstance().GetColors(DiffState::Unknown, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBkgnd, crText);
 		pDC->FillSolidRect(rc, crBkgnd);
 		return;
 	}
@@ -1988,10 +1963,10 @@ void CBaseView::DrawSingleLine(CDC *pDC, const CRect &rc, int nLineIndex)
 	int viewLine = GetViewLineForScreen(nLineIndex);
 	if (m_pMainFrame->m_bCollapsed)
 	{
-		if (m_pViewData->GetHideState(viewLine) == HIDESTATE_MARKER)
+		if (m_pViewData->GetHideState(viewLine) == HideState::Marker)
 		{
 			COLORREF crBkgnd, crText;
-			CDiffColors::GetInstance().GetColors(DIFFSTATE_UNKNOWN, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBkgnd, crText);
+			CDiffColors::GetInstance().GetColors(DiffState::Unknown, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBkgnd, crText);
 			pDC->FillSolidRect(rc, crBkgnd);
 
 			const int THICKNESS = 2;
@@ -2005,11 +1980,11 @@ void CBaseView::DrawSingleLine(CDC *pDC, const CRect &rc, int nLineIndex)
 		}
 	}
 
-	DiffStates diffState = m_pViewData->GetState(viewLine);
+	DiffState diffState = m_pViewData->GetState(viewLine);
 	COLORREF crBkgnd, crText;
 	CDiffColors::GetInstance().GetColors(diffState, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBkgnd, crText);
 
-	if (diffState == DIFFSTATE_CONFLICTED)
+	if (diffState == DiffState::Conflicted)
 	{
 		// conflicted lines are shown without 'text' on them
 		CRect rect = rc;
@@ -2047,16 +2022,19 @@ void CBaseView::DrawSingleLine(CDC *pDC, const CRect &rc, int nLineIndex)
 		pDC->FillSolidRect(frect, crBkgnd);
 
 	// draw the whitespace chars
-	auto pszChars = static_cast<LPCTSTR>(sLine);
+	auto pszChars = static_cast<LPCWSTR>(sLine);
 	if (m_bViewWhitespace)
 	{
 		int xpos = 0;
 		int nChars = 0;
-		LPCTSTR pLastSpace = pszChars;
+		LPCWSTR pLastSpace = pszChars;
 		int y = rc.top + (rc.bottom-rc.top)/2;
 		xpos -= m_nOffsetChar * GetCharWidth();
 
 		CPen pen(PS_SOLID, 0, CTheme::Instance().GetThemeColor(m_WhiteSpaceFg));
+		const auto twopix = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
+		const auto fourpixY = CDPIAware::Instance().ScaleY(GetSafeHwnd(), 4);
+		const auto sixpixY = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 5);
 		while (*pszChars)
 		{
 			switch (*pszChars)
@@ -2073,11 +2051,11 @@ void CBaseView::DrawSingleLine(CDC *pDC, const CRect &rc, int nLineIndex)
 						if ((xposreal > 0) || (nSpaces > 0))
 						{
 							CPen * oldPen = pDC->SelectObject(&pen);
-							pDC->MoveTo(xposreal + rc.left + CDPIAware::Instance().ScaleX(2), y);
-							pDC->LineTo((xpos + nSpaces * GetCharWidth()) + rc.left - CDPIAware::Instance().ScaleX(2), y);
-							pDC->LineTo((xpos + nSpaces * GetCharWidth()) + rc.left - CDPIAware::Instance().ScaleX(6), y - CDPIAware::Instance().ScaleY(4));
-							pDC->MoveTo((xpos + nSpaces * GetCharWidth()) + rc.left - CDPIAware::Instance().ScaleX(2), y);
-							pDC->LineTo((xpos + nSpaces * GetCharWidth()) + rc.left - CDPIAware::Instance().ScaleX(6), y + CDPIAware::Instance().ScaleY(4));
+							pDC->MoveTo(xposreal + rc.left + twopix, y);
+							pDC->LineTo((xpos + nSpaces * GetCharWidth()) + rc.left - twopix, y);
+							pDC->LineTo((xpos + nSpaces * GetCharWidth()) + rc.left - sixpixY, y - fourpixY);
+							pDC->MoveTo((xpos + nSpaces * GetCharWidth()) + rc.left - twopix, y);
+							pDC->LineTo((xpos + nSpaces * GetCharWidth()) + rc.left - sixpixY, y + fourpixY);
 							pDC->SelectObject(oldPen);
 						}
 					}
@@ -2091,8 +2069,8 @@ void CBaseView::DrawSingleLine(CDC *pDC, const CRect &rc, int nLineIndex)
 					pLastSpace = pszChars + 1;
 					if (xpos >= 0)
 					{
-						const int cxWhitespace = CDPIAware::Instance().ScaleX(2);
-						const int cyWhitespace = CDPIAware::Instance().ScaleY(2);
+						const int cxWhitespace = twopix;
+						const int cyWhitespace = twopix;
 						// draw 2-logical pixel rectangle, like Scintilla editor.
 						pDC->FillSolidRect(xpos + rc.left + GetCharWidth() / 2 - cxWhitespace/2, y, cxWhitespace, cyWhitespace, CTheme::Instance().GetThemeColor(m_WhiteSpaceFg));
 					}
@@ -2124,7 +2102,7 @@ void CBaseView::ExpandChars(const CString &sLine, int nOffset, int nCount, CStri
 
 	int nActualOffset = CountExpandedChars(sLine, nOffset);
 
-	auto pszChars = static_cast<LPCTSTR>(sLine);
+	auto pszChars = static_cast<LPCWSTR>(sLine);
 	pszChars += nOffset;
 	int nLength = nCount;
 
@@ -2135,7 +2113,7 @@ void CBaseView::ExpandChars(const CString &sLine, int nOffset, int nCount, CStri
 			nTabCount ++;
 	}
 
-	LPTSTR pszBuf = line.GetBuffer(nLength + nTabCount * (nTabSize - 1) + 1);
+	LPWSTR pszBuf = line.GetBuffer(nLength + nTabCount * (nTabSize - 1) + 1);
 	int nCurPos = 0;
 	if (nTabCount > 0 || m_bViewWhitespace)
 	{
@@ -2159,7 +2137,7 @@ void CBaseView::ExpandChars(const CString &sLine, int nOffset, int nCount, CStri
 	}
 	else
 	{
-		memcpy(pszBuf, pszChars, sizeof(TCHAR) * nLength);
+		memcpy(pszBuf, pszChars, sizeof(wchar_t) * nLength);
 		nCurPos = nLength;
 	}
 	pszBuf[nCurPos] = 0;
@@ -2255,20 +2233,16 @@ void CBaseView::OnSize(UINT nType, int cx, int cy)
 
 	m_nScreenLines = -1;
 	m_nScreenChars = -1;
+	m_nCharWidth = -1;
 	if (m_nLastScreenChars != GetScreenChars())
 	{
 		auto oldCaretLine = m_ptCaretViewPos.y;
-		BuildAllScreen2ViewVector();
 		m_nLastScreenChars = m_nScreenChars;
+		BuildAllScreen2ViewVector();
 		if (m_pMainFrame && m_pMainFrame->m_bWrapLines)
 		{
-			auto newCaretLine = FindScreenLineForViewLine(oldCaretLine);
-			int nNewTopLine = newCaretLine - GetScreenLines() / 2;
-			if (nNewTopLine < 0)
-				nNewTopLine = 0;
-			if (nNewTopLine >= static_cast<int>(m_Screen2View.size()))
-				nNewTopLine = static_cast<int>(m_Screen2View.size()) - 1;
-			ScrollToLine(nNewTopLine);
+			ScrollToLine(oldCaretLine, false);
+			EnsureCaretVisible();
 			// if we're in wrap mode, the line wrapping most likely changed
 			// and that means we have to redraw the whole window, not just the
 			// scrolled part.
@@ -2373,7 +2347,7 @@ BOOL CBaseView::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 					int viewLine = GetViewLineForScreen(m_nMouseLine);
 					if (viewLine < m_pViewData->GetCount())
 					{
-						if (m_pViewData->GetHideState(viewLine) == HIDESTATE_MARKER)
+						if (m_pViewData->GetHideState(viewLine) == HideState::Marker)
 						{
 							::SetCursor(::LoadCursor(nullptr, IDC_HAND));
 							return TRUE;
@@ -2421,7 +2395,7 @@ int CBaseView::GetLineFromPoint(CPoint point)
 	return (((point.y - HEADERHEIGHT) / GetLineHeight()) + m_nTopLine);
 }
 
-void CBaseView::OnContextMenu(CPoint point, DiffStates state)
+void CBaseView::OnContextMenu(CPoint point, DiffState state)
 {
 	CRect rcClient;
 	GetClientRect(rcClient);
@@ -2461,6 +2435,18 @@ void CBaseView::OnContextMenu(CPoint point, DiffStates state)
 				int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY | TPM_RIGHTBUTTON, point.x, point.y, this);
 				if (cmd == 10)
 					m_pMainFrame->DiffRightToBase();
+			}
+			if (this == m_pwndBottom)
+			{
+				CIconMenu popup;
+				if (!popup.CreatePopupMenu())
+					return;
+
+				temp.LoadString(IDS_EXPLORETO);
+				popup.AppendMenuIcon(10, temp, IDI_EXPLORER);
+				int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY | TPM_RIGHTBUTTON, point.x, point.y, this);
+				if (cmd == 10)
+					CAppUtils::ExploreTo(GetSafeHwnd(), m_sFullFilePath);
 			}
 		}
 		return;
@@ -2638,10 +2624,10 @@ void CBaseView::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 
 				nViewBlockStart = nViewLine;
 				nViewBlockEnd = nViewLine;
-				DiffStates state = m_pViewData->GetState(nViewLine);
+				DiffState state = m_pViewData->GetState(nViewLine);
 				while (nViewBlockStart > 0)
 				{
-					const DiffStates lineState = m_pViewData->GetState(nViewBlockStart-1);
+					const DiffState lineState = m_pViewData->GetState(nViewBlockStart - 1);
 					if (!LinesInOneChange(-1, state, lineState))
 						break;
 					nViewBlockStart--;
@@ -2649,7 +2635,7 @@ void CBaseView::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 
 				while (nViewBlockEnd < (m_pViewData->GetCount()-1))
 				{
-					const DiffStates lineState = m_pViewData->GetState(nViewBlockEnd+1);
+					const DiffState lineState = m_pViewData->GetState(nViewBlockEnd + 1);
 					if (!LinesInOneChange(1, state, lineState))
 						break;
 					nViewBlockEnd++;
@@ -2665,14 +2651,14 @@ void CBaseView::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 	/*if (m_nSelBlockEnd >= m_pViewData->GetCount())
 		m_nSelBlockEnd = m_pViewData->GetCount()-1;//*/
 
-	DiffStates state = DIFFSTATE_UNKNOWN;
+	DiffState state = DiffState::Unknown;
 	if (GetViewSelection(nViewBlockStart, nViewBlockEnd))
 	{
 		// find a more 'relevant' state in the selection
 		for (int i=nViewBlockStart; i<=nViewBlockEnd; ++i)
 		{
 			state = m_pViewData->GetState(i);
-			if ((state != DIFFSTATE_NORMAL) && (state != DIFFSTATE_UNKNOWN))
+			if ((state != DiffState::Normal) && (state != DiffState::Unknown))
 				break;
 		}
 	}
@@ -2800,7 +2786,7 @@ bool CBaseView::HasPrevDiff()
 }
 
 bool CBaseView::LinesInOneChange(int direction,
-	 DiffStates initialLineState, DiffStates currentLineState)
+	 DiffState initialLineState, DiffState currentLineState)
 {
 	// Checks whether all the adjacent lines starting from the initial line
 	// and up to the current line form the single change
@@ -2814,24 +2800,24 @@ bool CBaseView::LinesInOneChange(int direction,
 	// current line state is "empty"...
 	if (direction > 0)
 	{
-		if (currentLineState == DIFFSTATE_EMPTY)
+		if (currentLineState == DiffState::Empty)
 		{
-			if (initialLineState == DIFFSTATE_ADDED || initialLineState == DIFFSTATE_REMOVED)
+			if (initialLineState == DiffState::Added || initialLineState == DiffState::Removed)
 				return true;
 		}
-		if (initialLineState == DIFFSTATE_CONFLICTADDED && currentLineState == DIFFSTATE_CONFLICTEMPTY)
+		if (initialLineState == DiffState::ConflictAdded && currentLineState == DiffState::ConflictEmpty)
 			return true;
 	}
 	// ...or we move up and initial line state is "empty" and current line
 	// state is "added" or "removed".
 	if (direction < 0)
 	{
-		if (initialLineState == DIFFSTATE_EMPTY)
+		if (initialLineState == DiffState::Empty)
 		{
-			if (currentLineState == DIFFSTATE_ADDED || currentLineState == DIFFSTATE_REMOVED)
+			if (currentLineState == DiffState::Added || currentLineState == DiffState::Removed)
 				return true;
 		}
-		if (initialLineState == DIFFSTATE_CONFLICTEMPTY && currentLineState == DIFFSTATE_CONFLICTADDED)
+		if (initialLineState == DiffState::ConflictEmpty && currentLineState == DiffState::ConflictAdded)
 			return true;
 	}
 	return false;
@@ -2857,10 +2843,10 @@ bool CBaseView::SelectNextBlock(int nDirection, bool bConflict, bool bSkipEndOfC
 	if (bSkipEndOfCurrentBlock)
 	{
 		// Find end of current block
-		const DiffStates state = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
+		const DiffState state = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
 		while (nCenterPos != nLimit)
 		{
-			const DiffStates lineState = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
+			const DiffState lineState = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
 			if (!LinesInOneChange(nDirection, state, lineState))
 				break;
 			nCenterPos += nDirection;
@@ -2870,19 +2856,19 @@ bool CBaseView::SelectNextBlock(int nDirection, bool bConflict, bool bSkipEndOfC
 	// Find next diff/conflict block
 	while (nCenterPos != nLimit)
 	{
-		DiffStates linestate = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
+		DiffState linestate = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
 		if (!bConflict &&
-			(linestate != DIFFSTATE_NORMAL) &&
-			(linestate != DIFFSTATE_UNKNOWN) &&
-			(linestate != DIFFSTATE_FILTEREDDIFF))
+			(linestate != DiffState::Normal) &&
+			(linestate != DiffState::Unknown) &&
+			(linestate != DiffState::FilteredDiff))
 		{
 			break;
 		}
 		if (bConflict &&
-			((linestate == DIFFSTATE_CONFLICTADDED) ||
-			 (linestate == DIFFSTATE_CONFLICTED_IGNORED) ||
-			 (linestate == DIFFSTATE_CONFLICTED) ||
-			 (linestate == DIFFSTATE_CONFLICTEMPTY)))
+			((linestate == DiffState::ConflictAdded) ||
+			 (linestate == DiffState::Conflicted_Ignored) ||
+			 (linestate == DiffState::Conflicted) ||
+			 (linestate == DiffState::ConflictEmpty)))
 		{
 			break;
 		}
@@ -2895,7 +2881,7 @@ bool CBaseView::SelectNextBlock(int nDirection, bool bConflict, bool bSkipEndOfC
 		return (nCenterPos != nLimit);
 
 	// Find end of new block
-	DiffStates state = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
+	DiffState state = m_pViewData->GetState(GetViewLineForScreen(nCenterPos));
 	int nBlockEnd = nCenterPos;
 	const int maxAllowedLine = nLimit-nDirection;
 	while (nBlockEnd != maxAllowedLine)
@@ -2903,7 +2889,7 @@ bool CBaseView::SelectNextBlock(int nDirection, bool bConflict, bool bSkipEndOfC
 		const int lineIndex = nBlockEnd + nDirection;
 		if (lineIndex >= linesCount)
 			break;
-		DiffStates lineState = m_pViewData->GetState(GetViewLineForScreen(lineIndex));
+		DiffState lineState = m_pViewData->GetState(GetViewLineForScreen(lineIndex));
 		if (!LinesInOneChange(nDirection, state, lineState))
 			break;
 		nBlockEnd += nDirection;
@@ -2994,10 +2980,10 @@ INT_PTR CBaseView::OnToolHitTest(CPoint point, TOOLINFO* pTI) const
 	GetClientRect(rcClient);
 	CRect textrect(rcClient.left, rcClient.top, rcClient.Width(), m_nLineHeight+HEADERHEIGHT);
 
-	int marginwidth = GetSystemMetrics(SM_CXSMICON) + CDPIAware::Instance().ScaleX(4);
+	int marginwidth = GetSystemMetrics(SM_CXSMICON) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 4);
 	if ((m_bViewLinenumbers)&&(m_pViewData)&&(m_pViewData->GetCount())&&(m_nDigits > 0))
 	{
-		marginwidth += (m_nDigits * m_nCharWidth) + CDPIAware::Instance().ScaleX(2);
+		marginwidth += (m_nDigits * m_nCharWidth) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
 	}
 	CRect borderrect(rcClient.left, rcClient.top+m_nLineHeight+HEADERHEIGHT, marginwidth, rcClient.bottom);
 
@@ -3071,7 +3057,7 @@ void CBaseView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			POINT ptCaretPos = GetCaretPosition();
 			ptCaretPos.y -= GetScreenLines();
 			ptCaretPos.y = max(ptCaretPos.y, 0l);
-			ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos);
+			ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos, false);
 			SetCaretPosition(ptCaretPos);
 			OnCaretMove(MOVELEFT, bShift);
 			ShowDiffLines(ptCaretPos.y);
@@ -3083,7 +3069,7 @@ void CBaseView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			ptCaretPos.y += GetScreenLines();
 			if (ptCaretPos.y >= GetLineCount())
 				ptCaretPos.y = GetLineCount()-1;
-			ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos);
+			ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos, false);
 			SetCaretPosition(ptCaretPos);
 			OnCaretMove(MOVERIGHT, bShift);
 			ShowDiffLines(ptCaretPos.y);
@@ -3228,7 +3214,7 @@ void CBaseView::OnLButtonDown(UINT nFlags, CPoint point)
 		POINT ptCaretPos;
 		ptCaretPos.y = nClickedLine;
 		int xpos2 = CalcColFromPoint(point.x, nClickedLine);
-		ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, xpos2);
+		ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, xpos2, false);
 		SetCaretAndGoalPosition(ptCaretPos);
 
 		if (nFlags & MK_SHIFT)
@@ -3307,18 +3293,18 @@ void CBaseView::OnLButtonDblClk(UINT nFlags, CPoint point)
 			}
 		}
 	}
-	if ((m_pMainFrame->m_bCollapsed)&&(m_pViewData->GetHideState(nViewLine) == HIDESTATE_MARKER))
+	if ((m_pMainFrame->m_bCollapsed)&&(m_pViewData->GetHideState(nViewLine) == HideState::Marker))
 	{
 		// a double click on a marker expands the hidden text
 		int i = nViewLine;
-		while ((i < m_pViewData->GetCount())&&(m_pViewData->GetHideState(i) != HIDESTATE_SHOWN))
+		while ((i < m_pViewData->GetCount())&&(m_pViewData->GetHideState(i) != HideState::Shown))
 		{
 			if ((m_pwndLeft)&&(m_pwndLeft->m_pViewData))
-				m_pwndLeft->m_pViewData->SetLineHideState(i, HIDESTATE_SHOWN);
+				m_pwndLeft->m_pViewData->SetLineHideState(i, HideState::Shown);
 			if ((m_pwndRight)&&(m_pwndRight->m_pViewData))
-				m_pwndRight->m_pViewData->SetLineHideState(i, HIDESTATE_SHOWN);
+				m_pwndRight->m_pViewData->SetLineHideState(i, HideState::Shown);
 			if ((m_pwndBottom)&&(m_pwndBottom->m_pViewData))
-				m_pwndBottom->m_pViewData->SetLineHideState(i, HIDESTATE_SHOWN);
+				m_pwndBottom->m_pViewData->SetLineHideState(i, HideState::Shown);
 			i++;
 		}
 		BuildAllScreen2ViewVector();
@@ -3333,7 +3319,7 @@ void CBaseView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	{
 		POINT ptCaretPos;
 		ptCaretPos.y = nClickedLine;
-		ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nOffsetChar + (point.x - GetMarginWidth()) / GetCharWidth());
+		ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nOffsetChar + (point.x - GetMarginWidth()) / GetCharWidth(), false);
 		SetCaretPosition(ptCaretPos);
 		ClearSelection();
 
@@ -3420,7 +3406,7 @@ void CBaseView::OnLButtonTrippleClick( UINT /*nFlags*/, CPoint point )
 	{
 		if (!m_sConvertedFilePath.IsEmpty() && (GetKeyState(VK_CONTROL)&0x8000))
 		{
-			PCIDLIST_ABSOLUTE __unaligned pidl = ILCreateFromPath(static_cast<LPCTSTR>(m_sConvertedFilePath));
+			PCIDLIST_ABSOLUTE __unaligned pidl = ILCreateFromPath(static_cast<LPCWSTR>(m_sConvertedFilePath));
 			if (pidl)
 			{
 				SHOpenFolderAndSelectItems(pidl,0,0,0);
@@ -3431,7 +3417,7 @@ void CBaseView::OnLButtonTrippleClick( UINT /*nFlags*/, CPoint point )
 	}
 	POINT ptCaretPos;
 	ptCaretPos.y = nClickedLine;
-	ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nOffsetChar + (point.x - GetMarginWidth()) / GetCharWidth());
+	ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nOffsetChar + (point.x - GetMarginWidth()) / GetCharWidth(), false);
 	SetCaretAndGoalPosition(ptCaretPos);
 	m_sMarkedWord = m_sPreviousMarkedWord;     // recall previous Marked word
 	if (m_pwndLeft)
@@ -3485,7 +3471,7 @@ void CBaseView::OnMouseMove(UINT nFlags, CPoint point)
 		if (saveMouseLine < 0)
 			return;
 		int col = CalcColFromPoint(point.x, saveMouseLine);
-		int charIndex = CalculateCharIndex(saveMouseLine, col);
+		int charIndex = CalculateCharIndex(saveMouseLine, col, true);
 		if (HasSelection() &&
 			((nMouseLine >= m_nTopLine)&&(nMouseLine < GetLineCount())))
 		{
@@ -3549,7 +3535,7 @@ void CBaseView::OnTimer(UINT_PTR nIDEvent)
 		{
 			int saveMouseLine = nMouseLine >= 0 ? nMouseLine : 0;
 			saveMouseLine = saveMouseLine < GetLineCount() ? saveMouseLine : GetLineCount() - 1;
-			int charIndex = CalculateCharIndex(saveMouseLine, m_nOffsetChar + (point.x - GetMarginWidth()) / GetCharWidth());
+			int charIndex = CalculateCharIndex(saveMouseLine, m_nOffsetChar + (point.x - GetMarginWidth()) / GetCharWidth(), false);
 			if (nMouseLine < m_nTopLine)
 			{
 				ScrollAllToLine(m_nTopLine-1, TRUE);
@@ -3610,7 +3596,7 @@ void CBaseView::ShowDiffLines(int nLine)
 
 const viewdata& CBaseView::GetEmptyLineData()
 {
-	static const viewdata emptyLine(L"", DIFFSTATE_EMPTY, -1, EOL_NOENDING, HIDESTATE_SHOWN);
+	static const viewdata emptyLine(L"", DiffState::Empty, -1, EOL::NoEnding, HideState::Shown);
 	return emptyLine;
 }
 
@@ -3694,6 +3680,13 @@ POINT CBaseView::ConvertViewPosToScreen(const POINT& pt)
 			nViewLineLenLeft -= nSubLineLength;
 			ptPos.y++;
 			nSubLineLength = GetLineChars(ptPos.y).GetLength();
+			// particular case when only first line exist. Without below statement we
+			// have infinite loop because nSublineLengh = 0 and ptPos.x = 1, 0 < 1
+			if (nSubLineLength == 0)
+			{
+				ptPos.y = 0;
+				ptPos.x = 0;
+			}
 		}
 		// last pos of non last sub-line go to start of next screen line
 		// Note: while this works correctly, it's not what a user might expect:
@@ -3745,11 +3738,11 @@ int CBaseView::CalculateActualOffset(const POINT& point)
 	return CountExpandedChars(sLine, min(nCharIndex, nLineLength));
 }
 
-int CBaseView::CalculateCharIndex(int nLineIndex, int nActualOffset)
+int CBaseView::CalculateCharIndex(int nLineIndex, int nActualOffset, bool allowEOL)
 {
 	int nLength = GetLineLength(nLineIndex);
 	int nSubLine = GetSubLineOffset(nLineIndex);
-	if (nSubLine>=0)
+	if (!allowEOL && nSubLine >= 0)
 	{
 		int nViewLine = GetViewLineForScreen(nLineIndex);
 		if (nViewLine >= 0 && nViewLine < static_cast<int>(m_ScreenedViewLine.size()))
@@ -3918,7 +3911,7 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 					lineData.sLine.Insert(ptCaretViewPos.x, static_cast<wchar_t>(nChar));
 			}
 		}
-		if (IsStateEmpty(lineData.state) || IsStateConflicted(lineData.state) || lineData.state == DIFFSTATE_IDENTICALREMOVED)
+		if (IsStateEmpty(lineData.state) || IsStateConflicted(lineData.state) || lineData.state == DiffState::IdenticalRemoved)
 		{
 			// if not last line set EOL
 			for (int nCheckViewLine = nViewLine+1; nCheckViewLine < GetViewCount(); nCheckViewLine++)
@@ -3932,9 +3925,9 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 			// make sure previous (non empty) line have EOL set
 			for (int nCheckViewLine = nViewLine-1; nCheckViewLine > 0; nCheckViewLine--)
 			{
-				if (!IsViewLineEmpty(nCheckViewLine) && GetViewState(nCheckViewLine) != DIFFSTATE_IDENTICALREMOVED)
+				if (!IsViewLineEmpty(nCheckViewLine) && GetViewState(nCheckViewLine) != DiffState::IdenticalRemoved)
 				{
-					if (GetViewLineEnding(nCheckViewLine) == EOL_NOENDING)
+					if (GetViewLineEnding(nCheckViewLine) == EOL::NoEnding)
 					{
 						SetViewLineEnding(nCheckViewLine, m_lineendings);
 					}
@@ -3942,7 +3935,7 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 				}
 			}
 		}
-		lineData.state = DIFFSTATE_EDITED;
+		lineData.state = DiffState::Edited;
 		bool bNeedRenumber = false;
 		if (lineData.linenumber == -1)
 		{
@@ -3965,28 +3958,28 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 	{
 		int nViewLine = GetViewLineForScreen(GetCaretPosition().y);
 		EOL eol = m_pViewData->GetLineEnding(nViewLine);
-		EOL newEOL = EOL_CRLF;
+		EOL newEOL = EOL::CRLF;
 		switch (eol)
 		{
-			case EOL_CRLF:
-				newEOL = EOL_CR;
+			case EOL::CRLF:
+				newEOL = EOL::CR;
 				break;
-			case EOL_CR:
-				newEOL = EOL_LF;
+			case EOL::CR:
+				newEOL = EOL::LF;
 				break;
-			case EOL_LF:
-				newEOL = EOL_CRLF;
+			case EOL::LF:
+				newEOL = EOL::CRLF;
 				break;
 		}
-		if (eol==EOL_NOENDING || eol==newEOL)
-			// don't allow to change enter on empty line, or last text line (lines with EOL_NOENDING)
+		if (eol == EOL::NoEnding || eol == newEOL)
+			// don't allow to change enter on empty line, or last text line (lines with EOL::NoEnding)
 			// to add EOL on newly edited empty line hit enter
 			// don't store into UNDO if no change happened
 			// and don't mark file as modified
 			return;
 		AddUndoViewLine(nViewLine);
 		m_pViewData->SetLineEnding(nViewLine, newEOL);
-		m_pViewData->SetState(nViewLine, DIFFSTATE_EDITED);
+		m_pViewData->SetState(nViewLine, DiffState::Edited);
 		UpdateGoalPos();
 	}
 	else if ((nChar == VK_RETURN) && !bControl)
@@ -4002,18 +3995,18 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 		CString sLine = GetViewLineChars(nViewLine);
 		CString sLineLeft = sLine.Left(nLeft);
 		CString sLineRight = sLine.Right(sLine.GetLength() - nLeft);
-		EOL eOriginalEnding = EOL_AUTOLINE;
+		EOL eOriginalEnding = EOL::AutoLine;
 		if (m_pViewData->GetCount() > nViewLine)
 			eOriginalEnding = GetViewLineEnding(nViewLine);
 
 		if (!sLineRight.IsEmpty() || (eOriginalEnding!=m_lineendings))
 		{
-			viewdata newFirstLine(sLineLeft, DIFFSTATE_EDITED, 1, m_lineendings, HIDESTATE_SHOWN);
+			viewdata newFirstLine(sLineLeft, DiffState::Edited, 1, m_lineendings, HideState::Shown);
 			SetViewData(nViewLine, newFirstLine);
 		}
 
 		int nInsertLine = (m_pViewData->GetCount()==0) ? 0 : nViewLine + 1;
-		viewdata newLastLine(sLineRight, DIFFSTATE_EDITED, 1, eOriginalEnding, HIDESTATE_SHOWN);
+		viewdata newLastLine(sLineRight, DiffState::Edited, 1, eOriginalEnding, HideState::Shown);
 		InsertViewData(nInsertLine, newLastLine);
 		SetModified();
 		SaveUndoStep();
@@ -4069,11 +4062,11 @@ void CBaseView::AddEmptyViewLine(int nViewLineIndex)
 		return;
 	int viewLine = nViewLineIndex;
 	EOL ending = m_pViewData->GetLineEnding(viewLine);
-	if (ending == EOL_NOENDING)
+	if (ending == EOL::NoEnding)
 	{
 		 ending = m_lineendings;
 	}
-	viewdata newLine(L"", DIFFSTATE_EDITED, -1, ending, HIDESTATE_SHOWN);
+	viewdata newLine(L"", DiffState::Edited, -1, ending, HideState::Shown);
 	if (IsTarget()) // TODO: once more wievs will writable this is not correct anymore
 	{
 		CString sPartLine = GetViewLineChars(nViewLineIndex);
@@ -4118,8 +4111,8 @@ void CBaseView::RemoveSelectedText()
 	viewdata oFirstLine = GetViewData(m_ptSelectionViewPosStart.y);
 	viewdata oLastLine = GetViewData(m_ptSelectionViewPosEnd.y);
 	oFirstLine.sLine = oFirstLine.sLine.Left(m_ptSelectionViewPosStart.x) + oLastLine.sLine.Mid(m_ptSelectionViewPosEnd.x);
-	oFirstLine.ending = oLastLine.ending;
-	oFirstLine.state = DIFFSTATE_EDITED;
+	oFirstLine.ending = (oLastLine.ending != EOL::NoEnding || m_ptSelectionViewPosEnd.y == (GetLineCount() - 1)) ? oLastLine.ending : oFirstLine.ending;
+	oFirstLine.state = DiffState::Edited;
 	SetViewData(m_ptSelectionViewPosStart.y, oFirstLine);
 
 	// clean up middle lines if any
@@ -4170,7 +4163,7 @@ void CBaseView::PasteText()
 	hglb = GetClipboardData(CF_UNICODETEXT);
 	if (hglb)
 	{
-		LPCTSTR lpstr = static_cast<LPCTSTR>(GlobalLock(hglb));
+		LPCWSTR lpstr = static_cast<LPCWSTR>(GlobalLock(hglb));
 		sClipboardText = lpstr;
 		GlobalUnlock(hglb);
 	}
@@ -4211,7 +4204,7 @@ void CBaseView::OnCaretDown()
 		}
 	}
 	ptCaretPos.y = nNextLine;
-	ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos);
+	ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos, false);
 	SetCaretPosition(ptCaretPos);
 	OnCaretMove(MOVELEFT);
 	ShowDiffLines(ptCaretPos.y);
@@ -4317,7 +4310,7 @@ void CBaseView::OnCaretUp()
 		}
 	}
 	ptCaretPos.y = nPrevLine;
-	ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos);
+	ptCaretPos.x = CalculateCharIndex(ptCaretPos.y, m_nCaretGoalPos, false);
 	SetCaretPosition(ptCaretPos);
 	OnCaretMove(MOVELEFT);
 	ShowDiffLines(ptCaretPos.y);
@@ -4481,7 +4474,7 @@ void CBaseView::OnCaretMove(bool bMoveLeft, bool isShiftPressed)
 	UpdateCaret();
 }
 
-void CBaseView::AddContextItems(CIconMenu& popup, DiffStates /*state*/)
+void CBaseView::AddContextItems(CIconMenu& popup, DiffState /*state*/)
 {
 	AddCutCopyAndPaste(popup);
 }
@@ -4586,35 +4579,35 @@ void CBaseView::BuildFindStringArray()
 			{
 				switch (m_pViewData->GetState(GetViewLineForScreen(i)))
 				{
-				case DIFFSTATE_EMPTY:
+				case DiffState::Empty:
 					m_arFindStringLines.push_back(0);
 					break;
-				case DIFFSTATE_UNKNOWN:
-				case DIFFSTATE_NORMAL:
-				case DIFFSTATE_FILTEREDDIFF:
+				case DiffState::Unknown:
+				case DiffState::Normal:
+				case DiffState::FilteredDiff:
 					if (m_bLimitToDiff)
 					{
 						m_arFindStringLines.push_back(0);
 						break;
 					}
-				case DIFFSTATE_REMOVED:
-				case DIFFSTATE_REMOVEDWHITESPACE:
-				case DIFFSTATE_ADDED:
-				case DIFFSTATE_ADDEDWHITESPACE:
-				case DIFFSTATE_WHITESPACE:
-				case DIFFSTATE_WHITESPACE_DIFF:
-				case DIFFSTATE_CONFLICTED:
-				case DIFFSTATE_CONFLICTED_IGNORED:
-				case DIFFSTATE_CONFLICTADDED:
-				case DIFFSTATE_CONFLICTEMPTY:
-				case DIFFSTATE_CONFLICTRESOLVED:
-				case DIFFSTATE_IDENTICALREMOVED:
-				case DIFFSTATE_IDENTICALADDED:
-				case DIFFSTATE_THEIRSREMOVED:
-				case DIFFSTATE_THEIRSADDED:
-				case DIFFSTATE_YOURSREMOVED:
-				case DIFFSTATE_YOURSADDED:
-				case DIFFSTATE_EDITED:
+				case DiffState::Removed:
+				case DiffState::RemovedWhitespace:
+				case DiffState::Added:
+				case DiffState::AddedWhitespace:
+				case DiffState::Whitespace:
+				case DiffState::WhitespaceDiff:
+				case DiffState::Conflicted:
+				case DiffState::Conflicted_Ignored:
+				case DiffState::ConflictAdded:
+				case DiffState::ConflictEmpty:
+				case DiffState::ConflictResolved:
+				case DiffState::IdenticalRemoved:
+				case DiffState::IdenticalAdded:
+				case DiffState::TheirsRemoved:
+				case DiffState::TheirsAdded:
+				case DiffState::YoursRemoved:
+				case DiffState::YoursAdded:
+				case DiffState::Edited:
 					{
 						if (!m_bMatchCase)
 							line = line.MakeLower();
@@ -4896,20 +4889,44 @@ int CBaseView::CountMultiLines( int nViewLine )
 		return static_cast<int>(m_ScreenedViewLine[nViewLine].SubLines.size());
 	}
 
-	CString multiline = CStringUtils::WordWrap(m_pViewData->GetLine(nViewLine), GetScreenChars()-1, false, true, GetTabSize()); // GetMultiLine(nLine);
+	auto multiLines = CStringUtils::WordWrap(m_pViewData->GetLine(nViewLine), GetScreenChars() - 1, GetTabSize());
 
 	TScreenedViewLine oScreenedLine;
-	// tokenize string
-	int prevpos = 0;
-	int pos = 0;
-	while ((pos = multiline.Find('\n', pos)) >= 0)
+	bool subLinesSet = true;
+	if (m_pMainFrame->m_bWrapLines)
 	{
-		oScreenedLine.SubLines.push_back(multiline.Mid(prevpos, pos-prevpos)); // WordWrap could return vector/list of lines instead of string
-		pos++;
-		prevpos = pos;
+		CDC* pDC = GetDC();
+		CFont* pOldFont = pDC->SelectObject(GetFont());
+
+		for (const auto& line : multiLines)
+		{
+			if (line.GetLength())
+			{
+				// we use the 'X' char to determine the char width,
+				// but e.g. chinese chars are much wider. To make sure
+				// that we wrap correctly, we calculate the average char width
+				// here by using the real line text
+				const CSize szCharExt = pDC->GetTextExtent(line);
+				if (szCharExt.cx / line.GetLength() > m_nCharWidth)
+				{
+					m_nCharWidth = szCharExt.cx / line.GetLength();
+					subLinesSet = false;
+				}
+			}
+			oScreenedLine.SubLines.push_back(line);
+		}
+		pDC->SelectObject(pOldFont);
+		ReleaseDC(pDC);
 	}
-	oScreenedLine.SubLines.push_back(multiline.Mid(prevpos));
-	oScreenedLine.bSublinesSet = true;
+	else
+	{
+		for (const auto& line : multiLines)
+		{
+			oScreenedLine.SubLines.push_back(line);
+		}
+	}
+
+	oScreenedLine.bSublinesSet = subLinesSet;
 	m_ScreenedViewLine[nViewLine] = oScreenedLine;
 
 	return CountMultiLines(nViewLine);
@@ -4934,7 +4951,7 @@ LineColors & CBaseView::GetLineColors(int nViewLine)
 	LineColors oLineColors;
 	// set main line color
 	COLORREF crBkgnd, crText;
-	DiffStates diffState = m_pViewData->GetState(nViewLine);
+	DiffState diffState = m_pViewData->GetState(nViewLine);
 	CDiffColors::GetInstance().GetColors(diffState, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), crBkgnd, crText);
 	oLineColors.SetColor(0, crText, crBkgnd);
 
@@ -4942,7 +4959,7 @@ LineColors & CBaseView::GetLineColors(int nViewLine)
 		if (!m_bShowInlineDiff)
 			break;
 
-		if (((diffState == DIFFSTATE_NORMAL) || (diffState == DIFFSTATE_FILTEREDDIFF)) && (!m_bWhitespaceInlineDiffs))
+		if (((diffState == DiffState::Normal) || (diffState == DiffState::FilteredDiff)) && (!m_bWhitespaceInlineDiffs))
 			break;
 
 		CString sLine = GetViewLineChars(nViewLine);
@@ -4953,15 +4970,15 @@ LineColors & CBaseView::GetLineColors(int nViewLine)
 		{
 			switch (diffState)
 			{
-				case DIFFSTATE_ADDED:
+				case DiffState::Added:
 				{
-					if ((nViewLine > 0) && (m_pViewData->GetState(nViewLine - 1) == DIFFSTATE_REMOVED))
+					if ((nViewLine > 0) && (m_pViewData->GetState(nViewLine - 1) == DiffState::Removed))
 						sDiffLine = GetViewLineChars(nViewLine - 1);
 				}
 				break;
-				case DIFFSTATE_REMOVED:
+				case DiffState::Removed:
 				{
-					if (((nViewLine + 1) < m_pViewData->GetCount()) && (m_pViewData->GetState(nViewLine + 1) == DIFFSTATE_ADDED))
+					if (((nViewLine + 1) < m_pViewData->GetCount()) && (m_pViewData->GetState(nViewLine + 1) == DiffState::Added))
 						sDiffLine = GetViewLineChars(nViewLine + 1);
 				}
 				break;
@@ -5130,10 +5147,10 @@ void CBaseView::SetTheme(bool bDark)
 			SetWindowTheme(GetSafeHwnd(), L"Explorer", nullptr);
 		Invalidate();
 	}
-	m_WhiteSpaceFg = CRegDWORD(L"Software\\TortoiseMerge\\Colors\\Whitespace", CTheme::Instance().GetThemeColor(GetSysColor(COLOR_3DSHADOW)));
+	m_WhiteSpaceFg = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\Whitespace", CTheme::Instance().GetThemeColor(GetSysColor(COLOR_3DSHADOW)));
 }
 
-void CBaseView::InsertViewData( int index, const CString& sLine, DiffStates state, int linenumber, EOL ending, HIDESTATE hide, int movedline )
+void CBaseView::InsertViewData(int index, const CString& sLine, DiffState state, int linenumber, EOL ending, HideState hide, int movedline)
 {
 	m_pState->addedlines.push_back(index);
 	m_pViewData->InsertData(index, sLine, state, linenumber, ending, hide, movedline);
@@ -5157,7 +5174,7 @@ void CBaseView::SetViewData( int index, const viewdata& data )
 	m_pViewData->SetData(index, data);
 }
 
-void CBaseView::SetViewState( int index, DiffStates state )
+void CBaseView::SetViewState(int index, DiffState state)
 {
 	m_pState->linestates[index] = m_pViewData->GetState(index);
 	m_pViewData->SetState(index, state);
@@ -5260,7 +5277,7 @@ void CBaseView::Screen2View::RebuildIfNecessary()
 	{
 		if (m_pMainFrame->m_bCollapsed)
 		{
-			while ((i < m_pViewData->GetCount())&&(m_pViewData->GetHideState(i) == HIDESTATE_HIDDEN))
+			while ((i < m_pViewData->GetCount())&&(m_pViewData->GetHideState(i) == HideState::Hidden))
 				++i;
 			if (!(i < m_pViewData->GetCount()))
 				break;
@@ -5434,7 +5451,7 @@ void CBaseView::OnEditFind()
 	m_pFindDialog = new CFindDlg(this);
 	m_pFindDialog->Create(this, id);
 
-	m_pFindDialog->SetFindString(HasTextSelection() ? GetSelectedText() : L"");
+	m_pFindDialog->SetFindString(HasTextSelection() ? GetSelectedText() : CString());
 	m_pFindDialog->SetReadonly(m_bReadonly);
 }
 
@@ -5690,31 +5707,32 @@ bool CBaseView::Search(SearchDirection srchDir, bool useStart, bool flashIfNotFo
 		}
 		switch (m_pViewData->GetState(nViewLine))
 		{
-		case DIFFSTATE_EMPTY:
+		case DiffState::Empty:
 			break;
-		case DIFFSTATE_UNKNOWN:
-		case DIFFSTATE_NORMAL:
-		case DIFFSTATE_FILTEREDDIFF:
+		case DiffState::Unknown:
+		case DiffState::Normal:
+		case DiffState::FilteredDiff:
 			if (m_bLimitToDiff)
 				break;
-		case DIFFSTATE_REMOVED:
-		case DIFFSTATE_REMOVEDWHITESPACE:
-		case DIFFSTATE_ADDED:
-		case DIFFSTATE_ADDEDWHITESPACE:
-		case DIFFSTATE_WHITESPACE:
-		case DIFFSTATE_WHITESPACE_DIFF:
-		case DIFFSTATE_CONFLICTED:
-		case DIFFSTATE_CONFLICTED_IGNORED:
-		case DIFFSTATE_CONFLICTADDED:
-		case DIFFSTATE_CONFLICTEMPTY:
-		case DIFFSTATE_CONFLICTRESOLVED:
-		case DIFFSTATE_IDENTICALREMOVED:
-		case DIFFSTATE_IDENTICALADDED:
-		case DIFFSTATE_THEIRSREMOVED:
-		case DIFFSTATE_THEIRSADDED:
-		case DIFFSTATE_YOURSREMOVED:
-		case DIFFSTATE_YOURSADDED:
-		case DIFFSTATE_EDITED:
+			[[fallthrough]];
+		case DiffState::Removed:
+		case DiffState::RemovedWhitespace:
+		case DiffState::Added:
+		case DiffState::AddedWhitespace:
+		case DiffState::Whitespace:
+		case DiffState::WhitespaceDiff:
+		case DiffState::Conflicted:
+		case DiffState::Conflicted_Ignored:
+		case DiffState::ConflictAdded:
+		case DiffState::ConflictEmpty:
+		case DiffState::ConflictResolved:
+		case DiffState::IdenticalRemoved:
+		case DiffState::IdenticalAdded:
+		case DiffState::TheirsRemoved:
+		case DiffState::TheirsAdded:
+		case DiffState::YoursRemoved:
+		case DiffState::YoursAdded:
+		case DiffState::Edited:
 			{
 				sSelectedText = GetViewLineChars(nViewLine);
 				if (nViewLine == start.y && startline < 0)
@@ -5753,7 +5771,7 @@ bool CBaseView::Search(SearchDirection srchDir, bool useStart, bool flashIfNotFo
 				if (flashIfNotFound)
 				{
 					CString message;
-					message.Format(IDS_FIND_NOTFOUND, static_cast<LPCTSTR>(m_sFindText));
+					message.Format(IDS_FIND_NOTFOUND, static_cast<LPCWSTR>(m_sFindText));
 					if (m_pFindDialog)
 						m_pFindDialog->SetStatusText(message, RGB(255, 0, 0));
 					::MessageBeep(0xFFFFFFFF);
@@ -5788,29 +5806,29 @@ CString CBaseView::GetSelectedText() const
 	{
 		switch (m_pViewData->GetState(nViewLine))
 		{
-		case DIFFSTATE_EMPTY:
+		case DiffState::Empty:
 			break;
-		case DIFFSTATE_UNKNOWN:
-		case DIFFSTATE_NORMAL:
-		case DIFFSTATE_REMOVED:
-		case DIFFSTATE_REMOVEDWHITESPACE:
-		case DIFFSTATE_ADDED:
-		case DIFFSTATE_ADDEDWHITESPACE:
-		case DIFFSTATE_WHITESPACE:
-		case DIFFSTATE_WHITESPACE_DIFF:
-		case DIFFSTATE_CONFLICTED:
-		case DIFFSTATE_CONFLICTED_IGNORED:
-		case DIFFSTATE_CONFLICTADDED:
-		case DIFFSTATE_CONFLICTEMPTY:
-		case DIFFSTATE_CONFLICTRESOLVED:
-		case DIFFSTATE_IDENTICALREMOVED:
-		case DIFFSTATE_IDENTICALADDED:
-		case DIFFSTATE_THEIRSREMOVED:
-		case DIFFSTATE_THEIRSADDED:
-		case DIFFSTATE_YOURSREMOVED:
-		case DIFFSTATE_YOURSADDED:
-		case DIFFSTATE_EDITED:
-		case DIFFSTATE_FILTEREDDIFF:
+		case DiffState::Unknown:
+		case DiffState::Normal:
+		case DiffState::Removed:
+		case DiffState::RemovedWhitespace:
+		case DiffState::Added:
+		case DiffState::AddedWhitespace:
+		case DiffState::Whitespace:
+		case DiffState::WhitespaceDiff:
+		case DiffState::Conflicted:
+		case DiffState::Conflicted_Ignored:
+		case DiffState::ConflictAdded:
+		case DiffState::ConflictEmpty:
+		case DiffState::ConflictResolved:
+		case DiffState::IdenticalRemoved:
+		case DiffState::IdenticalAdded:
+		case DiffState::TheirsRemoved:
+		case DiffState::TheirsAdded:
+		case DiffState::YoursRemoved:
+		case DiffState::YoursAdded:
+		case DiffState::Edited:
+		case DiffState::FilteredDiff:
 			sSelectedText += GetViewLineChars(nViewLine);
 			sSelectedText += L"\r\n";
 			break;
@@ -5834,32 +5852,32 @@ void CBaseView::CheckModifications(bool& hasMods, bool& hasConflicts, bool& hasW
 	{
 		for (int i=0; i<m_pViewData->GetCount(); i++)
 		{
-			DiffStates state = m_pViewData->GetState(i);
+			DiffState state = m_pViewData->GetState(i);
 			switch (state)
 			{
-			case DIFFSTATE_ADDED:
-			case DIFFSTATE_IDENTICALADDED:
-			case DIFFSTATE_THEIRSADDED:
-			case DIFFSTATE_YOURSADDED:
-			case DIFFSTATE_CONFLICTADDED:
-			case DIFFSTATE_IDENTICALREMOVED:
-			case DIFFSTATE_REMOVED:
-			case DIFFSTATE_THEIRSREMOVED:
-			case DIFFSTATE_YOURSREMOVED:
-			case DIFFSTATE_EMPTY:
+			case DiffState::Added:
+			case DiffState::IdenticalAdded:
+			case DiffState::TheirsAdded:
+			case DiffState::YoursAdded:
+			case DiffState::ConflictAdded:
+			case DiffState::IdenticalRemoved:
+			case DiffState::Removed:
+			case DiffState::TheirsRemoved:
+			case DiffState::YoursRemoved:
+			case DiffState::Empty:
 				hasMods = true;
 				break;
-			case DIFFSTATE_CONFLICTED:
-			case DIFFSTATE_CONFLICTED_IGNORED:
+			case DiffState::Conflicted:
+			case DiffState::Conflicted_Ignored:
 				hasConflicts = true;
 				break;
-			case DIFFSTATE_REMOVEDWHITESPACE:
-			case DIFFSTATE_ADDEDWHITESPACE:
-			case DIFFSTATE_WHITESPACE:
-			case DIFFSTATE_WHITESPACE_DIFF:
+			case DiffState::RemovedWhitespace:
+			case DiffState::AddedWhitespace:
+			case DiffState::Whitespace:
+			case DiffState::WhitespaceDiff:
 				hasWhitespaceMods = true;
 				break;
-			case DIFFSTATE_FILTEREDDIFF:
+			case DiffState::FilteredDiff:
 				hasFilteredMods = true;
 				break;
 			}
@@ -5922,40 +5940,40 @@ int CBaseView::SaveFile(int nFlags)
 		for (int i=0; i<m_pViewData->GetCount(); i++)
 		{
 			//only copy non-removed lines
-			DiffStates state = m_pViewData->GetState(i);
+			DiffState state = m_pViewData->GetState(i);
 			switch (state)
 			{
-			case DIFFSTATE_CONFLICTED:
-			case DIFFSTATE_CONFLICTED_IGNORED:
+			case DiffState::Conflicted:
+			case DiffState::Conflicted_Ignored:
 				{
 					int first = i;
 					int last = i;
 					do
 					{
 						last++;
-					} while((last<m_pViewData->GetCount()) && ((m_pViewData->GetState(last)==DIFFSTATE_CONFLICTED)||(m_pViewData->GetState(last)==DIFFSTATE_CONFLICTED_IGNORED)));
-					file.Add(L"<<<<<<< .mine", EOL_NOENDING);
+					} while((last<m_pViewData->GetCount()) && ((m_pViewData->GetState(last)==DiffState::Conflicted)||(m_pViewData->GetState(last)==DiffState::Conflicted_Ignored)));
+					file.Add(L"<<<<<<< .mine", EOL::NoEnding);
 					for (int j=first; j<last; j++)
 					{
 						file.Add(m_pwndRight->m_pViewData->GetLine(j), m_pwndRight->m_pViewData->GetLineEnding(j));
 					}
-					file.Add(L"=======", EOL_NOENDING);
+					file.Add(L"=======", EOL::NoEnding);
 					for (int j=first; j<last; j++)
 					{
 						file.Add(m_pwndLeft->m_pViewData->GetLine(j), m_pwndLeft->m_pViewData->GetLineEnding(j));
 					}
-					file.Add(L">>>>>>> .theirs", EOL_NOENDING);
+					file.Add(L">>>>>>> .theirs", EOL::NoEnding);
 					i = last-1;
 				}
 				break;
-			case DIFFSTATE_EMPTY:
+			case DiffState::Empty:
 				break;
-			case DIFFSTATE_CONFLICTEMPTY:
-			case DIFFSTATE_IDENTICALREMOVED:
-			case DIFFSTATE_REMOVED:
-			case DIFFSTATE_THEIRSREMOVED:
-			case DIFFSTATE_YOURSREMOVED:
-			case DIFFSTATE_CONFLICTRESOLVEDEMPTY:
+			case DiffState::ConflictEmpty:
+			case DiffState::IdenticalRemoved:
+			case DiffState::Removed:
+			case DiffState::TheirsRemoved:
+			case DiffState::YoursRemoved:
+			case DiffState::ConflictResolvedEmpty:
 				if ((nFlags&SAVE_REMOVEDLINES) == 0)
 				{
 					// do not save removed lines
@@ -5983,7 +6001,7 @@ int CBaseView::SaveFile(int nFlags)
 				this == m_pwndLeft,
 				this == m_pwndRight,
 				this == m_pwndBottom);
-		if (file.GetCount() == 1 && file.GetAt(0).IsEmpty() && file.GetLineEnding(0) == EOL_NOENDING)
+		if (file.GetCount() == 1 && file.GetAt(0).IsEmpty() && file.GetLineEnding(0) == EOL::NoEnding)
 			return 0;
 		return file.GetCount();
 	}
@@ -6011,18 +6029,18 @@ EOL CBaseView::GetLineEndings(bool bHasMixedEols)
 {
 	if (bHasMixedEols)
 	{
-		return EOL_AUTOLINE; // mixed eols - hack value
+		return EOL::AutoLine; // mixed eols - hack value
 	}
-	if (m_lineendings == EOL_AUTOLINE)
+	if (m_lineendings == EOL::AutoLine)
 	{
-		return EOL_CRLF;
+		return EOL::CRLF;
 	}
 	return m_lineendings;
 }
 
 void CBaseView::ReplaceLineEndings(EOL eEol)
 {
-	if (eEol == EOL_AUTOLINE)
+	if (eEol == EOL::AutoLine)
 	{
 		return;
 	}
@@ -6038,7 +6056,7 @@ void CBaseView::ReplaceLineEndings(EOL eEol)
 			continue;
 		}
 		EOL eLineEol = GetViewLineEnding(i);
-		if (eLineEol == EOL_AUTOLINE || eLineEol == EOL_NOENDING || eLineEol == m_lineendings)
+		if (eLineEol == EOL::AutoLine || eLineEol == EOL::NoEnding || eLineEol == m_lineendings)
 		{
 			continue;
 		}
@@ -6101,29 +6119,31 @@ void CBaseView::UseViewBlock(CBaseView * pwndView, int nFirstViewLine, int nLast
 			continue;
 		}
 		viewdata line = pwndView->GetViewData(viewLine);
-		if (line.ending != EOL_NOENDING)
+		if (line.ending != EOL::NoEnding)
 			line.ending = m_lineendings;
 		switch (line.state)
 		{
-		case DIFFSTATE_CONFLICTEMPTY:
-		case DIFFSTATE_UNKNOWN:
-			line.state = DIFFSTATE_EMPTY;
-		case DIFFSTATE_EMPTY:
+		case DiffState::ConflictEmpty:
+		case DiffState::Unknown:
+			line.state = DiffState::Empty;
+			[[fallthrough]];
+		case DiffState::Empty:
 			break;
-		case DIFFSTATE_ADDED:
-		case DIFFSTATE_CONFLICTADDED:
-		case DIFFSTATE_CONFLICTED:
-		case DIFFSTATE_CONFLICTED_IGNORED:
-		case DIFFSTATE_IDENTICALADDED:
-		case DIFFSTATE_THEIRSADDED:
-		case DIFFSTATE_YOURSADDED:
-		case DIFFSTATE_IDENTICALREMOVED:
-		case DIFFSTATE_REMOVED:
-		case DIFFSTATE_THEIRSREMOVED:
-		case DIFFSTATE_YOURSREMOVED:
-			pwndView->SetViewState(viewLine, DIFFSTATE_NORMAL);
-			line.state = DIFFSTATE_NORMAL;
-		case DIFFSTATE_NORMAL:
+		case DiffState::Added:
+		case DiffState::ConflictAdded:
+		case DiffState::Conflicted:
+		case DiffState::Conflicted_Ignored:
+		case DiffState::IdenticalAdded:
+		case DiffState::TheirsAdded:
+		case DiffState::YoursAdded:
+		case DiffState::IdenticalRemoved:
+		case DiffState::Removed:
+		case DiffState::TheirsRemoved:
+		case DiffState::YoursRemoved:
+			pwndView->SetViewState(viewLine, DiffState::Normal);
+			line.state = DiffState::Normal;
+			[[fallthrough]];
+		case DiffState::Normal:
 			break;
 		default:
 			break;
@@ -6161,13 +6181,13 @@ void CBaseView::UseViewBlock(CBaseView * pwndView, int nFirstViewLine, int nLast
 	{
 		if (!IsViewLineEmpty(nLine))
 		{
-			if (GetViewLineEnding(nLine) != EOL_NOENDING)
+			if (GetViewLineEnding(nLine) != EOL::NoEnding)
 			{
 				// we added non last line into empty block on the end (or should we remove eol from this one ?)
 				// so next line is empty
 				ASSERT(IsViewLineEmpty(nLine+1));
 				// and we can turn it to normal empty line
-				SetViewData(nLine+1, viewdata(CString(), DIFFSTATE_ADDED, 1, EOL_NOENDING, HIDESTATE_SHOWN));
+				SetViewData(nLine + 1, viewdata(CString(), DiffState::Added, 1, EOL::NoEnding, HideState::Shown));
 			}
 			break;
 		}
@@ -6177,7 +6197,7 @@ void CBaseView::UseViewBlock(CBaseView * pwndView, int nFirstViewLine, int nLast
 	{
 		if (!IsViewLineEmpty(nLine))
 		{
-			if (GetViewLineEnding(nLine) == EOL_NOENDING)
+			if (GetViewLineEnding(nLine) == EOL::NoEnding)
 			{
 				SetViewLineEnding(nLine, m_lineendings);
 				// in theory there should be only one line needing fix, but most of time we get over all anyway
@@ -6222,19 +6242,19 @@ void CBaseView::MarkBlock(bool marked, int nFirstViewLine, int nLastViewLine)
 
 void CBaseView::LeaveOnlyMarkedBlocks(CBaseView *pwndView)
 {
-	auto fn = [this](int viewLine) -> bool { return GetViewMarked(viewLine) || GetViewState(viewLine) == DIFFSTATE_EDITED; };
+	auto fn = [this](int viewLine) -> bool { return GetViewMarked(viewLine) || GetViewState(viewLine) == DiffState::Edited; };
 	UseViewBlock(pwndView, 0, GetViewCount() - 1, fn);
 }
 
 void CBaseView::UseViewFileOfMarked(CBaseView *pwndView)
 {
-	auto fn = [this](int viewLine) -> bool { return !GetViewMarked(viewLine) || GetViewState(viewLine) == DIFFSTATE_EDITED; };
+	auto fn = [this](int viewLine) -> bool { return !GetViewMarked(viewLine) || GetViewState(viewLine) == DiffState::Edited; };
 	UseViewBlock(pwndView, 0, GetViewCount() - 1, fn);
 }
 
 void CBaseView::UseViewFileExceptEdited(CBaseView *pwndView)
 {
-	auto fn = [this](int viewLine) -> bool { return GetViewState(viewLine) == DIFFSTATE_EDITED; };
+	auto fn = [this](int viewLine) -> bool { return GetViewState(viewLine) == DiffState::Edited; };
 	UseViewBlock(pwndView, 0, GetViewCount() - 1, fn);
 }
 
@@ -6334,7 +6354,7 @@ void CBaseView::AddIndentationForSelectedBlock()
 		// add tab to line start (alternatively m_nTabSize spaces can be used)
 		CString tabStr;
 		int indentChars = GetIndentCharsForLine(0, nViewLine);
-		tabStr = indentChars > 0 ? CString(L' ', indentChars) : L"\t";
+		tabStr = indentChars > 0 ? CString(L' ', indentChars) : CString(L"\t");
 		SetViewLine(nViewLine, tabStr + sLine);
 		bModified = true;
 	}
@@ -6430,7 +6450,7 @@ void CBaseView::ConvertTabToSpaces()
 		{
 			CString sLineNew = sLine;
 			sLineNew.Delete(0, nPosIn);
-			sLineNew = CString(' ', nPosOut) + sLineNew;
+			sLineNew = CString(L' ', nPosOut) + sLineNew;
 			SetViewLine(nViewLine, sLineNew);
 			bModified = true;
 		}
@@ -6472,6 +6492,7 @@ void CBaseView::Tabularize()
 				{
 					continue;
 				}
+				[[fallthrough]];
 			case '\t':
 				nTabCount++;
 				nSpaceCount = 0;
@@ -6484,7 +6505,7 @@ void CBaseView::Tabularize()
 		{
 			CString sLineNew = sLine;
 			sLineNew.Delete(0, nDel);
-			sLineNew = CString('\t', nTabCount) + sLineNew;
+			sLineNew = CString(L'\t', nTabCount) + sLineNew;
 			if (sLine!=sLineNew)
 			{
 				SetViewLine(nViewLine, sLineNew);
@@ -6580,7 +6601,7 @@ CBaseView::TWhitecharsProperties CBaseView::GetWhitecharsProperties()
 
 		// check EOLs
 		EOL eLineEol = GetViewLineEnding(nViewLine);
-		if (!oRet.HasMixedEols && (eLineEol != m_lineendings) && (eLineEol != EOL_AUTOLINE) && (eLineEol != EOL_NOENDING))
+		if (!oRet.HasMixedEols && (eLineEol != m_lineendings) && (eLineEol != EOL::AutoLine) && (eLineEol != EOL::NoEnding))
 		{
 			oRet.HasMixedEols = true;
 		}
@@ -6624,7 +6645,7 @@ void CBaseView::InsertText(const CString& sText)
 		CString sLineLeft = sLine.Left(nLeft);
 		CString sLineRight = sLine.Right(sLine.GetLength() - nLeft);
 		EOL eOriginalEnding = GetViewLineEnding(nViewLine);
-		viewdata newLine(L"", DIFFSTATE_EDITED, 1, m_lineendings, HIDESTATE_SHOWN);
+		viewdata newLine(L"", DiffState::Edited, 1, m_lineendings, HideState::Shown);
 		if (!lines[0].IsEmpty() || !sLineRight.IsEmpty() || (eOriginalEnding != m_lineendings))
 		{
 			newLine.sLine = sLineLeft + lines[0];
@@ -6657,9 +6678,9 @@ void CBaseView::InsertText(const CString& sText)
 		{
 			m_pwndBottom->InsertViewEmptyLines(nViewLine + 1, nLinesToPaste - 1);
 		}
+		UpdateViewLineNumbers();
 		SaveUndoStep();
 
-		UpdateViewLineNumbers();
 		CUndo::GetInstance().EndGrouping();
 
 		ptCaretViewPos = SetupPoint(lines[nLinesToPaste - 1].GetLength(), nInsertLine);
@@ -6673,7 +6694,7 @@ void CBaseView::InsertText(const CString& sText)
 		SetViewLine(nViewLine, sLine);
 
 		auto viewState = GetViewState(nViewLine);
-		if (IsStateEmpty(viewState) || IsStateConflicted(viewState) || viewState == DIFFSTATE_IDENTICALREMOVED)
+		if (IsStateEmpty(viewState) || IsStateConflicted(viewState) || viewState == DiffState::IdenticalRemoved)
 		{
 			// if not last line set EOL
 			for (int nCheckViewLine = nViewLine + 1; nCheckViewLine < GetViewCount(); ++nCheckViewLine)
@@ -6689,14 +6710,14 @@ void CBaseView::InsertText(const CString& sText)
 			{
 				if (!IsViewLineEmpty(nCheckViewLine))
 				{
-					if (GetViewLineEnding(nCheckViewLine) == EOL_NOENDING)
+					if (GetViewLineEnding(nCheckViewLine) == EOL::NoEnding)
 						SetViewLineEnding(nCheckViewLine, m_lineendings);
 					break;
 				}
 			}
 		}
 
-		SetViewState(nViewLine, DIFFSTATE_EDITED);
+		SetViewState(nViewLine, DiffState::Edited);
 		SetModified();
 		SaveUndoStep();
 	}

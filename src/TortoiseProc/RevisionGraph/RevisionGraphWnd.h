@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2011 - TortoiseSVN
-// Copyright (C) 2012-2019 - TortoiseGit
+// Copyright (C) 2012-2019, 2022-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,11 +17,11 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "Future.h"
 #include "ProgressDlg.h"
 #include "Colors.h"
-#include "AppUtils.h"
 #include "SVG.h"
 #include "LogDlgHelper.h"
 #include "Graphviz.h"
@@ -29,80 +29,38 @@
 #pragma warning(push)
 #pragma warning(disable: 4100) // unreferenced formal parameter
 #include <ogdf/layered/SugiyamaLayout.h>
-#include <ogdf/layered/OptimalRanking.h>
-#include <ogdf/layered/MedianHeuristic.h>
-#include <ogdf/layered/OptimalHierarchyLayout.h>
-#include <ogdf/layered/FastHierarchyLayout.h>
 #pragma warning(pop)
 
 using namespace Gdiplus;
 using namespace async;
 
-enum
-{
-	REVGRAPH_PREVIEW_WIDTH = 100,
-	REVGRAPH_PREVIEW_HEIGHT = 200,
+constexpr int REVGRAPH_PREVIEW_WIDTH = 100;
+constexpr int REVGRAPH_PREVIEW_HEIGHT = 200;
 
-	// don't draw pre-views with more than that number of nodes
+// don't draw pre-views with more than that number of nodes
+constexpr int REVGRAPH_PREVIEW_MAX_NODES = 10000;
 
-	REVGRAPH_PREVIEW_MAX_NODES = 10000
-};
+// radius of the rounded / slanted box corners  of the expand / collapse / split / join square gylphs
+constexpr int CORNER_SIZE = 12;
 
-// don't try to draw nodes smaller than that:
+// font sizes
+constexpr int DEFAULT_ZOOM_FONT = 9; // default font size
+constexpr int SMALL_ZOOM_FONT = 11; // rel. larger font size for small zoom factors
+constexpr int SMALL_ZOOM_FONT_THRESHOLD = 6; // max. "small zoom" font size after scaling
 
-#define REVGRAPH_MIN_NODE_HIGHT (0.5f)
-
-enum
-{
-	// size of the node marker
-
-	MARKER_SIZE = 11,
-
-	// radius of the rounded / slanted box corners  of the expand / collapse / split / join square gylphs
-
-	CORNER_SIZE = 12,
-
-	// font sizes
-
-	DEFAULT_ZOOM_FONT = 9,			// default font size
-	SMALL_ZOOM_FONT = 11,			// rel. larger font size for small zoom factors
-	SMALL_ZOOM_FONT_THRESHOLD = 6,	// max. "small zoom" font size after scaling
-
-	// size of the expand / collapse / split / join square gylphs
-
-	GLYPH_BITMAP_SIZE = 16,
-	GLYPH_SIZE = 12,
-
-	// glyph display delay definitions
-
-	GLYPH_HOVER_EVENT = 10,		// timer ID for the glyph display delay
-	GLYPH_HOVER_DELAY = 250,	// delay until the glyphs are shown [ms]
-};
+// glyph display delay definitions
+constexpr int GLYPH_HOVER_EVENT = 10; // timer ID for the glyph display delay
+constexpr int GLYPH_HOVER_DELAY = 250; // delay until the glyphs are shown [ms]
 
 // zoom control
-
-const float MIN_ZOOM = 0.01f;
-const float MAX_ZOOM = 2.0f;
-const float DEFAULT_ZOOM = 1.0f;
-const float ZOOM_STEP = 0.9f;
+constexpr float MIN_ZOOM = 0.01f;
+constexpr float MAX_ZOOM = 2.0f;
+constexpr float DEFAULT_ZOOM = 1.0f;
+constexpr float ZOOM_STEP = 0.9f;
 
 // don't draw shadows below this zoom level
+constexpr float SHADOW_ZOOM_THRESHOLD = 0.2f;
 
-const float SHADOW_ZOOM_THRESHOLD = 0.2f;
-
-/**
- * \ingroup TortoiseProc
- * node shapes for the revision graph
- */
-enum NodeShape
-{
-	TSVNRectangle,
-	TSVNRoundRect,
-	TSVNOctangle,
-	TSVNEllipse
-};
-
-#define MAXFONTS				4
 #define MAX_TT_LENGTH			60000
 #define MAX_TT_LENGTH_DEFAULT	1000
 
@@ -144,7 +102,7 @@ public:
 	MAP_HASH_NAME		m_HashMap;
 	CString				m_CurrentBranch;
 	CGitHash			m_HeadHash;
-	CGitHash			m_superProjectHash;
+	CGit::SubmoduleInfo	m_submoduleInfo;
 
 	BOOL		m_bCurrentBranch;
 	BOOL		m_bLocalBranches;
@@ -196,19 +154,19 @@ public:
 	void			BuildPreview();
 
 protected:
-	ULONGLONG		m_ullTicks;
+	ULONGLONG		m_ullTicks = 0;
 	CRect			m_OverviewPosRect;
 	CRect			m_OverviewRect;
 
 	bool			m_bShowOverview;
 
-	CRevisionGraphDlg *m_parent;
+	CRevisionGraphDlg* m_parent = nullptr;
 
-	ogdf::node		m_HeadNode;
-	ogdf::node		m_SelectedEntry1;
-	ogdf::node		m_SelectedEntry2;
+	ogdf::node		m_HeadNode = nullptr;
+	ogdf::node		m_SelectedEntry1 = nullptr;
+	ogdf::node		m_SelectedEntry2 = nullptr;
 	int				m_nFontSize;
-	CToolTipCtrl *	m_pDlgTip;
+	CToolTipCtrl*	m_pDlgTip = nullptr;
 	char			m_szTip[MAX_TT_LENGTH+1];
 	wchar_t			m_wszTip[MAX_TT_LENGTH+1];
 	CString			m_sTitle;
@@ -226,9 +184,9 @@ protected:
 	int				m_previewHeight;
 	float			m_previewZoom;
 
-	ogdf::node		m_hoverIndex;
-	DWORD			m_hoverGlyphs;	// the glyphs shown for \ref m_hoverIndex
-	mutable ogdf::node m_tooltipIndex;	// the node index we fetched the tooltip for
+	ogdf::node		m_hoverIndex = nullptr;
+	DWORD			m_hoverGlyphs = 0;	// the glyphs shown for \ref m_hoverIndex
+	mutable ogdf::node m_tooltipIndex = nullptr;	// the node index we fetched the tooltip for
 	bool			m_showHoverGlyphs;	// if true, show the glyphs we currently hover over
 										// (will be activated only after some delay)
 
@@ -243,9 +201,9 @@ protected:
 
 	int GetLeftRightMargin() const { return 20; };
 	int GetTopBottomMargin() const { return 5; };
-	virtual void	DoDataExchange(CDataExchange* pDX) override;	// DDX/DDV support
+	void			DoDataExchange(CDataExchange* pDX) override;	// DDX/DDV support
 	afx_msg void	OnPaint();
-	virtual ULONG	GetGestureStatus(CPoint ptTouch) override;
+	ULONG			GetGestureStatus(CPoint ptTouch) override;
 	afx_msg BOOL	OnEraseBkgnd(CDC* pDC);
 	afx_msg void	OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void	OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
@@ -292,30 +250,20 @@ private:
 		Below = 8,
 	};
 
-	class GraphicsDevice
+	struct GraphicsDevice
 	{
-	public:
-		GraphicsDevice()
-			: pDC(nullptr)
-			, graphics(nullptr)
-			, pSVG(nullptr)
-			, pGraphviz(nullptr)
-		{
-		}
-		~GraphicsDevice() {}
-	public:
-		CDC *				pDC;
-		Graphics *			graphics;
-		SVG *				pSVG;
-		Graphviz *			pGraphviz;
+		CDC* pDC = nullptr;
+		Graphics* graphics = nullptr;
+		SVG* pSVG = nullptr;
+		Graphviz* pGraphviz = nullptr;
 	};
 
 	class SVGGrouper
 	{
 	public:
-		SVGGrouper(SVG * pSVG)
+		SVGGrouper(SVG* pSVG)
+			: m_pSVG(pSVG)
 		{
-			m_pSVG = pSVG;
 			if (m_pSVG)
 				m_pSVG->StartGroup();
 		}
@@ -325,9 +273,7 @@ private:
 				m_pSVG->EndGroup();
 		}
 	private:
-		SVGGrouper() {}
-
-		SVG *	m_pSVG;
+		SVG*	m_pSVG = nullptr;
 	};
 
 	bool			UpdateSelectedEntry (ogdf::node clickedentry);
@@ -350,7 +296,7 @@ private:
 	DWORD			GetHoverGlyphs (CPoint point) const;
 	PointF			cutPoint(ogdf::node v, double lw, const PointF& ps, const PointF& pt) const;
 
-	typedef PointF TCutRectangle[8];
+	using TCutRectangle = PointF[8];
 	void			CutawayPoints (const RectF& rect, float cutLen, TCutRectangle& result) const;
 	enum
 	{

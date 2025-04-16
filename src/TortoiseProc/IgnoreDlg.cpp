@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2013 - TortoiseGit
+// Copyright (C) 2012-2013, 2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -65,6 +65,7 @@ BOOL CIgnoreDlg::OnInitDialog()
 	AdjustControlSize(IDC_RADIO_IGNORETYPE_RECURSIVELY);
 
 	EnableSaveRestore(L"IgnoreDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	return TRUE;
 }

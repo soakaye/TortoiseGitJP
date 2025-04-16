@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013, 2016, 2019 - TortoiseGit
+// Copyright (C) 2013, 2016, 2019, 2023 - TortoiseGit
 // Copyright (C) 2012-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -21,13 +21,12 @@
 #include "../../ext/CrashServer/CrashHandler/CrashHandler/CrashHandler.h"
 #include <time.h>
 #include <string>
-#include <tchar.h>
 #include <DbgHelp.h>
 
 // dummy define, needed only when we use crashrpt instead of this.
 #define CR_AF_MAKE_FILE_COPY 0
 
-__forceinline HMODULE get_my_module_handle(void)
+__forceinline HMODULE get_my_module_handle()
 {
 	static int s_module_marker = 0;
 	MEMORY_BASIC_INFORMATION memory_basic_information;
@@ -45,20 +44,12 @@ __forceinline HMODULE get_my_module_handle(void)
 class CCrashReport
 {
 private:
-	CCrashReport(void)
-	: m_InitCrashHandler(nullptr)
-	, m_SendReport(nullptr)
-	, m_IsReadyToExit(nullptr)
-	, m_AddUserInfoToReport(nullptr)
-	, m_AddFileToReport(nullptr)
-	, m_RemoveFileFromReport(nullptr)
-	, m_GetVersionFromApp(nullptr)
-	, m_GetVersionFromFile(nullptr)
+	CCrashReport()
 	{
 		LoadDll();
 	}
 
-	~CCrashReport(void)
+	~CCrashReport()
 	{
 		if (!m_IsReadyToExit)
 			return;
@@ -79,8 +70,8 @@ public:
 		return instance;
 	}
 
-	int                     Uninstall(void) { return FALSE; }
-	int                     AddFile2(LPCTSTR pszFile,LPCTSTR pszDestFile,LPCTSTR /*pszDesc*/,DWORD /*dwFlags*/)
+	int                     Uninstall() { return FALSE; }
+	int                     AddFile2(LPCWSTR pszFile, LPCWSTR pszDestFile, LPCWSTR /*pszDesc*/, DWORD /*dwFlags*/)
 	{
 		return AddFileToReport(pszFile, pszDestFile) ? 1 : 0;
 	}
@@ -308,16 +299,16 @@ private:
 		}
 		if (hCrashHandlerDll)
 		{
-			m_InitCrashHandler = (pfnInitCrashHandler) GetProcAddress(hCrashHandlerDll, "InitCrashHandler");
-			m_SendReport = (pfnSendReport) GetProcAddress(hCrashHandlerDll, "SendReport");
-			m_IsReadyToExit = (pfnIsReadyToExit) GetProcAddress(hCrashHandlerDll, "IsReadyToExit");
-			m_SetCustomInfo = (pfnSetCustomInfo) GetProcAddress(hCrashHandlerDll, "SetCustomInfo");
-			m_AddUserInfoToReport = (pfnAddUserInfoToReport) GetProcAddress(hCrashHandlerDll, "AddUserInfoToReport");
-			m_RemoveUserInfoFromReport = (pfnRemoveUserInfoFromReport) GetProcAddress(hCrashHandlerDll, "RemoveUserInfoFromReport");
-			m_AddFileToReport = (pfnAddFileToReport) GetProcAddress(hCrashHandlerDll, "AddFileToReport");
-			m_RemoveFileFromReport = (pfnRemoveFileFromReport) GetProcAddress(hCrashHandlerDll, "RemoveFileFromReport");
-			m_GetVersionFromApp = (pfnGetVersionFromApp) GetProcAddress(hCrashHandlerDll, "GetVersionFromApp");
-			m_GetVersionFromFile = (pfnGetVersionFromFile) GetProcAddress(hCrashHandlerDll, "GetVersionFromFile");
+			m_InitCrashHandler = reinterpret_cast<PfnInitCrashHandler>(GetProcAddress(hCrashHandlerDll, "InitCrashHandler"));
+			m_SendReport = reinterpret_cast<PfnSendReport>(GetProcAddress(hCrashHandlerDll, "SendReport"));
+			m_IsReadyToExit = reinterpret_cast<PfnIsReadyToExit>(GetProcAddress(hCrashHandlerDll, "IsReadyToExit"));
+			m_SetCustomInfo = reinterpret_cast<PfnSetCustomInfo>(GetProcAddress(hCrashHandlerDll, "SetCustomInfo"));
+			m_AddUserInfoToReport = reinterpret_cast<PfnAddUserInfoToReport>(GetProcAddress(hCrashHandlerDll, "AddUserInfoToReport"));
+			m_RemoveUserInfoFromReport = reinterpret_cast<PfnRemoveUserInfoFromReport>(GetProcAddress(hCrashHandlerDll, "RemoveUserInfoFromReport"));
+			m_AddFileToReport = reinterpret_cast<PfnAddFileToReport>(GetProcAddress(hCrashHandlerDll, "AddFileToReport"));
+			m_RemoveFileFromReport = reinterpret_cast<PfnRemoveFileFromReport>(GetProcAddress(hCrashHandlerDll, "RemoveFileFromReport"));
+			m_GetVersionFromApp = reinterpret_cast<PfnGetVersionFromApp>(GetProcAddress(hCrashHandlerDll, "GetVersionFromApp"));
+			m_GetVersionFromFile = reinterpret_cast<PfnGetVersionFromFile>(GetProcAddress(hCrashHandlerDll, "GetVersionFromFile"));
 
 			m_bLoaded = m_InitCrashHandler
 				&& m_SendReport
@@ -352,31 +343,31 @@ private:
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
 
-	bool m_bLoaded;
-	bool m_bWorking;
-	bool m_bSkipAssertsAdded;
+	bool m_bLoaded = false;
+	bool m_bWorking = false;
+	bool m_bSkipAssertsAdded = false;
 
-	typedef BOOL (*pfnInitCrashHandler)(ApplicationInfo* applicationInfo, HandlerSettings* handlerSettings, BOOL ownProcess);
-	typedef LONG (*pfnSendReport)(EXCEPTION_POINTERS* exceptionPointers);
-	typedef BOOL (*pfnIsReadyToExit)();
-	typedef void (*pfnSetCustomInfo)(LPCWSTR text);
-	typedef void (*pfnAddUserInfoToReport)(LPCWSTR key, LPCWSTR value);
-	typedef void (*pfnRemoveUserInfoFromReport)(LPCWSTR key);
-	typedef void (*pfnAddFileToReport)(LPCWSTR path, LPCWSTR reportFileName /* = nullptr */);
-	typedef void (*pfnRemoveFileFromReport)(LPCWSTR path);
-	typedef BOOL (*pfnGetVersionFromApp)(ApplicationInfo* appInfo);
-	typedef BOOL (*pfnGetVersionFromFile)(LPCWSTR path, ApplicationInfo* appInfo);
+	using PfnInitCrashHandler = BOOL(*)(ApplicationInfo* applicationInfo, HandlerSettings* handlerSettings, BOOL ownProcess);
+	using PfnSendReport = LONG(*)(EXCEPTION_POINTERS* exceptionPointers);
+	using PfnIsReadyToExit = BOOL(*)();
+	using PfnSetCustomInfo = void(*)(LPCWSTR text);
+	using PfnAddUserInfoToReport = void(*)(LPCWSTR key, LPCWSTR value);
+	using PfnRemoveUserInfoFromReport = void(*)(LPCWSTR key);
+	using PfnAddFileToReport = void(*)(LPCWSTR path, LPCWSTR reportFileName /* = nullptr */);
+	using PfnRemoveFileFromReport = void(*)(LPCWSTR path);
+	using PfnGetVersionFromApp = BOOL(*)(ApplicationInfo* appInfo);
+	using PfnGetVersionFromFile = BOOL(*)(LPCWSTR path, ApplicationInfo* appInfo);
 
-	pfnInitCrashHandler m_InitCrashHandler;
-	pfnSendReport m_SendReport;
-	pfnIsReadyToExit m_IsReadyToExit;
-	pfnSetCustomInfo m_SetCustomInfo;
-	pfnAddUserInfoToReport m_AddUserInfoToReport;
-	pfnRemoveUserInfoFromReport m_RemoveUserInfoFromReport;
-	pfnAddFileToReport m_AddFileToReport;
-	pfnRemoveFileFromReport m_RemoveFileFromReport;
-	pfnGetVersionFromApp m_GetVersionFromApp;
-	pfnGetVersionFromFile m_GetVersionFromFile;
+	PfnInitCrashHandler m_InitCrashHandler = nullptr;
+	PfnSendReport m_SendReport = nullptr;
+	PfnIsReadyToExit m_IsReadyToExit = nullptr;
+	PfnSetCustomInfo m_SetCustomInfo = nullptr;
+	PfnAddUserInfoToReport m_AddUserInfoToReport = nullptr;
+	PfnRemoveUserInfoFromReport m_RemoveUserInfoFromReport = nullptr;
+	PfnAddFileToReport m_AddFileToReport = nullptr;
+	PfnRemoveFileFromReport m_RemoveFileFromReport = nullptr;
+	PfnGetVersionFromApp m_GetVersionFromApp = nullptr;
+	PfnGetVersionFromFile m_GetVersionFromFile = nullptr;
 };
 
 class CCrashReportTGit
@@ -384,8 +375,7 @@ class CCrashReportTGit
 public:
 
 	//! Installs exception handlers to the caller process
-	CCrashReportTGit(LPCTSTR appname, USHORT versionMajor, USHORT versionMinor, USHORT versionMicro, USHORT versionBuild, const char* /*buildDate*/, bool bOwnProcess = true)
-	: m_nInstallStatus(0)
+	CCrashReportTGit(LPCWSTR appname, USHORT versionMajor, USHORT versionMinor, USHORT versionMicro, USHORT versionBuild, const char* /*buildDate*/, bool bOwnProcess = true)
 	{
 		ApplicationInfo appInfo = { 0 };
 		appInfo.ApplicationInfoSize = sizeof(ApplicationInfo);
@@ -417,6 +407,6 @@ public:
 	}
 
 	//! Install status
-	int m_nInstallStatus;
+	int m_nInstallStatus = 0;
 };
 

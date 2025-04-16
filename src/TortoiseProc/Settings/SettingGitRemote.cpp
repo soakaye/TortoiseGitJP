@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -22,7 +22,6 @@
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "SettingGitRemote.h"
-#include "Settings.h"
 #include "GitAdminDir.h"
 #include "MessageBox.h"
 #include "AppUtils.h"
@@ -39,7 +38,6 @@ CSettingGitRemote::CSettingGitRemote()
 	, m_bPrune(2)
 	, m_bPushDefault(FALSE)
 {
-	m_ChangedMask = 0;
 }
 
 CSettingGitRemote::~CSettingGitRemote()
@@ -97,7 +95,9 @@ BOOL CSettingGitRemote::OnInitDialog()
 	AdjustControlSize(IDC_CHECK_PUSHDEFAULT);
 
 	STRING_VECTOR remotes;
-	g_Git.GetRemoteList(remotes);
+	if (g_Git.GetRemoteList(remotes) != 0)
+		MessageBox(g_Git.GetGitLastErr(L"Could not load remotes."), L"TortoiseGit", MB_ICONERROR);
+
 	m_ctrlRemoteList.ResetContent();
 	for (size_t i = 0; i < remotes.size(); i++)
 		m_ctrlRemoteList.AddString(remotes[i]);
@@ -172,7 +172,7 @@ void CSettingGitRemote::OnBnClickedButtonAdd()
 	if(IsRemoteExist(m_strRemote))
 	{
 		CString msg;
-		msg.Format(IDS_PROC_GITCONFIG_OVERWRITEREMOTE, static_cast<LPCTSTR>(m_strRemote));
+		msg.Format(IDS_PROC_GITCONFIG_OVERWRITEREMOTE, static_cast<LPCWSTR>(m_strRemote));
 		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) == IDYES)
 			m_ChangedMask &= ~REMOTE_NAME;
 		else
@@ -204,7 +204,7 @@ static int CheckRemoteCollideWithRefspec(const git_config_entry *entry, void * p
 {
 	auto crs = reinterpret_cast<CheckRefspecStruct*>(payload);
 	crs->result = false;
-	if (entry->name == "remote." + crs->remote + ".fetch")
+	if ("remote." + crs->remote + ".fetch" == entry->name)
 		return 0;
 	CStringA value = CStringA(entry->value);
 	CStringA match = ":refs/remotes/" + crs->remote;
@@ -257,31 +257,31 @@ void CSettingGitRemote::OnLbnSelchangeListRemote()
 	m_ctrlRemoteList.GetText(index, m_strRemote);
 
 	CString cmd, output;
-	cmd.Format(L"remote.%s.url", static_cast<LPCTSTR>(m_strRemote));
+	cmd.Format(L"remote.%s.url", static_cast<LPCWSTR>(m_strRemote));
 	m_strUrl = g_Git.GetConfigValue(cmd);
 
-	cmd.Format(L"remote.%s.pushurl", static_cast<LPCTSTR>(m_strRemote));
+	cmd.Format(L"remote.%s.pushurl", static_cast<LPCWSTR>(m_strRemote));
 	m_strPushUrl = g_Git.GetConfigValue(cmd);
 
-	cmd.Format(L"remote.%s.puttykeyfile", static_cast<LPCTSTR>(m_strRemote));
+	cmd.Format(L"remote.%s.puttykeyfile", static_cast<LPCWSTR>(m_strRemote));
 
 	this->m_strPuttyKeyfile = g_Git.GetConfigValue(cmd);
 
 	m_ChangedMask=0;
 
 
-	cmd.Format(L"remote.%s.tagopt", static_cast<LPCTSTR>(m_strRemote));
+	cmd.Format(L"remote.%s.tagopt", static_cast<LPCWSTR>(m_strRemote));
 	CString tagopt = g_Git.GetConfigValue(cmd);
 	index = 0;
-	if (tagopt == "--no-tags")
+	if (tagopt == L"--no-tags")
 		index = 1;
-	else if (tagopt == "--tags")
+	else if (tagopt == L"--tags")
 		index = 2;
 	m_ctrlTagOpt.SetCurSel(index);
 
 	CString pushDefault = g_Git.GetConfigValue(L"remote.pushdefault");
 	m_bPushDefault = pushDefault == m_strRemote ? TRUE : FALSE;
-	cmd.Format(L"remote.%s.prune", static_cast<LPCTSTR>(m_strRemote));
+	cmd.Format(L"remote.%s.prune", static_cast<LPCWSTR>(m_strRemote));
 	CString prune = g_Git.GetConfigValue(cmd);
 	m_bPrune = prune == L"true" ? TRUE : prune == L"false" ? FALSE : 2;
 
@@ -365,7 +365,7 @@ BOOL CSettingGitRemote::Save(CString key,CString value)
 {
 	CString cmd,out;
 
-	cmd.Format(L"remote.%s.%s", static_cast<LPCTSTR>(m_strRemote), static_cast<LPCTSTR>(key));
+	cmd.Format(L"remote.%s.%s", static_cast<LPCWSTR>(m_strRemote), static_cast<LPCWSTR>(key));
 	if (value.IsEmpty())
 	{
 		// don't check result code. it fails if the entry not exist
@@ -373,7 +373,7 @@ BOOL CSettingGitRemote::Save(CString key,CString value)
 		if (!g_Git.GetConfigValue(cmd).IsEmpty())
 		{
 			CString msg;
-			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(cmd), static_cast<LPCTSTR>(value));
+			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCWSTR>(cmd), static_cast<LPCWSTR>(value));
 			CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 			return FALSE;
 		}
@@ -383,7 +383,7 @@ BOOL CSettingGitRemote::Save(CString key,CString value)
 	if (g_Git.SetConfigValue(cmd, value, CONFIG_LOCAL))
 	{
 		CString msg;
-		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(cmd), static_cast<LPCTSTR>(value));
+		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCWSTR>(cmd), static_cast<LPCWSTR>(value));
 		CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
@@ -399,7 +399,7 @@ BOOL CSettingGitRemote::SaveGeneral(CString key, CString value)
 		if (!g_Git.GetConfigValue(key).IsEmpty())
 		{
 			CString msg;
-			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(key), static_cast<LPCTSTR>(value));
+			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCWSTR>(key), static_cast<LPCWSTR>(value));
 			CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 			return FALSE;
 		}
@@ -409,7 +409,7 @@ BOOL CSettingGitRemote::SaveGeneral(CString key, CString value)
 	if (g_Git.SetConfigValue(key, value, CONFIG_LOCAL))
 	{
 		CString msg;
-		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(key), static_cast<LPCTSTR>(value));
+		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCWSTR>(key), static_cast<LPCWSTR>(value));
 		CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
@@ -429,7 +429,7 @@ BOOL CSettingGitRemote::OnApply()
 			if (!SaveGeneral(L"remote.pushdefault", m_strRemote.Trim()))
 				return FALSE;
 		}
-		if (!m_bPushDefault)
+		if (!m_bPushDefault && m_strRemote.Trim() == g_Git.GetConfigValue(L"remote.pushdefault"))
 		{
 			if (!SaveGeneral(L"remote.pushdefault", L""))
 				return FALSE;
@@ -471,9 +471,13 @@ BOOL CSettingGitRemote::OnApply()
 			}
 		}
 
+		CString endOfOptions;
+		if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 38, 0))
+			endOfOptions = L" --";
+
 		m_strUrl.Replace(L'\\', L'/');
 		CString cmd,out;
-		cmd.Format(L"git.exe remote add \"%s\" \"%s\"", static_cast<LPCTSTR>(m_strRemote), static_cast<LPCTSTR>(m_strUrl));
+		cmd.Format(L"git.exe remote add%s \"%s\" \"%s\"", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(m_strRemote), static_cast<LPCWSTR>(m_strUrl));
 		if (g_Git.Run(cmd, &out, CP_UTF8))
 		{
 			CMessageBox::Show(GetSafeHwnd(), out, L"TorotiseGit", MB_OK | MB_ICONERROR);
@@ -505,9 +509,9 @@ BOOL CSettingGitRemote::OnApply()
 		CString tagopt;
 		int index = m_ctrlTagOpt.GetCurSel();
 		if (index == 1)
-			tagopt = "--no-tags";
+			tagopt = L"--no-tags";
 		else if (index == 2)
-			tagopt = "--tags";
+			tagopt = L"--tags";
 		if (!Save(L"tagopt", tagopt))
 			return FALSE;
 	}
@@ -546,11 +550,15 @@ void CSettingGitRemote::OnBnClickedButtonRemove()
 		CString str;
 		m_ctrlRemoteList.GetText(index,str);
 		CString msg;
-		msg.Format(IDS_WARN_REMOVE, static_cast<LPCTSTR>(str));
+		msg.Format(IDS_WARN_REMOVE, static_cast<LPCWSTR>(str));
 		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION) == IDYES)
 		{
+			CString endOfOptions;
+			if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 38, 0))
+				endOfOptions = L" --";
+
 			CString cmd,out;
-			cmd.Format(L"git.exe remote rm %s", static_cast<LPCTSTR>(str));
+			cmd.Format(L"git.exe remote rm%s \"%s\"", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(str));
 			if (g_Git.Run(cmd, &out, CP_UTF8))
 			{
 				CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);
@@ -572,8 +580,13 @@ void CSettingGitRemote::OnBnClickedButtonRenameRemote()
 		CString oldRemote, newRemote;
 		m_ctrlRemoteList.GetText(sel, oldRemote);
 		GetDlgItem(IDC_EDIT_REMOTE)->GetWindowText(newRemote);
+
+		CString endOfOptions;
+		if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 38, 0))
+			endOfOptions = L" --";
+
 		CString cmd, out;
-		cmd.Format(L"git.exe remote rename %s %s", static_cast<LPCTSTR>(oldRemote), static_cast<LPCTSTR>(newRemote));
+		cmd.Format(L"git.exe remote rename%s \"%s\" \"%s\"", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(oldRemote), static_cast<LPCWSTR>(newRemote));
 		if (g_Git.Run(cmd, &out, CP_UTF8))
 		{
 			CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);

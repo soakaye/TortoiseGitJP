@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2011, 2013-2014, 2016, 2020 - TortoiseGit
+// Copyright (C) 2008-2011, 2013-2014, 2016, 2020, 2023-2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,12 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "DirFileEnum.h"
 #include "SetOverlayIcons.h"
 #include "StringUtils.h"
-#include "PathUtils.h"
 #include "LoadIconEx.h"
 
 IMPLEMENT_DYNAMIC(CSetOverlayIcons, ISettingsPropPage)
@@ -38,7 +38,6 @@ CSetOverlayIcons::CSetOverlayIcons()
 	m_regAdded = CRegString(L"Software\\TortoiseOverlays\\AddedIcon");
 	m_regIgnored = CRegString(L"Software\\TortoiseOverlays\\IgnoredIcon");
 	m_regUnversioned = CRegString(L"Software\\TortoiseOverlays\\UnversionedIcon");
-	m_selIndex = CB_ERR;
 }
 
 CSetOverlayIcons::~CSetOverlayIcons()
@@ -68,19 +67,17 @@ BOOL CSetOverlayIcons::OnInitDialog()
 
 	m_cIconList.SetExtendedStyle(LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP | LVS_EX_SUBITEMIMAGES);
 	// get the path to our icon sets
-	TCHAR buf[MAX_PATH] = {0};
+	wchar_t buf[MAX_PATH] = {0};
 	SHGetSpecialFolderPath(m_hWnd, buf, CSIDL_PROGRAM_FILES_COMMON, true);
 	m_sIconPath = buf;
 	m_sIconPath += L"\\TortoiseOverlays\\Icons";
 	// list all the icon sets
 	CDirFileEnum filefinder(m_sIconPath);
-	bool isDir = false;
-	CString item;
-	while (filefinder.NextFile(item, &isDir))
+	while (auto file = filefinder.NextFile())
 	{
-		if (!isDir)
+		if (!file->IsDirectory())
 			continue;
-		m_cIconSet.AddString(CPathUtils::GetFileNameFromPath(item));
+		m_cIconSet.AddString(file->GetFileName());
 	}
 	CheckRadioButton(IDC_LISTRADIO, IDC_SYMBOLRADIO, IDC_LISTRADIO);
 	CString sModifiedIcon = m_regModified;
@@ -118,8 +115,6 @@ BOOL CSetOverlayIcons::OnInitDialog()
 
 	m_sReadOnly.LoadString(IDS_SETTINGS_READONLYNAME);
 	m_sLocked.LoadString(IDS_SETTINGS_LOCKEDNAME);
-
-	SetWindowTheme(m_hWnd, L"Explorer", nullptr);
 
 	ShowIconSet(true);
 

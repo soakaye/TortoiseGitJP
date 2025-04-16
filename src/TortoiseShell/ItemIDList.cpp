@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016, 2019 - TortoiseGit
+// Copyright (C) 2016, 2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2006, 2009, 2011-2013, 2015-2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,22 +17,19 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
-#include "ShellExt.h"
 #include "ItemIDList.h"
 #include "StringUtils.h"
 
 ItemIDList::ItemIDList(PCUITEMID_CHILD item, PCUIDLIST_RELATIVE parent)
-	: item_ (item)
-	, parent_ (parent)
-	, count_ (-1)
+	: item_(item)
+	, parent_(parent)
 {
 }
 
 ItemIDList::ItemIDList(PCIDLIST_ABSOLUTE item)
 	: item_(static_cast<PCUITEMID_CHILD>(item))
-	, parent_(0)
-	, count_(-1)
 {
 }
 
@@ -82,11 +79,11 @@ LPCSHITEMID ItemIDList::get(int index) const
 	return ptr;
 }
 
-tstring ItemIDList::toString(bool resolveLibraries /*= true*/)
+std::wstring ItemIDList::toString(bool resolveLibraries /*= true*/)
 {
 	CComPtr<IShellFolder> shellFolder;
 	CComPtr<IShellFolder> parentFolder;
-	tstring ret;
+	std::wstring ret;
 
 	if (FAILED(::SHGetDesktopFolder(&shellFolder)))
 		return ret;
@@ -98,7 +95,7 @@ tstring ItemIDList::toString(bool resolveLibraries /*= true*/)
 		STRRET name;
 		if (FAILED(parentFolder->GetDisplayNameOf(item_, SHGDN_NORMAL | SHGDN_FORPARSING, &name)))
 			return ret;
-		CComHeapPtr<TCHAR> szDisplayName;
+		CComHeapPtr<wchar_t> szDisplayName;
 		if (FAILED(StrRetToStr(&name, item_, &szDisplayName)) || !szDisplayName)
 			return ret;
 		ret = szDisplayName;
@@ -125,7 +122,7 @@ tstring ItemIDList::toString(bool resolveLibraries /*= true*/)
 		return ret;
 
 	if (CComHeapPtr<WCHAR> pszName; SUCCEEDED(psiSaveLocation->GetDisplayName(SIGDN_FILESYSPATH, &pszName)))
-		return tstring(pszName);
+		return std::wstring(pszName);
 
 	return ret;
 }

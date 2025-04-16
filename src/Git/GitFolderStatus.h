@@ -1,6 +1,6 @@
 // TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2012, 2014, 2016-2017 - TortoiseGit
+// Copyright (C) 2008-2012, 2014, 2016-2017, 2021-2023 - TortoiseGit
 // Copyright (C) 2003-2006,2008,2011 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -23,13 +23,13 @@
 #include "TGitPath.h"
 #include "SmartHandle.h"
 
-typedef struct FileStatusCacheEntry
+struct FileStatusCacheEntry
 {
-	git_wc_status_kind		status;
-	int						askedcounter;
-	bool					assumeValid;
-	bool					skipWorktree;
-} FileStatusCacheEntry;
+	git_wc_status_kind		status = git_wc_status_none;
+	int						askedcounter = -1;
+	bool					assumeValid = false;
+	bool					skipWorktree = false;
+};
 
 #define GITFOLDERSTATUS_CACHETIMES				10
 #define GITFOLDERSTATUS_CACHETIMEOUT			2000
@@ -52,8 +52,8 @@ typedef struct FileStatusCacheEntry
 class GitFolderStatus
 {
 public:
-	GitFolderStatus(void);
-	~GitFolderStatus(void);
+	GitFolderStatus();
+	~GitFolderStatus();
 	const FileStatusCacheEntry *	GetFullStatus(const CTGitPath& filepath, BOOL bIsFolder);
 	const FileStatusCacheEntry *	GetCachedItem(const CTGitPath& filepath);
 
@@ -67,11 +67,11 @@ private:
 
 	void				ClearCache();
 
-	typedef std::map<std::wstring, FileStatusCacheEntry> FileStatusMap;
+	using FileStatusMap = std::map<std::wstring, FileStatusCacheEntry>;
 	FileStatusMap			m_cache;
-	ULONGLONG				m_TimeStamp;
+	ULONGLONG				m_TimeStamp = 0;
 	FileStatusCacheEntry	dirstat;
-	git_wc_status2_t *		dirstatus;
+	git_wc_status2_t*		dirstatus = nullptr;
 
 	std::wstring			sCacheKey;
 
@@ -79,6 +79,6 @@ private:
 
 	// The item we most recently supplied status for
 	CTGitPath		m_mostRecentPath;
-	const FileStatusCacheEntry* m_mostRecentStatus;
+	const FileStatusCacheEntry* m_mostRecentStatus = nullptr;
 };
 

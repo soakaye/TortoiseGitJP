@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2013, 2018, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,13 +17,14 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "../SmartHandle.h"
+#include "ILexer.h"
 #include "scintilla.h"
 #include "SciLexer.h"
 #include "ProjectProperties.h"
 #include "PersonalDictionary.h"
-#include <regex>
 #include "LruCache.h"
 #include <spellcheck.h>
 // the following should be last
@@ -84,8 +85,8 @@ class CSciEdit : public CWnd
 {
 	DECLARE_DYNAMIC(CSciEdit)
 public:
-	CSciEdit(void);
-	~CSciEdit(void);
+	CSciEdit();
+	~CSciEdit();
 
 	void				SetAStyle(int style, COLORREF fore, COLORREF back = ::GetSysColor(COLOR_WINDOW), int size = -1, const char* face = nullptr);
 	/**
@@ -121,7 +122,7 @@ public:
 	/**
 	 * Retrieves the text in the scintilla control.
 	 */
-	CString		GetText(void);
+	CString		GetText();
 	/**
 	 * Sets the font for the control.
 	 */
@@ -129,7 +130,7 @@ public:
 	/**
 	 * Adds a list of words for use in auto completion.
 	 */
-	void		SetAutoCompletionList(std::map<CString, int>&& list, TCHAR separator = ';', TCHAR typeSeparator = '?');
+	void		SetAutoCompletionList(std::map<CString, int>&& list, wchar_t separator = ';', wchar_t typeSeparator = '?');
 	/**
 	 * Returns the word located under the cursor.
 	 */
@@ -140,7 +141,7 @@ public:
 
 	CStringA	StringForControl(const CString& text);
 	CString		StringFromControl(const CStringA& text);
-	int			LoadFromFile(CString &filename);
+	int			LoadFromFile(const CString& filename, UINT errorMsgId);
 	void		RestyleBugIDs();
 	BOOL		EnableWindow(BOOL bEnable = TRUE);
 	void		SetReadOnly(bool bReadOnly);
@@ -150,33 +151,32 @@ public:
 private:
 	bool IsUTF8(LPVOID pBuffer, size_t cb);
 	CAutoLibrary	m_hModule;
-	LRESULT		m_DirectFunction;
-	LRESULT		m_DirectPointer;
+	LRESULT		m_DirectFunction = 0;
+	LRESULT		m_DirectPointer = 0;
 	std::unique_ptr<Hunspell>	pChecker;
-	UINT		m_spellcodepage;
+	UINT		m_spellcodepage = 0;
 	std::map<CString, int> m_autolist;
-	TCHAR		m_separator;
-	TCHAR		m_typeSeparator;
+	wchar_t		m_separator = '\0';
+	wchar_t		m_typeSeparator = '\x01';
 	CStringA	m_sCommand;
 	CStringA	m_sBugID;
 	CString		m_sUrl;
 	CArray<CSciEditContextMenuInterface *, CSciEditContextMenuInterface *> m_arContextHandlers;
 	CPersonalDictionary m_personalDict;
 	bool		m_bUDiffmode = false;
-	bool		m_bDoStyle;
-	int			m_nAutoCompleteMinChars;
-	LruCache<std::wstring, BOOL> m_SpellingCache;
-	bool		m_blockModifiedHandler;
-	bool		m_bReadOnly;
-	int			m_themeCallbackId;
+	bool		m_bDoStyle = false;
+	int			m_nAutoCompleteMinChars = 3;
+	LruCache<std::wstring, BOOL> m_SpellingCache{2000};
+	bool		m_blockModifiedHandler = false;
+	bool		m_bReadOnly = false;
+	int			m_themeCallbackId = 0;
 
-	static bool IsValidURLChar(unsigned char ch);
 protected:
-	virtual BOOL OnChildNotify(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pLResult) override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
-	virtual ULONG GetGestureStatus(CPoint ptTouch) override;
+	BOOL OnChildNotify(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pLResult) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
+	ULONG GetGestureStatus(CPoint ptTouch) override;
 	void		CheckSpelling(Sci_Position startpos, Sci_Position endpos);
-	void		SuggestSpellingAlternatives(void);
+	void		SuggestSpellingAlternatives();
 	void		DoAutoCompletion(Sci_Position nMinPrefixLength);
 	BOOL		LoadDictionaries(LONG lLanguageID);
 	ISpellCheckerFactoryPtr m_spellCheckerFactory;
@@ -187,13 +187,15 @@ protected:
 	bool		WrapLines(Sci_Position startpos, Sci_Position endpos);
 	bool		FindStyleChars(const char* line, char styler, Sci_Position& start, Sci_Position& end);
 	void		SetColors(bool recolorize);
-	void		AdvanceUTF8(const char * str, int& pos);
+	static void	AdvanceUTF8(const char* str, int& pos);
 	BOOL		IsMisspelled(const CString& sWord);
 	BOOL		CheckWordSpelling(const CString& sWord);
 	int			GetStyleAt(Sci_Position pos) { return static_cast<int>(Call(SCI_GETSTYLEAT, pos)) & 0x1f; }
-	bool		IsUrlOrEmail(const CStringA& sText);
 	std::string GetWordForSpellChecker(const CString& sWord);
 	CString		GetWordFromSpellChecker(const std::string& sWordA);
+
+	static void SetWindowStylesForAutocompletionPopup();
+	static BOOL CALLBACK AdjustThemeProc(HWND hwnd, LPARAM lParam);
 
 	virtual afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);

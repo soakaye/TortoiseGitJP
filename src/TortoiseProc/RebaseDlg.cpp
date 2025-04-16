@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -28,10 +28,8 @@
 #include "MessageBox.h"
 #include "UnicodeUtils.h"
 #include "BrowseRefsDlg.h"
-#include "ProgressDlg.h"
 #include "SmartHandle.h"
 #include "../TGitCache/CacheInterface.h"
-#include "Settings/Settings.h"
 #include "MassiveGitTask.h"
 #include "CommitDlg.h"
 #include "StringUtils.h"
@@ -46,23 +44,10 @@ IMPLEMENT_DYNAMIC(CRebaseDlg, CResizableStandAloneDialog)
 CRebaseDlg::CRebaseDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CRebaseDlg::IDD, pParent)
 	, m_bAddCherryPickedFrom(FALSE)
-	, m_bStatusWarning(false)
-	, m_bAutoSkipFailedCommit(FALSE)
-	, m_bFinishedRebase(false)
-	, m_bStashed(false)
 	, m_bSplitCommit(FALSE)
 	, m_bPreserveMerges(FALSE)
-	, m_bRebaseAutoStart(false)
-	, m_bRebaseAutoEnd(false)
-	, m_RebaseStage(CHOOSE_BRANCH)
-	, m_CurrentRebaseIndex(-1)
-	, m_bThreadRunning(FALSE)
-	, m_IsCherryPick(FALSE)
 	, m_bForce(BST_UNCHECKED)
-	, m_IsFastForward(FALSE)
 	, m_iSquashdate(CRegDWORD(L"Software\\TortoiseGit\\SquashDate", 0))
-	, m_bAbort(FALSE)
-	, m_CurrentCommitEmpty(false)
 {
 }
 
@@ -177,7 +162,7 @@ BOOL CRebaseDlg::OnInitDialog()
 	// were running elevated. It's OK to make the call all the time, since if we're
 	// not elevated, this is a no-op.
 	CHANGEFILTERSTRUCT cfs = { sizeof(CHANGEFILTERSTRUCT) };
-	typedef BOOL STDAPICALLTYPE ChangeWindowMessageFilterExDFN(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
+	using ChangeWindowMessageFilterExDFN = BOOL(STDAPICALLTYPE)(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
 	CAutoLibrary hUser = AtlLoadSystemLibraryUsingFullPath(L"user32.dll");
 	if (hUser)
 	{
@@ -208,17 +193,14 @@ BOOL CRebaseDlg::OnInitDialog()
 	}
 	m_ctrlTabCtrl.SetResizeMode(CMFCTabCtrl::RESIZE_NO);
 	// Create output panes:
-	//const DWORD dwStyle = LBS_NOINTEGRALHEIGHT | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL;
-	DWORD dwStyle =LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP | WS_CHILD | WS_VISIBLE;
-
-	if (! this->m_FileListCtrl.Create(dwStyle,rectDummy,&this->m_ctrlTabCtrl,0) )
+	if (!m_FileListCtrl.Create(LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP | WS_CHILD | WS_VISIBLE, rectDummy, &this->m_ctrlTabCtrl, 0))
 	{
 		TRACE0("Failed to create output windows\n");
 		return FALSE;      // fail to create
 	}
 	m_FileListCtrl.m_hwndLogicalParent = this;
 
-	if (!m_LogMessageCtrl.Create(L"Scintilla", L"source", 0, rectDummy, &m_ctrlTabCtrl, 0, 0))
+	if (!m_LogMessageCtrl.Create(L"Scintilla", L"source", 0, rectDummy, &m_ctrlTabCtrl, 0))
 	{
 		TRACE0("Failed to create log message control");
 		return FALSE;
@@ -228,9 +210,7 @@ BOOL CRebaseDlg::OnInitDialog()
 	m_LogMessageCtrl.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
 	m_LogMessageCtrl.SetReadOnly(true);
 
-	dwStyle = LBS_NOINTEGRALHEIGHT | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL;
-
-	if (!m_wndOutputRebase.Create(L"Scintilla", L"source", 0, rectDummy, &m_ctrlTabCtrl, 0, 0))
+	if (!m_wndOutputRebase.Create(L"Scintilla", L"source", 0, rectDummy, &m_ctrlTabCtrl, 0))
 	{
 		TRACE0("Failed to create output windows\n");
 		return -1;      // fail to create
@@ -266,13 +246,11 @@ BOOL CRebaseDlg::OnInitDialog()
 	m_ctrlTabCtrl.AddTab(&m_LogMessageCtrl, CString(MAKEINTRESOURCE(IDS_PROC_COMMITMESSAGE)), 1);
 	AddRebaseAnchor();
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	EnableSaveRestore(L"RebaseDlg");
 
-	DWORD yPos = CDPIAware::Instance().ScaleY(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RebaseDlgSizer"));
+	DWORD yPos = CDPIAware::Instance().ScaleY(GetSafeHwnd(), CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RebaseDlgSizer"));
 	RECT rcDlg, rcLogMsg, rcFileList;
 	GetClientRect(&rcDlg);
 	m_CommitList.GetWindowRect(&rcLogMsg);
@@ -284,15 +262,15 @@ BOOL CRebaseDlg::OnInitDialog()
 		RECT rectSplitter;
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		int delta = yPos - rectSplitter.top;
-		if ((rcLogMsg.bottom + delta > rcLogMsg.top) && (rcLogMsg.bottom + delta < rcFileList.bottom - CDPIAware::Instance().ScaleY(30)))
+		const int delta = yPos - rectSplitter.top;
+		if ((rcLogMsg.bottom + delta > rcLogMsg.top) && (rcLogMsg.bottom + delta < rcFileList.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), 30)))
 		{
 			m_wndSplitter.SetWindowPos(nullptr, rectSplitter.left, yPos, 0, 0, SWP_NOSIZE);
 			DoSize(delta);
 		}
 	}
 
-	if (this->m_RebaseStage == CHOOSE_BRANCH && !m_IsCherryPick)
+	if (m_RebaseStage == RebaseStage::Choose_Branch && !m_IsCherryPick)
 		this->LoadBranchInfo();
 	else
 	{
@@ -317,13 +295,17 @@ BOOL CRebaseDlg::OnInitDialog()
 		this->m_BranchCtrl.SetCurSel(-1);
 		this->m_BranchCtrl.EnableWindow(FALSE);
 		GetDlgItem(IDC_REBASE_CHECK_FORCE)->ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_REBASE_CHECK_FORCE)->EnableWindow(FALSE);
 		GetDlgItem(IDC_REBASE_CHECK_PRESERVEMERGES)->ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_REBASE_CHECK_PRESERVEMERGES)->EnableWindow(FALSE);
 		GetDlgItem(IDC_BUTTON_BROWSE)->EnableWindow(FALSE);
 		GetDlgItem(IDC_BUTTON_REVERSE)->EnableWindow(FALSE);
 		GetDlgItem(IDC_BUTTON_ONTO)->EnableWindow(FALSE);
 		this->m_UpstreamCtrl.AddString(L"HEAD");
 		this->m_UpstreamCtrl.EnableWindow(FALSE);
 		CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, CString(MAKEINTRESOURCE(IDS_PROGS_TITLE_CHERRYPICK)));
+		m_bAddCherryPickedFrom = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\CherrypickAddCherryPickedFrom", 0) != 0;
+		UpdateData(FALSE);
 		// fill shown list
 		for (DWORD i = 0; i < m_CommitList.m_logEntries.size(); ++i)
 			m_CommitList.m_arShownList.SafeAdd(&m_CommitList.m_logEntries.GetGitRevAt(i));
@@ -333,8 +315,9 @@ BOOL CRebaseDlg::OnInitDialog()
 	{
 		static_cast<CButton*>(GetDlgItem(IDC_BUTTON_ONTO))->SetCheck(m_Onto.IsEmpty() ? BST_UNCHECKED : BST_CHECKED);
 		GetDlgItem(IDC_CHECK_CHERRYPICKED_FROM)->ShowWindow(SW_HIDE);
-		int iconWidth = GetSystemMetrics(SM_CXSMICON);
-		int iconHeight = GetSystemMetrics(SM_CYSMICON);
+		GetDlgItem(IDC_CHECK_CHERRYPICKED_FROM)->EnableWindow(FALSE);
+		const int iconWidth = GetSystemMetrics(SM_CXSMICON);
+		const int iconHeight = GetSystemMetrics(SM_CYSMICON);
 		static_cast<CButton*>(GetDlgItem(IDC_BUTTON_REVERSE))->SetIcon(CCommonAppUtils::LoadIconEx(IDI_SWITCHLEFTRIGHT, iconWidth, iconHeight));
 		SetContinueButtonText();
 		m_CommitList.DeleteAllItems();
@@ -348,7 +331,8 @@ BOOL CRebaseDlg::OnInitDialog()
 										m_CommitList.GetContextMenuBit(CGitLogListBase::ID_MERGEREV) |
 										m_CommitList.GetContextMenuBit(CGitLogListBase::ID_REBASE_TO_VERSION)|
 										m_CommitList.GetContextMenuBit(CGitLogListBase::ID_REVERTTOREV)|
-										m_CommitList.GetContextMenuBit(CGitLogListBase::ID_COMBINE_COMMIT));
+										m_CommitList.GetContextMenuBit(CGitLogListBase::ID_COMBINE_COMMIT)|
+										m_CommitList.GetContextMenuBit(CGitLogListBase::ID_TOGGLE_ROLLUP));
 
 	if(m_CommitList.m_IsOldFirst)
 		this->m_CurrentRebaseIndex = -1;
@@ -480,7 +464,7 @@ void CRebaseDlg::SaveSplitterPos()
 		RECT rectSplitter;
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		regPos = CDPIAware::Instance().UnscaleY(rectSplitter.top);
+		regPos = CDPIAware::Instance().UnscaleY(GetSafeHwnd(), rectSplitter.top);
 	}
 }
 
@@ -514,8 +498,8 @@ void CRebaseDlg::LoadBranchInfo()
 		g_Git.GetRemoteTrackedBranchForHEAD(pullRemote, pullBranch);
 
 		CString defaultUpstream;
-		defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCTSTR>(pullRemote), static_cast<LPCTSTR>(pullBranch));
-		int found = m_UpstreamCtrl.FindStringExact(0, defaultUpstream);
+		defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCWSTR>(pullRemote), static_cast<LPCWSTR>(pullBranch));
+		const int found = m_UpstreamCtrl.FindStringExact(0, defaultUpstream);
 		if(found >= 0)
 			m_UpstreamCtrl.SetCurSel(found);
 		else
@@ -537,7 +521,7 @@ void CRebaseDlg::OnCbnSelchangeUpstream()
 void CRebaseDlg::FetchLogList()
 {
 	CGitHash base,hash,upstream;
-	m_IsFastForward=FALSE;
+	m_IsFastForward = false;
 
 	if (m_BranchCtrl.GetString().IsEmpty())
 	{
@@ -571,7 +555,7 @@ void CRebaseDlg::FetchLogList()
 	{
 		m_CommitList.Clear();
 		CString text;
-		text.FormatMessage(IDS_REBASE_EQUAL_FMT, static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(this->m_UpstreamCtrl.GetString()));
+		text.FormatMessage(IDS_REBASE_EQUAL_FMT, static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(this->m_UpstreamCtrl.GetString()));
 
 		m_CommitList.ShowText(text);
 		this->GetDlgItem(IDC_REBASE_CONTINUE)->EnableWindow(false);
@@ -582,12 +566,12 @@ void CRebaseDlg::FetchLogList()
 
 	if (g_Git.IsFastForward(m_BranchCtrl.GetString(), m_UpstreamCtrl.GetString(), &base) && m_Onto.IsEmpty())
 	{
-		this->m_IsFastForward=TRUE;
+		m_IsFastForward = true;
 
 		m_CommitList.Clear();
 		CString text;
-		text.FormatMessage(IDS_REBASE_FASTFORWARD_FMT, static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(this->m_UpstreamCtrl.GetString()),
-						static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(this->m_UpstreamCtrl.GetString()));
+		text.FormatMessage(IDS_REBASE_FASTFORWARD_FMT, static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(this->m_UpstreamCtrl.GetString()),
+						static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(this->m_UpstreamCtrl.GetString()));
 
 		m_CommitList.ShowText(text);
 		this->GetDlgItem(IDC_REBASE_CONTINUE)->EnableWindow(true);
@@ -602,7 +586,7 @@ void CRebaseDlg::FetchLogList()
 		{
 			m_CommitList.Clear();
 			CString text;
-			text.Format(IDS_REBASE_UPTODATE_FMT, static_cast<LPCTSTR>(m_BranchCtrl.GetString()));
+			text.Format(IDS_REBASE_UPTODATE_FMT, static_cast<LPCWSTR>(m_BranchCtrl.GetString()));
 			m_CommitList.ShowText(text);
 			this->GetDlgItem(IDC_REBASE_CONTINUE)->EnableWindow(FALSE);
 			SetContinueButtonText();
@@ -616,7 +600,7 @@ void CRebaseDlg::FetchLogList()
 	CString refFrom = g_Git.FixBranchName(m_UpstreamCtrl.GetString());
 	CString refTo   = g_Git.FixBranchName(m_BranchCtrl.GetString());
 	CString range;
-	range.Format(L"%s..%s", static_cast<LPCTSTR>(refFrom), static_cast<LPCTSTR>(refTo));
+	range.Format(L"%s..%s", static_cast<LPCWSTR>(refFrom), static_cast<LPCWSTR>(refTo));
 	this->m_CommitList.FillGitLog(nullptr, &range, (m_bPreserveMerges ? 0 : CGit::LOG_INFO_NO_MERGE) | CGit::LOG_ORDER_TOPOORDER);
 
 	if( m_CommitList.GetItemCount() == 0 )
@@ -638,7 +622,7 @@ void CRebaseDlg::FetchLogList()
 			return;
 		}
 		CString mergecmd;
-		mergecmd.Format(L"git merge-base --all %s %s", static_cast<LPCTSTR>(head.ToString()), static_cast<LPCTSTR>(upstreamHash.ToString()));
+		mergecmd.Format(L"git merge-base --all %s %s", static_cast<LPCWSTR>(head.ToString()), static_cast<LPCWSTR>(upstreamHash.ToString()));
 		g_Git.Run(mergecmd, [&](const CStringA& line)
 		{
 			CGitHash hash = CGitHash::FromHexStr(line);
@@ -670,16 +654,14 @@ void CRebaseDlg::FetchLogList()
 		// Drop already included commits
 		std::vector<CGitHash> nonCherryPicked;
 		CString cherryCmd;
-		cherryCmd.Format(L"git rev-list \"%s...%s\" --left-right --cherry-pick", static_cast<LPCTSTR>(refFrom), static_cast<LPCTSTR>(refTo));
+		cherryCmd.Format(L"git rev-list \"%s...%s\" --left-right --cherry-pick", static_cast<LPCWSTR>(refFrom), static_cast<LPCWSTR>(refTo));
 		g_Git.Run(cherryCmd, [&](const CStringA& line)
 		{
-			if (line.GetLength() < 2)
+			if (line.GetLength() < 1 + 2 * GIT_HASH_SIZE)
 				return;
 			if (line[0] != '>')
 				return;
-			CString hash = CUnicodeUtils::GetUnicode(line.Mid(1));
-			hash.Trim();
-			nonCherryPicked.emplace_back(CGitHash::FromHexStrTry(hash));
+			nonCherryPicked.push_back(CGitHash::FromHexStr(std::string_view(line, line.GetLength()).substr(1)));
 		});
 		for (size_t i = m_CommitList.m_arShownList.size(); i-- > 0;)
 		{
@@ -734,16 +716,14 @@ void CRebaseDlg::FetchLogList()
 		if (!m_Onto.IsEmpty())
 			refFrom = g_Git.FixBranchName(m_Onto);
 		CString cherryCmd;
-		cherryCmd.Format(L"git.exe cherry \"%s\" \"%s\"", static_cast<LPCTSTR>(refFrom), static_cast<LPCTSTR>(refTo));
+		cherryCmd.Format(L"git.exe cherry -- \"%s\" \"%s\"", static_cast<LPCWSTR>(refFrom), static_cast<LPCWSTR>(refTo));
 		g_Git.Run(cherryCmd, [&](const CStringA& line)
 		{
-			if (line.GetLength() < 2)
+			if (line.GetLength() < 2 + 2 * GIT_HASH_SIZE)
 				return;
 			if (line[0] != '-')
 				return; // Don't skip (only skip commits starting with a '-')
-			CString hash = CUnicodeUtils::GetUnicode(line.Mid(1));
-			hash.Trim();
-			auto itIx = revIxMap.find(CGitHash::FromHexStrTry(hash));
+			auto itIx = revIxMap.find(CGitHash::FromHexStr(std::string_view(line, line.GetLength()).substr(2)));
 			if (itIx == revIxMap.end())
 				return; // Not found?? Should not occur...
 
@@ -793,16 +773,16 @@ void CRebaseDlg::AddBranchToolTips(CHistoryCombo& pBranch)
 
 	CString tooltip;
 	tooltip.Format(L"%s: %s\n%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",
-					static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_REVISION))),
-					static_cast<LPCTSTR>(rev.m_CommitHash.ToString()),
-					static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_AUTHOR))),
-					static_cast<LPCTSTR>(rev.GetAuthorName()),
-					static_cast<LPCTSTR>(rev.GetAuthorEmail()),
-					static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_DATE))),
-					static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(rev.GetAuthorDate(), DATE_LONGDATE)),
-					static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_MESSAGE))),
-					static_cast<LPCTSTR>(rev.GetSubject()),
-					static_cast<LPCTSTR>(rev.GetBody()));
+					static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_REVISION))),
+					static_cast<LPCWSTR>(rev.m_CommitHash.ToString()),
+					static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_AUTHOR))),
+					static_cast<LPCWSTR>(rev.GetAuthorName()),
+					static_cast<LPCWSTR>(rev.GetAuthorEmail()),
+					static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_DATE))),
+					static_cast<LPCWSTR>(CLoglistUtils::FormatDateAndTime(rev.GetAuthorDate(), DATE_LONGDATE)),
+					static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_MESSAGE))),
+					static_cast<LPCWSTR>(rev.GetSubject()),
+					static_cast<LPCWSTR>(rev.GetBody()));
 
 	if (tooltip.GetLength() > 8000)
 	{
@@ -905,7 +885,7 @@ BOOL CRebaseDlg::PreTranslateMessage(MSG*pMsg)
 		case VK_ESCAPE:
 		case VK_CANCEL:
 			{
-				TCHAR buff[128] = { 0 };
+				wchar_t buff[128] = { 0 };
 				::GetClassName(pMsg->hwnd,buff,128);
 
 
@@ -941,7 +921,7 @@ BOOL CRebaseDlg::PreTranslateMessage(MSG*pMsg)
 
 bool CRebaseDlg::LogListHasFocus(HWND hwnd)
 {
-	TCHAR buff[128] = { 0 };
+	wchar_t buff[128] = { 0 };
 	::GetClassName(hwnd, buff, 128);
 
 	if (_wcsnicmp(buff, L"SysListView32", 128) == 0)
@@ -1008,7 +988,7 @@ int CRebaseDlg::CheckRebaseCondition()
 
 void CRebaseDlg::CheckRestoreStash()
 {
-	bool autoStash = !m_IsCherryPick && g_Git.GetConfigValueBool(L"rebase.autostash");
+	const bool autoStash = !m_IsCherryPick && g_Git.GetConfigValueBool(L"rebase.autostash");
 	if (m_bStashed && (autoStash || CMessageBox::Show(GetSafeHwnd(), IDS_DCOMMIT_STASH_POP, IDS_APPNAME, MB_YESNO | MB_ICONQUESTION) == IDYES))
 		CAppUtils::StashPop(GetSafeHwnd(), autoStash ? 0 : 1);
 	m_bStashed = false;
@@ -1058,7 +1038,7 @@ int CRebaseDlg::StartRebase()
 	//git symbolic-ref HEAD > "$DOTEST"/head-name 2> /dev/null ||
 	//		echo "detached HEAD" > "$DOTEST"/head-name
 
-	cmd.Format(L"git.exe update-ref ORIG_HEAD %s", static_cast<LPCTSTR>(m_OrigHEADHash.ToString()));
+	cmd.Format(L"git.exe update-ref ORIG_HEAD %s", static_cast<LPCWSTR>(m_OrigHEADHash.ToString()));
 	if(g_Git.Run(cmd,&out,CP_UTF8))
 	{
 		AddLogString(L"update ORIG_HEAD Fail");
@@ -1074,33 +1054,39 @@ int CRebaseDlg::StartRebase()
 
 	if( !this->m_IsCherryPick )
 	{
-		if (g_Git.m_IsUseLibGit2)
-			WriteReflog(m_OrigHEADHash, "rebase: start (" + CUnicodeUtils::GetUTF8(m_OrigHEADBranch) + " on " + CUnicodeUtils::GetUTF8(m_OrigUpstreamHash.ToString()) + ")");
-		cmd.Format(L"git.exe checkout -f %s --", static_cast<LPCTSTR>(m_OrigUpstreamHash.ToString()));
-		this->AddLogString(cmd);
-		if (RunGitCmdRetryOrAbort(cmd))
-			return -1;
-	}
-
-	CString log;
-	if( !this->m_IsCherryPick )
-	{
 		if (g_Git.GetHash(m_OrigBranchHash, m_BranchCtrl.GetString()))
 		{
 			MessageBox(g_Git.GetGitLastErr(L"Could not get hash of \"" + m_BranchCtrl.GetString() + L"\"."), L"TortoiseGit", MB_ICONERROR);
 			return -1;
 		}
-		log.Format(L"%s\r\n", static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_PROC_REBASE_STARTREBASE))));
+
+		if (g_Git.m_IsUseLibGit2)
+			WriteReflog(m_OrigHEADHash, "rebase: start (" + CUnicodeUtils::GetUTF8(m_OrigHEADBranch) + " on " + CUnicodeUtils::GetUTF8(m_OrigUpstreamHash.ToString()) + ")");
+		cmd.Format(L"git.exe checkout -f %s --", static_cast<LPCWSTR>(m_OrigUpstreamHash.ToString()));
+		this->AddLogString(cmd);
+		if (RunGitCmdRetryOrAbort(cmd))
+			return -1;
+		if (!g_Git.CheckCleanWorkTree())
+		{
+			// this situation may occur when text transformations are performed and a file in Git history is not in the normalized format
+			AddLogString(L"Unrecoverable error: Working tree is not clean after checkout.");
+			m_RebaseStage = RebaseStage::Error;
+			return -1;
+		}
 	}
+
+	CString log;
+	if( !this->m_IsCherryPick )
+		log.Format(L"%s\r\n", static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_PROC_REBASE_STARTREBASE))));
 	else
-		log.Format(L"%s\r\n", static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_PROC_REBASE_STARTCHERRYPICK))));
+		log.Format(L"%s\r\n", static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_PROC_REBASE_STARTCHERRYPICK))));
 
 	this->AddLogString(log);
 	return 0;
 }
 int CRebaseDlg::VerifyNoConflict()
 {
-	int hasConflicts = g_Git.HasWorkingTreeConflicts();
+	const int hasConflicts = g_Git.HasWorkingTreeConflicts();
 	if (hasConflicts < 0)
 	{
 		AddLogString(g_Git.GetGitLastErr(L"Checking for conflicts failed.", CGit::GIT_CMD_CHECKCONFLICTS));
@@ -1113,7 +1099,7 @@ int CRebaseDlg::VerifyNoConflict()
 		auto pos = m_FileListCtrl.GetFirstSelectedItemPosition();
 		while (pos)
 			m_FileListCtrl.SetItemState(m_FileListCtrl.GetNextSelectedItem(pos), 0, LVIS_SELECTED);
-		int nListItems = m_FileListCtrl.GetItemCount();
+		const int nListItems = m_FileListCtrl.GetItemCount();
 		for (int i = 0; i < nListItems; ++i)
 		{
 			auto entry = m_FileListCtrl.GetListEntry(i);
@@ -1160,14 +1146,14 @@ int CRebaseDlg::FinishRebase()
 	if (g_Git.IsLocalBranch(m_BranchCtrl.GetString()))
 	{
 		CString cmd;
-		cmd.Format(L"git.exe checkout -f -B %s %s --", static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(head.ToString()));
+		cmd.Format(L"git.exe checkout -f -B %s %s --", static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(head.ToString()));
 		AddLogString(cmd);
 		if (RunGitCmdRetryOrAbort(cmd))
 			return -1;
 	}
 
 	CString cmd;
-	cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(head.ToString()));
+	cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(head.ToString()));
 	AddLogString(cmd);
 	if (RunGitCmdRetryOrAbort(cmd))
 		return -1;
@@ -1202,14 +1188,24 @@ void CRebaseDlg::RewriteNotes()
 	if (rewrites.IsEmpty())
 		return;
 	CString tmpfile = GetTempFile();
+	if (tmpfile.IsEmpty())
+	{
+		MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return;
+	}
 	tmpfile.Replace(L'\\', L'/');
 	if (!CStringUtils::WriteStringToTextFile(tmpfile, rewrites))
 		return;
 	SCOPE_EXIT{ ::DeleteFile(tmpfile); };
 	CString pipefile = GetTempFile();
+	if (pipefile.IsEmpty())
+	{
+		MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+		return;
+	}
 	pipefile.Replace(L'\\', L'/');
 	CString pipecmd;
-	pipecmd.Format(L"git notes copy --for-rewrite=rebase < %s", static_cast<LPCTSTR>(tmpfile));
+	pipecmd.Format(L"git notes copy --for-rewrite=rebase < %s", static_cast<LPCWSTR>(tmpfile));
 	if (!CStringUtils::WriteStringToTextFile(pipefile, pipecmd))
 		return;
 	SCOPE_EXIT{ ::DeleteFile(pipefile); };
@@ -1219,7 +1215,7 @@ void CRebaseDlg::RewriteNotes()
 
 void CRebaseDlg::OnBnClickedContinue()
 {
-	if( m_RebaseStage == REBASE_DONE)
+	if (m_RebaseStage == RebaseStage::Done)
 	{
 		OnOK();
 		CleanUpRebaseActiveFolder();
@@ -1228,7 +1224,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		return;
 	}
 
-	if (m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage == CHOOSE_COMMIT_PICK_MODE)
+	if (m_RebaseStage == RebaseStage::Choose_Branch || m_RebaseStage == RebaseStage::Choose_Commit_Pick_Mode)
 	{
 		if (CAppUtils::IsTGitRebaseActive(GetSafeHwnd()))
 			return;
@@ -1237,7 +1233,7 @@ void CRebaseDlg::OnBnClickedContinue()
 	}
 
 	m_bAbort = FALSE;
-	if( this->m_IsFastForward )
+	if (m_IsFastForward)
 	{
 		GetDlgItem(IDC_REBASE_CONTINUE)->EnableWindow(FALSE);
 		CString cmd,out;
@@ -1264,7 +1260,10 @@ void CRebaseDlg::OnBnClickedContinue()
 
 		if (g_Git.IsLocalBranch(m_BranchCtrl.GetString()))
 		{
-			cmd.Format(L"git.exe checkout --no-track -f -B %s %s --", static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(m_UpstreamCtrl.GetString()));
+			CString endOfOptions;
+			if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+				endOfOptions = L" --end-of-options";
+			cmd.Format(L"git.exe checkout --no-track -f -B %s%s %s --", static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(m_UpstreamCtrl.GetString()));
 			AddLogString(cmd);
 			if (RunGitCmdRetryOrAbort(cmd))
 			{
@@ -1274,9 +1273,13 @@ void CRebaseDlg::OnBnClickedContinue()
 			AddLogString(out);
 			out.Empty();
 		}
-		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(g_Git.FixBranchName(this->m_UpstreamCtrl.GetString())));
+
+		CString endOfOptions;
+		if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+			endOfOptions = L" --end-of-options";
+		cmd.Format(L"git.exe reset --hard%s %s --", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(g_Git.FixBranchName(this->m_UpstreamCtrl.GetString())));
 		CString log;
-		log.Format(IDS_PROC_REBASE_FFTO, static_cast<LPCTSTR>(m_UpstreamCtrl.GetString()));
+		log.Format(IDS_PROC_REBASE_FFTO, static_cast<LPCWSTR>(m_UpstreamCtrl.GetString()));
 		this->AddLogString(log);
 
 		AddLogString(cmd);
@@ -1288,7 +1291,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		}
 		AddLogString(out);
 		AddLogString(CString(MAKEINTRESOURCE(IDS_DONE)));
-		m_RebaseStage = REBASE_DONE;
+		m_RebaseStage = RebaseStage::Done;
 		UpdateCurrentStatus();
 
 		if (m_bRebaseAutoStart)
@@ -1297,9 +1300,9 @@ void CRebaseDlg::OnBnClickedContinue()
 		return;
 	}
 
-	if( m_RebaseStage == CHOOSE_BRANCH|| m_RebaseStage == CHOOSE_COMMIT_PICK_MODE )
+	if (m_RebaseStage == RebaseStage::Choose_Branch || m_RebaseStage == RebaseStage::Choose_Commit_Pick_Mode)
 	{
-		m_RebaseStage = REBASE_START;
+		m_RebaseStage = RebaseStage::Start;
 		m_FileListCtrl.Clear();
 		m_FileListCtrl.SetHasCheckboxes(false);
 		m_FileListCtrl.m_CurrentVersion.Empty();
@@ -1308,7 +1311,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_LOG);
 	}
 
-	if( m_RebaseStage == REBASE_FINISH )
+	if (m_RebaseStage == RebaseStage::Finish)
 	{
 		if(FinishRebase())
 			return ;
@@ -1317,7 +1320,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		OnOK();
 	}
 
-	if( m_RebaseStage == REBASE_SQUASH_CONFLICT)
+	if (m_RebaseStage == RebaseStage::Squash_Conclict)
 	{
 		if(VerifyNoConflict())
 			return;
@@ -1326,18 +1329,18 @@ void CRebaseDlg::OnBnClickedContinue()
 		GitRevLoglist* curRev = m_CommitList.m_arShownList.SafeGetAt(m_CurrentRebaseIndex);
 		if(this->CheckNextCommitIsSquash())
 		{//next commit is not squash;
-			m_RebaseStage = REBASE_SQUASH_EDIT;
+			m_RebaseStage = RebaseStage::Squash_Edit;
 			this->OnRebaseUpdateUI(0,0);
 			this->UpdateCurrentStatus();
 			return ;
 		}
-		m_RebaseStage=REBASE_CONTINUE;
+		m_RebaseStage = RebaseStage::Continue;
 		curRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
 		m_forRewrite.push_back(curRev->m_CommitHash);
 		this->UpdateCurrentStatus();
 	}
 
-	if( m_RebaseStage == REBASE_CONFLICT )
+	if (m_RebaseStage == RebaseStage::Conclict)
 	{
 		if(VerifyNoConflict())
 			return;
@@ -1425,7 +1428,7 @@ void CRebaseDlg::OnBnClickedContinue()
 				}
 				else
 				{
-					int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
+					const int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
 					if (choose == 2)
 						skipCurrent = true;
 					else if (choose == 1)
@@ -1441,7 +1444,7 @@ void CRebaseDlg::OnBnClickedContinue()
 
 		CString out;
 		CString cmd;
-		cmd.Format(L"git.exe commit %s--allow-empty-message -C %s", static_cast<LPCTSTR>(allowempty), static_cast<LPCTSTR>(curRev->m_CommitHash.ToString()));
+		cmd.Format(L"git.exe commit %s--allow-empty-message -C %s", static_cast<LPCWSTR>(allowempty), static_cast<LPCWSTR>(curRev->m_CommitHash.ToString()));
 
 		AddLogString(cmd);
 
@@ -1464,6 +1467,11 @@ void CRebaseDlg::OnBnClickedContinue()
 				return;
 			}
 			CString tempfile = ::GetTempFile();
+			if (tempfile.IsEmpty())
+			{
+				MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+				return;
+			}
 			SCOPE_EXIT{ ::DeleteFile(tempfile); };
 			if (CAppUtils::SaveCommitUnicodeFile(tempfile, str))
 			{
@@ -1472,7 +1480,7 @@ void CRebaseDlg::OnBnClickedContinue()
 			}
 
 			out.Empty();
-			cmd.Format(L"git.exe commit --amend -F \"%s\"", static_cast<LPCTSTR>(tempfile));
+			cmd.Format(L"git.exe commit --amend -F \"%s\"", static_cast<LPCWSTR>(tempfile));
 			AddLogString(cmd);
 
 			if (g_Git.Run(cmd, &out, CP_UTF8))
@@ -1503,14 +1511,14 @@ void CRebaseDlg::OnBnClickedContinue()
 
 		if (curRev->GetRebaseAction() & CGitLogListBase::LOGACTIONS_REBASE_EDIT)
 		{
-			m_RebaseStage=REBASE_EDIT;
+			m_RebaseStage = RebaseStage::Edit;
 			this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_MESSAGE);
 			this->UpdateCurrentStatus();
 			return;
 		}
 		else
 		{
-			m_RebaseStage=REBASE_CONTINUE;
+			m_RebaseStage = RebaseStage::Continue;
 			curRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
 			this->UpdateCurrentStatus();
 
@@ -1530,7 +1538,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		}
 	}
 
-	if ((m_RebaseStage == REBASE_EDIT || m_RebaseStage == REBASE_CONTINUE || m_bSplitCommit || m_RebaseStage == REBASE_SQUASH_EDIT) && CheckNextCommitIsSquash() && (m_bSplitCommit || !g_Git.CheckCleanWorkTree(true)))
+	if ((m_RebaseStage == RebaseStage::Edit || m_RebaseStage == RebaseStage::Continue || m_bSplitCommit || m_RebaseStage == RebaseStage::Squash_Edit) && CheckNextCommitIsSquash() && (m_bSplitCommit || !g_Git.CheckCleanWorkTree(true)))
 	{
 		if (!m_bSplitCommit && CMessageBox::Show(GetSafeHwnd(), IDS_PROC_REBASE_CONTINUE_NOTCLEAN, IDS_APPNAME, 1, IDI_ERROR, IDS_MSGBOX_OK, IDS_ABORTBUTTON) == 2)
 			return;
@@ -1542,8 +1550,8 @@ void CRebaseDlg::OnBnClickedContinue()
 				dlg.m_sLogMessage = m_LogMessageCtrl.GetText();
 			dlg.m_bWholeProject = true;
 			dlg.m_bSelectFilesForCommit = true;
-			dlg.m_bCommitAmend = isFirst && (m_RebaseStage != REBASE_SQUASH_EDIT); //  do not amend on squash_edit stage, we need a normal commit there
-			if (isFirst && m_RebaseStage == REBASE_SQUASH_EDIT)
+			dlg.m_bCommitAmend = isFirst && (m_RebaseStage != RebaseStage::Squash_Edit); //  do not amend on squash_edit stage, we need a normal commit there
+			if (isFirst && m_RebaseStage == RebaseStage::Squash_Edit)
 			{
 				if (m_iSquashdate != 2)
 					dlg.SetTime(m_SquashFirstMetaData.time);
@@ -1571,7 +1579,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		UpdateData(FALSE);
 
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_LOG);
-		m_RebaseStage = REBASE_CONTINUE;
+		m_RebaseStage = RebaseStage::Continue;
 		GitRevLoglist* curRev = m_CommitList.m_arShownList.SafeGetAt(m_CurrentRebaseIndex);
 		CGitHash head;
 		if (g_Git.GetHash(head, L"HEAD"))
@@ -1587,7 +1595,7 @@ void CRebaseDlg::OnBnClickedContinue()
 		this->UpdateCurrentStatus();
 	}
 
-	if( m_RebaseStage == REBASE_EDIT ||  m_RebaseStage == REBASE_SQUASH_EDIT )
+	if (m_RebaseStage == RebaseStage::Edit || m_RebaseStage == RebaseStage::Squash_Edit)
 	{
 		CString str;
 		GitRevLoglist* curRev = m_CommitList.m_arShownList.SafeGetAt(m_CurrentRebaseIndex);
@@ -1600,6 +1608,11 @@ void CRebaseDlg::OnBnClickedContinue()
 		}
 
 		CString tempfile=::GetTempFile();
+		if (tempfile.IsEmpty())
+		{
+				MessageBox(L"Could not create temp file.", L"TortoiseGit", MB_OK | MB_ICONERROR);
+				return;
+		}
 		SCOPE_EXIT{ ::DeleteFile(tempfile); };
 		if (CAppUtils::SaveCommitUnicodeFile(tempfile, str))
 		{
@@ -1611,9 +1624,9 @@ void CRebaseDlg::OnBnClickedContinue()
 		bool skipCurrent = false;
 		if (m_CurrentCommitEmpty)
 			options = L"--allow-empty ";
-		else if (g_Git.IsResultingCommitBecomeEmpty(m_RebaseStage != REBASE_SQUASH_EDIT) == TRUE)
+		else if (g_Git.IsResultingCommitBecomeEmpty(m_RebaseStage != RebaseStage::Squash_Edit) == TRUE)
 		{
-			int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
+			const int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
 			if (choose == 2)
 				skipCurrent = true;
 			else if (choose == 1)
@@ -1625,10 +1638,10 @@ void CRebaseDlg::OnBnClickedContinue()
 				return;
 		}
 
-		if (m_RebaseStage == REBASE_SQUASH_EDIT)
-			cmd.Format(L"git.exe commit %s%s-F \"%s\"", static_cast<LPCTSTR>(options), static_cast<LPCTSTR>(m_SquashFirstMetaData.GetAsParam(m_iSquashdate == 2)), static_cast<LPCTSTR>(tempfile));
+		if (m_RebaseStage == RebaseStage::Squash_Edit)
+			cmd.Format(L"git.exe commit %s%s-F \"%s\"", static_cast<LPCWSTR>(options), static_cast<LPCWSTR>(m_SquashFirstMetaData.GetAsParam(m_iSquashdate == 2)), static_cast<LPCWSTR>(tempfile));
 		else
-			cmd.Format(L"git.exe commit --amend %s-F \"%s\"", static_cast<LPCTSTR>(options), static_cast<LPCTSTR>(tempfile));
+			cmd.Format(L"git.exe commit --amend %s-F \"%s\"", static_cast<LPCWSTR>(options), static_cast<LPCWSTR>(tempfile));
 
 		if (!skipCurrent && g_Git.Run(cmd, &out, CP_UTF8))
 		{
@@ -1647,14 +1660,22 @@ void CRebaseDlg::OnBnClickedContinue()
 		}
 
 		AddLogString(out);
-		if (CheckNextCommitIsSquash() == 0 && m_RebaseStage != REBASE_SQUASH_EDIT) // remember commit msg after edit if next commit if squash; but don't do this if ...->squash(reset here)->pick->squash
+		const bool nextIsSquash = CheckNextCommitIsSquash() == 0;
+		if (nextIsSquash) // remember commit msg after edit if next commit if squash; but don't do this if ...->squash(reset here)->pick->squash
 		{
+			GitRev latest;
+			if (latest.GetCommit(L"HEAD"))
+			{
+				MessageBox(L"Could not get HEAD commit:" + latest.GetLastErr(), L"TortoiseGit", MB_ICONERROR);
+				return;
+			}
+			m_SquashFirstMetaData = SquashFirstMetaData(&latest);
 			ResetParentForSquash(str);
 		}
 		else
 			m_SquashMessage.Empty();
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_LOG);
-		m_RebaseStage=REBASE_CONTINUE;
+		m_RebaseStage = RebaseStage::Continue;
 		CGitHash head;
 		if (g_Git.GetHash(head, L"HEAD"))
 		{
@@ -1664,7 +1685,8 @@ void CRebaseDlg::OnBnClickedContinue()
 		m_rewrittenCommitsMap[curRev->m_CommitHash] = head; // we had a reset to parent, so this is not the correct hash
 		for (const auto& hash : m_forRewrite)
 			m_rewrittenCommitsMap[hash] = head;
-		m_forRewrite.clear();
+		if (!nextIsSquash)
+			m_forRewrite.clear();
 		curRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
 		this->UpdateCurrentStatus();
 	}
@@ -1685,7 +1707,7 @@ void CRebaseDlg::ResetParentForSquash(const CString& commitMessage)
 {
 	m_SquashMessage = commitMessage;
 	// reset parent so that we can do "git cherry-pick --no-commit" w/o introducing an unwanted commit
-	CString cmd = L"git.exe reset --soft HEAD~1";
+	CString cmd = L"git.exe reset --soft HEAD~1 --";
 	m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_LOG);
 	if (RunGitCmdRetryOrAbort(cmd))
 		return;
@@ -1740,38 +1762,38 @@ void CRebaseDlg::SetContinueButtonText()
 	CString Text;
 	switch(this->m_RebaseStage)
 	{
-	case CHOOSE_BRANCH:
-	case CHOOSE_COMMIT_PICK_MODE:
-		if(this->m_IsFastForward)
+	case RebaseStage::Choose_Branch:
+	case RebaseStage::Choose_Commit_Pick_Mode:
+		if (m_IsFastForward)
 			Text.LoadString(IDS_PROC_STARTREBASEFFBUTTON);
 		else
 			Text.LoadString(IDS_PROC_STARTREBASEBUTTON);
 		break;
 
-	case REBASE_START:
-	case REBASE_ERROR:
-	case REBASE_CONTINUE:
-	case REBASE_SQUASH_CONFLICT:
+	case RebaseStage::Start:
+	case RebaseStage::Error:
+	case RebaseStage::Continue:
+	case RebaseStage::Squash_Conclict:
 		Text.LoadString(IDS_CONTINUEBUTTON);
 		break;
 
-	case REBASE_CONFLICT:
+	case RebaseStage::Conclict:
 		Text.LoadString(IDS_COMMITBUTTON);
 		break;
-	case REBASE_EDIT:
+	case RebaseStage::Edit:
 		Text.LoadString(IDS_AMENDBUTTON);
 		break;
 
-	case REBASE_SQUASH_EDIT:
+	case RebaseStage::Squash_Edit:
 		Text.LoadString(IDS_COMMITBUTTON);
 		break;
 
-	case REBASE_ABORT:
-	case REBASE_FINISH:
+	case RebaseStage::Abort:
+	case RebaseStage::Finish:
 		Text.LoadString(IDS_FINISHBUTTON);
 		break;
 
-	case REBASE_DONE:
+	case RebaseStage::Done:
 		Text.LoadString(IDS_DONE);
 		break;
 	}
@@ -1782,8 +1804,8 @@ void CRebaseDlg::SetControlEnable()
 {
 	switch(this->m_RebaseStage)
 	{
-	case CHOOSE_BRANCH:
-	case CHOOSE_COMMIT_PICK_MODE:
+	case RebaseStage::Choose_Branch:
+	case RebaseStage::Choose_Commit_Pick_Mode:
 
 		this->GetDlgItem(IDC_SPLITALLOPTIONS)->EnableWindow(TRUE);
 		this->GetDlgItem(IDC_BUTTON_UP)->EnableWindow(TRUE);
@@ -1806,15 +1828,15 @@ void CRebaseDlg::SetControlEnable()
 												m_CommitList.GetContextMenuBit(CGitLogListBase::ID_LOG);
 		break;
 
-	case REBASE_START:
-	case REBASE_CONTINUE:
-	case REBASE_ABORT:
-	case REBASE_ERROR:
-	case REBASE_FINISH:
-	case REBASE_CONFLICT:
-	case REBASE_EDIT:
-	case REBASE_SQUASH_CONFLICT:
-	case REBASE_DONE:
+	case RebaseStage::Start:
+	case RebaseStage::Continue:
+	case RebaseStage::Abort:
+	case RebaseStage::Error:
+	case RebaseStage::Finish:
+	case RebaseStage::Conclict:
+	case RebaseStage::Edit:
+	case RebaseStage::Squash_Conclict:
+	case RebaseStage::Done:
 		this->GetDlgItem(IDC_SPLITALLOPTIONS)->EnableWindow(FALSE);
 		this->GetDlgItem(IDC_REBASE_COMBOXEX_BRANCH)->EnableWindow(FALSE);
 		this->GetDlgItem(IDC_REBASE_COMBOXEX_UPSTREAM)->EnableWindow(FALSE);
@@ -1828,9 +1850,10 @@ void CRebaseDlg::SetControlEnable()
 		this->GetDlgItem(IDC_BUTTON_ONTO)->EnableWindow(FALSE);
 		this->GetDlgItem(IDC_BUTTON_BROWSE)->EnableWindow(FALSE);
 
-		if( m_RebaseStage == REBASE_DONE && (this->m_PostButtonTexts.GetCount() != 0) )
+		if (m_RebaseStage == RebaseStage::Done && (this->m_PostButtonTexts.GetCount() != 0))
 		{
 			this->GetDlgItem(IDC_STATUS_STATIC)->ShowWindow(SW_HIDE);
+			GetDlgItem(IDC_REBASE_POST_BUTTON)->EnableWindow(TRUE);
 			this->GetDlgItem(IDC_REBASE_POST_BUTTON)->ShowWindow(SW_SHOWNORMAL);
 			this->m_PostButton.RemoveAll();
 			this->m_PostButton.AddEntries(m_PostButtonTexts);
@@ -1839,14 +1862,16 @@ void CRebaseDlg::SetControlEnable()
 		break;
 	}
 
-	GetDlgItem(IDC_REBASE_SPLIT_COMMIT)->ShowWindow((m_RebaseStage == REBASE_EDIT || m_RebaseStage == REBASE_SQUASH_EDIT) ? SW_SHOW : SW_HIDE);
+	const bool canSplitCommit = m_RebaseStage == RebaseStage::Edit || m_RebaseStage == RebaseStage::Squash_Edit;
+	GetDlgItem(IDC_REBASE_SPLIT_COMMIT)->ShowWindow(canSplitCommit ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_REBASE_SPLIT_COMMIT)->EnableWindow(canSplitCommit);
 
 	if(m_bThreadRunning)
 	{
 		this->GetDlgItem(IDC_REBASE_CONTINUE)->EnableWindow(FALSE);
 
 	}
-	else if (m_RebaseStage != REBASE_ERROR)
+	else if (m_RebaseStage != RebaseStage::Error)
 	{
 		this->GetDlgItem(IDC_REBASE_CONTINUE)->EnableWindow(TRUE);
 	}
@@ -1861,7 +1886,7 @@ void CRebaseDlg::UpdateProgress()
 		index = m_CommitList.GetItemCount()-m_CurrentRebaseIndex;
 
 	int finishedCommits = index - 1; // introduced an variable which shows the number handled revisions for the progress bars
-	if (m_RebaseStage == REBASE_FINISH || finishedCommits == -1)
+	if (m_RebaseStage == RebaseStage::Finish || finishedCommits == -1)
 		finishedCommits = index;
 
 	m_ProgressBar.SetRange32(0, m_CommitList.GetItemCount());
@@ -1914,7 +1939,7 @@ void CRebaseDlg::UpdateCurrentStatus()
 	SetContinueButtonText();
 	SetControlEnable();
 	UpdateProgress();
-	if (m_RebaseStage == REBASE_DONE)
+	if (m_RebaseStage == RebaseStage::Done)
 		GetDlgItem(IDC_REBASE_CONTINUE)->SetFocus();
 }
 
@@ -1939,14 +1964,14 @@ int CRebaseDlg::GetCurrentCommitID()
 int CRebaseDlg::IsCommitEmpty(const CGitHash& hash)
 {
 	CString cmd, tree, ptree;
-	cmd.Format(L"git.exe rev-parse -q --verify %s^{tree}", static_cast<LPCTSTR>(hash.ToString()));
+	cmd.Format(L"git.exe rev-parse -q --verify %s^{tree}", static_cast<LPCWSTR>(hash.ToString()));
 	if (g_Git.Run(cmd, &tree, CP_UTF8))
 	{
 		AddLogString(cmd);
 		AddLogString(tree);
 		return -1;
 	}
-	cmd.Format(L"git.exe rev-parse -q --verify %s^^{tree}", static_cast<LPCTSTR>(hash.ToString()));
+	cmd.Format(L"git.exe rev-parse -q --verify %s^^{tree}", static_cast<LPCWSTR>(hash.ToString()));
 	if (g_Git.Run(cmd, &ptree, CP_UTF8))
 		ptree = L"4b825dc642cb6eb9a060e54bf8d69288fbee4904"; // empty tree
 	return tree == ptree;
@@ -1964,11 +1989,10 @@ static CString GetCommitTitle(const CGitHash& parentHash)
 			commitTitle.Truncate(20);
 			commitTitle += L"...";
 		}
-		commitTitle.Replace(L"&", L"&&");
-		str.AppendFormat(L"\n%s (%s)", static_cast<LPCTSTR>(commitTitle), static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
+		str.AppendFormat(L"\n%s (%s)", static_cast<LPCWSTR>(CStringUtils::EscapeAccellerators(commitTitle)), static_cast<LPCWSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
 	}
 	else
-		str.AppendFormat(L"\n(%s)", static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
+		str.AppendFormat(L"\n(%s)", static_cast<LPCWSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
 	return str;
 }
 
@@ -1990,7 +2014,7 @@ int CRebaseDlg::DoRebase()
 		return 0;
 	}
 
-	bool nextCommitIsSquash = (CheckNextCommitIsSquash() == 0);
+	const bool nextCommitIsSquash = (CheckNextCommitIsSquash() == 0);
 	if (nextCommitIsSquash || mode != CGitLogListBase::LOGACTIONS_REBASE_PICK)
 	{ // next commit is squash or not pick
 		if (!this->m_SquashMessage.IsEmpty())
@@ -2024,7 +2048,7 @@ int CRebaseDlg::DoRebase()
 	}
 
 	CString log;
-	log.Format(L"%s %d: %s", static_cast<LPCTSTR>(CGitLogListBase::GetRebaseActionName(mode)), GetCurrentCommitID(), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+	log.Format(L"%s %d: %s", static_cast<LPCWSTR>(CGitLogListBase::GetRebaseActionName(mode)), GetCurrentCommitID(), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 	AddLogString(log);
 	AddLogString(pRev->GetSubject());
 	if (pRev->GetSubject().IsEmpty())
@@ -2039,7 +2063,7 @@ int CRebaseDlg::DoRebase()
 	else if (!m_IsCherryPick && nocommit.IsEmpty())
 		cherryPickedFrom = L"--ff "; // for issue #1833: "If the current HEAD is the same as the parent of the cherry-picked commit, then a fast forward to this commit will be performed."
 
-	int isEmpty = IsCommitEmpty(pRev->m_CommitHash);
+	const int isEmpty = IsCommitEmpty(pRev->m_CommitHash);
 	if (isEmpty == 1)
 	{
 		cherryPickedFrom += L"--allow-empty ";
@@ -2054,7 +2078,7 @@ int CRebaseDlg::DoRebase()
 	if (m_IsCherryPick && pRev->m_ParentHash.size() > 1)
 	{
 		CString msg;
-		msg.FormatMessage(IDS_CHERRYPICK_MERGECOMMIT, static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()), static_cast<LPCTSTR>(pRev->GetSubject()));
+		msg.FormatMessage(IDS_CHERRYPICK_MERGECOMMIT, static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()), static_cast<LPCWSTR>(pRev->GetSubject()));
 		CString parent1;
 		parent1.Format(IDS_PARENT, 1);
 		parent1 += GetCommitTitle(pRev->m_ParentHash.at(0));
@@ -2072,14 +2096,14 @@ int CRebaseDlg::DoRebase()
 
 	while (true)
 	{
-		cmd.Format(L"git.exe cherry-pick %s%s %s", static_cast<LPCTSTR>(cherryPickedFrom), static_cast<LPCTSTR>(nocommit), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+		cmd.Format(L"git.exe cherry-pick %s%s %s", static_cast<LPCWSTR>(cherryPickedFrom), static_cast<LPCWSTR>(nocommit), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 		if (m_bPreserveMerges)
 		{
 			bool parentRewritten = false;
 			CGitHash currentHeadHash;
 			if (g_Git.GetHash(currentHeadHash, L"HEAD"))
 			{
-				m_RebaseStage = REBASE_ERROR;
+				m_RebaseStage = RebaseStage::Error;
 				MessageBox(g_Git.GetGitLastErr(L"Could not get HEAD hash."), L"TortoiseGit", MB_ICONERROR);
 				return -1;
 			}
@@ -2115,7 +2139,7 @@ int CRebaseDlg::DoRebase()
 
 				if (rewrittenParent->second.IsEmpty() && parent == pRev->m_ParentHash[0] && pRev->ParentsCount() > 1)
 				{
-					m_RebaseStage = REBASE_ERROR;
+					m_RebaseStage = RebaseStage::Error;
 					AddLogString(L"");
 					AddLogString(L"Unrecoverable error: Merge commit parent missing.");
 					return -1;
@@ -2135,52 +2159,52 @@ int CRebaseDlg::DoRebase()
 			{
 				if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
 				{
-					m_RebaseStage = REBASE_ERROR;
+					m_RebaseStage = RebaseStage::Error;
 					AddLogString(L"Cannot squash merge commit on rebase.");
 					return -1;
 				}
 				if (!parentRewritten && nocommit.IsEmpty())
-					cmd.Format(L"git.exe reset --hard %s", static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+					cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 				else
 				{
 					CString parentString;
 					for (const auto& parent : newParents)
 						parentString += L' ' + parent.ToString();
-					cmd.Format(L"git.exe checkout %s", static_cast<LPCTSTR>(newParents[0].ToString()));
+					cmd.Format(L"git.exe checkout %s --", static_cast<LPCWSTR>(newParents[0].ToString()));
 					if (RunGitCmdRetryOrAbort(cmd))
 					{
-						m_RebaseStage = REBASE_ERROR;
+						m_RebaseStage = RebaseStage::Error;
 						return -1;
 					}
-					cmd.Format(L"git.exe merge --no-ff%s %s", static_cast<LPCTSTR>(nocommit), static_cast<LPCTSTR>(parentString));
+					cmd.Format(L"git.exe merge --no-ff%s -- %s", static_cast<LPCWSTR>(nocommit), static_cast<LPCWSTR>(parentString));
 					if (nocommit.IsEmpty())
 					{
 						if (g_Git.Run(cmd, &out, CP_UTF8))
 						{
 							AddLogString(cmd);
 							AddLogString(out);
-							int hasConflicts = g_Git.HasWorkingTreeConflicts();
+							const int hasConflicts = g_Git.HasWorkingTreeConflicts();
 							if (hasConflicts > 0)
 							{
-								m_RebaseStage = REBASE_CONFLICT;
+								m_RebaseStage = RebaseStage::Conclict;
 								return -1;
 							}
 							else if (hasConflicts < 0)
 								AddLogString(g_Git.GetGitLastErr(L"Checking for conflicts failed.", CGit::GIT_CMD_CHECKCONFLICTS));
 							AddLogString(L"An unrecoverable error occurred.");
-							m_RebaseStage = REBASE_ERROR;
+							m_RebaseStage = RebaseStage::Error;
 							return -1;
 						}
 						CGitHash newHeadHash;
 						if (g_Git.GetHash(newHeadHash, L"HEAD"))
 						{
-							m_RebaseStage = REBASE_ERROR;
+							m_RebaseStage = RebaseStage::Error;
 							MessageBox(g_Git.GetGitLastErr(L"Could not get HEAD hash."), L"TortoiseGit", MB_ICONERROR);
 							return -1;
 						}
 						// do nothing if already up2date
 						if (currentHeadHash != newHeadHash)
-							cmd.Format(L"git.exe commit --amend -C %s", static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+							cmd.Format(L"git.exe commit --amend -C %s", static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 					}
 				}
 			}
@@ -2188,21 +2212,21 @@ int CRebaseDlg::DoRebase()
 			{
 				if (mode != CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
 				{
-					cmd.Format(L"git.exe checkout %s", static_cast<LPCTSTR>(newParents[0].ToString()));
+					cmd.Format(L"git.exe checkout %s --", static_cast<LPCWSTR>(newParents[0].ToString()));
 					if (RunGitCmdRetryOrAbort(cmd))
 					{
-						m_RebaseStage = REBASE_ERROR;
+						m_RebaseStage = RebaseStage::Error;
 						return -1;
 					}
 				}
-				cmd.Format(L"git.exe cherry-pick %s%s %s", static_cast<LPCTSTR>(cherryPickedFrom), static_cast<LPCTSTR>(nocommit), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+				cmd.Format(L"git.exe cherry-pick %s%s %s", static_cast<LPCWSTR>(cherryPickedFrom), static_cast<LPCWSTR>(nocommit), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 			}
 		}
 
 		if(g_Git.Run(cmd,&out,CP_UTF8))
 		{
 			AddLogString(out);
-			int hasConflicts = g_Git.HasWorkingTreeConflicts();
+			const int hasConflicts = g_Git.HasWorkingTreeConflicts();
 			if (hasConflicts < 0)
 			{
 				AddLogString(g_Git.GetGitLastErr(L"Checking for conflicts failed.", CGit::GIT_CMD_CHECKCONFLICTS));
@@ -2212,7 +2236,7 @@ int CRebaseDlg::DoRebase()
 			{
 				if (out.Find(L"commit --allow-empty") > 0)
 				{
-					int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
+					const int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
 					if (choose != 1)
 					{
 						if (choose == 2 && !RunGitCmdRetryOrAbort(L"git.exe reset --hard"))
@@ -2222,12 +2246,12 @@ int CRebaseDlg::DoRebase()
 							return 0;
 						}
 
-						m_RebaseStage = REBASE_ERROR;
+						m_RebaseStage = RebaseStage::Error;
 						AddLogString(L"An unrecoverable error occurred.");
 						return -1;
 					}
 
-					cmd.Format(L"git.exe commit --allow-empty -C %s", static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+					cmd.Format(L"git.exe commit --allow-empty -C %s", static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 					out.Empty();
 					g_Git.Run(cmd, &out, CP_UTF8);
 					m_CurrentCommitEmpty = true;
@@ -2256,20 +2280,20 @@ int CRebaseDlg::DoRebase()
 						}
 					}
 
-					m_RebaseStage = REBASE_ERROR;
+					m_RebaseStage = RebaseStage::Error;
 					AddLogString(L"An unrecoverable error occurred.");
 					return -1;
 				}
 				else if (mode == CGitLogListBase::LOGACTIONS_REBASE_EDIT)
 				{
-					this->m_RebaseStage = REBASE_EDIT ;
+					this->m_RebaseStage = RebaseStage::Edit;
 					return -1; // Edit return -1 to stop rebase.
 				}
 				// Squash Case
 				else if (CheckNextCommitIsSquash())
 				{   // no squash
 					// let user edit last commmit message
-					this->m_RebaseStage = REBASE_SQUASH_EDIT;
+					this->m_RebaseStage = RebaseStage::Squash_Edit;
 					return -1;
 				}
 			}
@@ -2278,9 +2302,9 @@ int CRebaseDlg::DoRebase()
 				if (m_pTaskbarList)
 					m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);
 				if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
-					m_RebaseStage = REBASE_SQUASH_CONFLICT;
+					m_RebaseStage = RebaseStage::Squash_Conclict;
 				else
-					m_RebaseStage = REBASE_CONFLICT;
+					m_RebaseStage = RebaseStage::Conclict;
 				return -1;
 			}
 		}
@@ -2294,7 +2318,7 @@ int CRebaseDlg::DoRebase()
 				if (g_Git.GetHash(head, L"HEAD"))
 				{
 					MessageBox(g_Git.GetGitLastErr(L"Could not get HEAD hash."), L"TortoiseGit", MB_ICONERROR);
-					m_RebaseStage = REBASE_ERROR;
+					m_RebaseStage = RebaseStage::Error;
 					return -1;
 				}
 				m_rewrittenCommitsMap[pRev->m_CommitHash] = head;
@@ -2306,7 +2330,7 @@ int CRebaseDlg::DoRebase()
 		}
 		if (mode == CGitLogListBase::LOGACTIONS_REBASE_EDIT)
 		{
-			this->m_RebaseStage = REBASE_EDIT;
+			this->m_RebaseStage = RebaseStage::Edit;
 			return -1; // Edit return -1 to stop rebase.
 		}
 
@@ -2314,7 +2338,7 @@ int CRebaseDlg::DoRebase()
 		if (CheckNextCommitIsSquash())
 		{ // no squash
 			// let user edit last commmit message
-			this->m_RebaseStage = REBASE_SQUASH_EDIT;
+			this->m_RebaseStage = RebaseStage::Squash_Edit;
 			return -1;
 		}
 		else if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
@@ -2342,23 +2366,23 @@ int CRebaseDlg::RebaseThread()
 	int ret=0;
 	while (!m_bAbort)
 	{
-		if( m_RebaseStage == REBASE_START )
+		if (m_RebaseStage == RebaseStage::Start)
 		{
 			if( this->StartRebase() )
 			{
 				ret = -1;
 				break;
 			}
-			m_RebaseStage = REBASE_CONTINUE;
+			m_RebaseStage = RebaseStage::Continue;
 		}
-		else if( m_RebaseStage == REBASE_CONTINUE )
+		else if (m_RebaseStage == RebaseStage::Continue)
 		{
 			this->GoNext();
 			SendMessage(MSG_REBASE_UPDATE_UI);
 			if(IsEnd())
 			{
 				ret = 0;
-				m_RebaseStage = REBASE_FINISH;
+				m_RebaseStage = RebaseStage::Finish;
 			}
 			else
 			{
@@ -2367,10 +2391,10 @@ int CRebaseDlg::RebaseThread()
 					break;
 			}
 		}
-		else if( m_RebaseStage == REBASE_FINISH )
+		else if (m_RebaseStage == RebaseStage::Finish)
 		{
 			SendMessage(MSG_REBASE_UPDATE_UI);
-			m_RebaseStage = REBASE_DONE;
+			m_RebaseStage = RebaseStage::Done;
 			break;
 		}
 		else
@@ -2436,20 +2460,20 @@ void CRebaseDlg::ListConflictFile(bool noStoreScrollPosition)
 
 LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 {
-	if (m_RebaseStage == REBASE_FINISH)
+	if (m_RebaseStage == RebaseStage::Finish)
 	{
 		FinishRebase();
 		return 0;
 	}
 	UpdateCurrentStatus();
 
-	if (m_RebaseStage == REBASE_DONE && m_bRebaseAutoEnd)
+	if (m_RebaseStage == RebaseStage::Done && m_bRebaseAutoEnd)
 	{
 		m_bRebaseAutoEnd = false;
 		this->PostMessage(WM_COMMAND, MAKELONG(IDC_REBASE_CONTINUE, BN_CLICKED), reinterpret_cast<LPARAM>(GetDlgItem(IDC_REBASE_CONTINUE)->GetSafeHwnd()));
 	}
 
-	if (m_RebaseStage == REBASE_DONE && m_pTaskbarList)
+	if (m_RebaseStage == RebaseStage::Done && m_pTaskbarList)
 		m_pTaskbarList->SetProgressState(m_hWnd, TBPF_NOPROGRESS); // do not show progress on taskbar any more to show we finished
 	if(m_CurrentRebaseIndex <0)
 		return 0;
@@ -2459,8 +2483,8 @@ LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 
 	switch(m_RebaseStage)
 	{
-	case REBASE_CONFLICT:
-	case REBASE_SQUASH_CONFLICT:
+	case RebaseStage::Conclict:
+	case RebaseStage::Squash_Conclict:
 		{
 		ListConflictFile(true);
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_CONFLICT);
@@ -2482,7 +2506,7 @@ LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 		m_LogMessageCtrl.ClearUndoBuffer();
 		break;
 		}
-	case REBASE_EDIT:
+	case RebaseStage::Edit:
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_MESSAGE);
 		if (m_pTaskbarList)
 			m_pTaskbarList->SetProgressState(m_hWnd, TBPF_PAUSED);
@@ -2501,7 +2525,7 @@ LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 			m_LogMessageCtrl.SetText(curRev->GetSubject() + L'\n' + curRev->GetBody());
 		m_LogMessageCtrl.ClearUndoBuffer();
 		break;
-	case REBASE_SQUASH_EDIT:
+	case RebaseStage::Squash_Edit:
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_MESSAGE);
 		this->m_LogMessageCtrl.SetReadOnly(false);
 		this->m_LogMessageCtrl.SetText(this->m_SquashMessage);
@@ -2537,7 +2561,7 @@ void CRebaseDlg::OnBnClickedAbort()
 
 	SaveSplitterPos();
 
-	if (m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage== CHOOSE_COMMIT_PICK_MODE)
+	if (m_RebaseStage == RebaseStage::Choose_Branch || m_RebaseStage == RebaseStage::Choose_Commit_Pick_Mode)
 	{
 		__super::OnCancel();
 		goto end;
@@ -2561,10 +2585,10 @@ void CRebaseDlg::OnBnClickedAbort()
 			WriteReflog(head, "rebase: begin aborting...");
 	}
 
-	if(this->m_IsFastForward)
+	if (m_IsFastForward)
 	{
 		CString cmd;
-		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(this->m_OrigBranchHash.ToString()));
+		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(this->m_OrigBranchHash.ToString()));
 		RunGitCmdRetryOrAbort(cmd);
 		__super::OnCancel();
 		goto end;
@@ -2573,7 +2597,7 @@ void CRebaseDlg::OnBnClickedAbort()
 	if (m_IsCherryPick) // there are not "branch" at cherry pick mode
 	{
 		CString cmd;
-		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(m_OrigUpstreamHash.ToString()));
+		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(m_OrigUpstreamHash.ToString()));
 		RunGitCmdRetryOrAbort(cmd);
 		__super::OnCancel();
 		goto end;
@@ -2583,9 +2607,9 @@ void CRebaseDlg::OnBnClickedAbort()
 	{
 		CString cmd, out;
 		if (g_Git.IsLocalBranch(m_OrigHEADBranch))
-			cmd.Format(L"git.exe checkout -f -B %s %s --", static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(m_OrigBranchHash.ToString()));
+			cmd.Format(L"git.exe checkout -f -B %s %s --", static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(m_OrigBranchHash.ToString()));
 		else
-			cmd.Format(L"git.exe checkout -f %s --", static_cast<LPCTSTR>(m_OrigBranchHash.ToString()));
+			cmd.Format(L"git.exe checkout -f %s --", static_cast<LPCWSTR>(m_OrigBranchHash.ToString()));
 		if (g_Git.Run(cmd, &out, CP_UTF8))
 		{
 			AddLogString(out);
@@ -2594,7 +2618,7 @@ void CRebaseDlg::OnBnClickedAbort()
 			goto end;
 		}
 
-		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(m_OrigBranchHash.ToString()));
+		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(m_OrigBranchHash.ToString()));
 		RunGitCmdRetryOrAbort(cmd);
 	}
 	else
@@ -2603,9 +2627,9 @@ void CRebaseDlg::OnBnClickedAbort()
 		if (m_OrigHEADBranch != g_Git.GetCurrentBranch(true))
 		{
 			if (g_Git.IsLocalBranch(m_OrigHEADBranch))
-				cmd.Format(L"git.exe checkout -f -B %s %s --", static_cast<LPCTSTR>(m_OrigHEADBranch), static_cast<LPCTSTR>(m_OrigHEADHash.ToString()));
+				cmd.Format(L"git.exe checkout -f -B %s %s --", static_cast<LPCWSTR>(m_OrigHEADBranch), static_cast<LPCWSTR>(m_OrigHEADHash.ToString()));
 			else
-				cmd.Format(L"git.exe checkout -f %s --", static_cast<LPCTSTR>(m_OrigHEADHash.ToString()));
+				cmd.Format(L"git.exe checkout -f %s --", static_cast<LPCWSTR>(m_OrigHEADHash.ToString()));
 			if (g_Git.Run(cmd, &out, CP_UTF8))
 			{
 				AddLogString(out);
@@ -2614,13 +2638,13 @@ void CRebaseDlg::OnBnClickedAbort()
 			}
 		}
 
-		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(m_OrigHEADHash.ToString()));
+		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCWSTR>(m_OrigHEADHash.ToString()));
 		RunGitCmdRetryOrAbort(cmd);
 
 		// restore moved branch
 		if (g_Git.IsLocalBranch(m_BranchCtrl.GetString()))
 		{
-			cmd.Format(L"git.exe branch -f %s %s --", static_cast<LPCTSTR>(m_BranchCtrl.GetString()), static_cast<LPCTSTR>(m_OrigBranchHash.ToString()));
+			cmd.Format(L"git.exe branch -f -- %s %s", static_cast<LPCWSTR>(m_BranchCtrl.GetString()), static_cast<LPCWSTR>(m_OrigBranchHash.ToString()));
 			if (g_Git.Run(cmd, &out, CP_UTF8))
 			{
 				AddLogString(out);
@@ -2661,6 +2685,8 @@ void CRebaseDlg::OnBnClickedRebaseCheckForce()
 
 void CRebaseDlg::OnBnClickedRebasePostButton()
 {
+	CheckRestoreStash();
+
 	this->m_Upstream=this->m_UpstreamCtrl.GetString();
 	this->m_Branch=this->m_BranchCtrl.GetString();
 
@@ -2675,7 +2701,7 @@ LRESULT CRebaseDlg::OnGitStatusListCtrlNeedsRefresh(WPARAM, LPARAM)
 
 void CRebaseDlg::Refresh()
 {
-	if (m_RebaseStage == REBASE_CONFLICT || m_RebaseStage == REBASE_SQUASH_CONFLICT)
+	if (m_RebaseStage == RebaseStage::Conclict || m_RebaseStage == RebaseStage::Squash_Conclict)
 	{
 		ListConflictFile(false);
 		return;
@@ -2684,9 +2710,10 @@ void CRebaseDlg::Refresh()
 	if(this->m_IsCherryPick)
 		return ;
 
-	if(this->m_RebaseStage == CHOOSE_BRANCH )
+	if (m_RebaseStage == RebaseStage::Choose_Branch)
 	{
 		this->UpdateData();
+		this->LoadBranchInfo();
 		this->FetchLogList();
 	}
 }
@@ -2696,7 +2723,7 @@ void CRebaseDlg::OnBnClickedButtonUp()
 	POSITION pos;
 	pos = m_CommitList.GetFirstSelectedItemPosition();
 
-	bool moveToTop = !!(GetAsyncKeyState(VK_SHIFT) & 0x8000);
+	const bool moveToTop = !!(GetAsyncKeyState(VK_SHIFT) & 0x8000);
 	// do nothing if the first selected item is the first item in the list
 	if (!moveToTop && m_CommitList.GetNextSelectedItem(pos) == 0)
 		return;
@@ -2707,7 +2734,7 @@ void CRebaseDlg::OnBnClickedButtonUp()
 	bool changed = false;
 	while(pos)
 	{
-		int index=m_CommitList.GetNextSelectedItem(pos);
+		int index = m_CommitList.GetNextSelectedItem(pos);
 		count = moveToTop ? count : (index - 1);
 		while (index > count)
 		{
@@ -2734,7 +2761,7 @@ void CRebaseDlg::OnBnClickedButtonDown()
 	if (m_CommitList.GetSelectedCount() == 0)
 		return;
 
-	bool moveToBottom = !!(GetAsyncKeyState(VK_SHIFT) & 0x8000);
+	const bool moveToBottom = !!(GetAsyncKeyState(VK_SHIFT) & 0x8000);
 	POSITION pos;
 	pos = m_CommitList.GetFirstSelectedItemPosition();
 	bool changed = false;
@@ -2775,7 +2802,7 @@ void CRebaseDlg::OnBnClickedButtonDown()
 LRESULT CRebaseDlg::OnCommitsReordered(WPARAM wParam, LPARAM /*lParam*/)
 {
 	POSITION pos = m_CommitList.GetFirstSelectedItemPosition();
-	int first = m_CommitList.GetNextSelectedItem(pos);
+	const int first = m_CommitList.GetNextSelectedItem(pos);
 	int last = first;
 	while (pos)
 		last = m_CommitList.GetNextSelectedItem(pos);
@@ -2784,7 +2811,7 @@ LRESULT CRebaseDlg::OnCommitsReordered(WPARAM wParam, LPARAM /*lParam*/)
 	for (int i = first; i < last; ++i)
 		m_CommitList.SetItemState(i, 0, LVIS_SELECTED);
 
-	int dest = static_cast<int>(wParam);
+	const int dest = static_cast<int>(wParam);
 	if (dest > first)
 	{
 		std::rotate(m_CommitList.m_logEntries.begin() + first, m_CommitList.m_logEntries.begin() + last, m_CommitList.m_logEntries.begin() + dest);
@@ -2842,11 +2869,11 @@ void CRebaseDlg::OnLvnItemchangedLoglist(NMHDR *pNMHDR, LRESULT *pResult)
 
 void CRebaseDlg::FillLogMessageCtrl()
 {
-	int selCount = m_CommitList.GetSelectedCount();
-	if (selCount == 1 && (m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage == CHOOSE_COMMIT_PICK_MODE))
+	const int selCount = m_CommitList.GetSelectedCount();
+	if (selCount == 1 && (m_RebaseStage == RebaseStage::Choose_Branch || m_RebaseStage == RebaseStage::Choose_Commit_Pick_Mode))
 	{
 		POSITION pos = m_CommitList.GetFirstSelectedItemPosition();
-		int selIndex = m_CommitList.GetNextSelectedItem(pos);
+		const int selIndex = m_CommitList.GetNextSelectedItem(pos);
 		GitRevLoglist* pLogEntry = m_CommitList.m_arShownList.SafeGetAt(selIndex);
 		OnRefreshFilelist();
 		m_LogMessageCtrl.SetText(pLogEntry->GetSubject() + L'\n' + pLogEntry->GetBody());
@@ -2856,11 +2883,11 @@ void CRebaseDlg::FillLogMessageCtrl()
 
 void CRebaseDlg::OnRefreshFilelist()
 {
-	int selCount = m_CommitList.GetSelectedCount();
-	if (selCount == 1 && (m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage == CHOOSE_COMMIT_PICK_MODE))
+	const int selCount = m_CommitList.GetSelectedCount();
+	if (selCount == 1 && (m_RebaseStage == RebaseStage::Choose_Branch || m_RebaseStage == RebaseStage::Choose_Commit_Pick_Mode))
 	{
 		POSITION pos = m_CommitList.GetFirstSelectedItemPosition();
-		int selIndex = m_CommitList.GetNextSelectedItem(pos);
+		const int selIndex = m_CommitList.GetNextSelectedItem(pos);
 		auto pLogEntry = m_CommitList.m_arShownList.SafeGetAt(selIndex);
 		auto files = pLogEntry->GetFiles(&m_CommitList);
 		if (!pLogEntry->m_IsDiffFiles)
@@ -2880,20 +2907,22 @@ void CRebaseDlg::OnRefreshFilelist()
 void CRebaseDlg::OnBnClickedCheckCherryPickedFrom()
 {
 	UpdateData();
+	auto reg = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\CherrypickAddCherryPickedFrom");
+	reg = m_bAddCherryPickedFrom;
 }
 
 LRESULT CRebaseDlg::OnRebaseActionMessage(WPARAM, LPARAM)
 {
-	if (m_RebaseStage == REBASE_ERROR || m_RebaseStage == REBASE_CONFLICT)
+	if (m_RebaseStage == RebaseStage::Error || m_RebaseStage == RebaseStage::Conclict)
 	{
 		GitRevLoglist* pRev = m_CommitList.m_arShownList.SafeGetAt(m_CurrentRebaseIndex);
-		int mode = pRev->GetRebaseAction() & CGitLogListBase::LOGACTIONS_REBASE_MODE_MASK;
+		const int mode = pRev->GetRebaseAction() & CGitLogListBase::LOGACTIONS_REBASE_MODE_MASK;
 		if (mode == CGitLogListBase::LOGACTIONS_REBASE_SKIP)
 		{
 			if (!RunGitCmdRetryOrAbort(L"git.exe reset --hard"))
 			{
 				m_FileListCtrl.Clear();
-				m_RebaseStage = REBASE_CONTINUE;
+				m_RebaseStage = RebaseStage::Continue;
 				UpdateCurrentStatus();
 			}
 		}
@@ -2983,8 +3012,8 @@ int	CRebaseDlg::RunGitCmdRetryOrAbort(const CString& cmd)
 			AddLogString(CString(MAKEINTRESOURCE(IDS_FAIL)));
 			AddLogString(out);
 			CString msg;
-			msg.Format(L"\"%s\" failed.\n%s", static_cast<LPCTSTR>(cmd), static_cast<LPCTSTR>(out));
-			if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_MSGBOX_RETRY)), CString(MAKEINTRESOURCE(IDS_MSGBOX_ABORT))) != 1)
+			msg.Format(L"\"%s\" failed.\n%s", static_cast<LPCWSTR>(cmd), static_cast<LPCWSTR>(out));
+			if (CMessageBox::Show(GetSafeHwnd(), msg, IDS_APPNAME, 1, IDI_ERROR, IDS_MSGBOX_RETRY, IDS_MSGBOX_ABORT) != 1)
 				return -1;
 		}
 		else

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2011-2016, 2018-2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,10 +17,13 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "stdafx.h"
+#include "TortoiseProc.h"
 #include "AddProgressCommand.h"
 #include "ShellUpdater.h"
 #include "MassiveGitTask.h"
 #include "AppUtils.h"
+
+using Git_WC_Notify_Action = CGitProgressList::WC_File_NotificationData::Git_WC_Notify_Action;
 
 bool AddProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int& m_itemCountTotal, int& m_itemCount)
 {
@@ -80,7 +83,7 @@ bool AddProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int&
 				}
 			}
 
-			list->AddNotify(new CGitProgressList::WC_File_NotificationData(m_targetPathList[m_itemCount], CGitProgressList::WC_File_NotificationData::git_wc_notify_add));
+			list->AddNotify(new CGitProgressList::WC_File_NotificationData(m_targetPathList[m_itemCount], Git_WC_Notify_Action::Add));
 
 			if (list->IsCancelled() == TRUE)
 			{
@@ -98,7 +101,7 @@ bool AddProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int&
 	else
 	{
 		CMassiveGitTask mgt(L"add -f");
-		if (!mgt.ExecuteWithNotify(&m_targetPathList, list->m_bCancelled, CGitProgressList::WC_File_NotificationData::git_wc_notify_add, list))
+		if (!mgt.ExecuteWithNotify(&m_targetPathList, list->m_bCancelled, Git_WC_Notify_Action::Add, list))
 			return false;
 		if (m_bExecutable)
 		{
@@ -123,7 +126,7 @@ bool AddProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int&
 			postCmdList.emplace_back(IDI_COMMIT, IDS_MENUCOMMIT, []
 			{
 				CString sCmd;
-				sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+				sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 		if (!(m_bExecutable || m_bSymlink))

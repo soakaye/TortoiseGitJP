@@ -39,6 +39,7 @@ IDI_CONFLICTEDIGNOREDLINE ICON                    "lineconflictedignored.ico"
 IDI_LINEEDITED          ICON                    "lineedited.ico"
 IDI_MOVEDLINE           ICON                    "moved.ico"
 IDI_LINEMARKED          ICON                    "linemarked.ico"
+IDI_EXPLORER            ICON                    "explorer.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -104,7 +105,6 @@ END
 // Bitmap
 //
 
-IDB_LOGOFLIPPED         BITMAP                  "tortoisemerge_logoflipped.bmp"
 IDB_REGEX_FILTER        BITMAP                  "ribbon\\Filter16.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -120,6 +120,13 @@ IDC_MARGINCURSOR        CURSOR                  "Margin.cur"
 //
 
 IDB_LOGO                PNG                     "ribbon\\TortoiseMerge.png"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RCDATA
+//
+
+IDR_TGITMERGELOGO       RCDATA                  "TortoiseGitMerge_Logo.svgz"
 #endif    // Neutral resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -130,6 +137,13 @@ IDB_LOGO                PNG                     "ribbon\\TortoiseMerge.png"
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// HELP
+//
+
+IDR_HELPMAPPING         HELP                    "TGitMergeHelpMapping.ini"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -614,9 +628,10 @@ BEGIN
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
+    "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
     "A",            ID_EDIT_SELECTALL,      VIRTKEY, CONTROL, NOINVERT
-    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT, NOINVERT
     "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT, NOINVERT
     VK_F12,         ID_EDIT_USELEFTBLOCK,   VIRTKEY, NOINVERT
     VK_RIGHT,       ID_EDIT_USELEFTBLOCK,   VIRTKEY, ALT, NOINVERT
     VK_F10,         ID_EDIT_USEMINETHENTHEIRBLOCK, VIRTKEY, SHIFT, CONTROL, NOINVERT
@@ -629,7 +644,6 @@ BEGIN
     VK_F5,          ID_FILE_RELOAD,         VIRTKEY, NOINVERT
     "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_SAVE_AS,        VIRTKEY, SHIFT, CONTROL, NOINVERT
-    VK_F1,          ID_HELP,                VIRTKEY, NOINVERT
     VK_F8,          ID_NAVIGATE_NEXTCONFLICT, VIRTKEY, NOINVERT
     VK_DOWN,        ID_NAVIGATE_NEXTDIFFERENCE, VIRTKEY, CONTROL, NOINVERT
     VK_DOWN,        ID_NAVIGATE_NEXTDIFFERENCE, VIRTKEY, ALT, NOINVERT
@@ -1029,6 +1043,7 @@ BEGIN
     IDS_EDIT_TAB2SPACE      "Convert tabs to spaces"
     IDS_EDIT_SPACE2TAB      "Convert spaces to tabs"
     IDS_EDIT_TRIM           "Trim right"
+    IDS_EXPLORETO           "Explore to"
 END
 
 STRINGTABLE

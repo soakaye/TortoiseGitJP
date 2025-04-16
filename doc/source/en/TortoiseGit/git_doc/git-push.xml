@@ -13,8 +13,8 @@
 <simplesect id="git-push(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git push</emphasis> [--all | --mirror | --tags] [--follow-tags] [--atomic] [-n | --dry-run] [--receive-pack=&lt;git-receive-pack&gt;]
-           [--repo=&lt;repository&gt;] [-f | --force] [-d | --delete] [--prune] [-v | --verbose]
+<literallayout><emphasis>git push</emphasis> [--all | --branches | --mirror | --tags] [--follow-tags] [--atomic] [-n | --dry-run] [--receive-pack=&lt;git-receive-pack&gt;]
+           [--repo=&lt;repository&gt;] [-f | --force] [-d | --delete] [--prune] [-q | --quiet] [-v | --verbose]
            [-u | --set-upstream] [-o &lt;string&gt; | --push-option=&lt;string&gt;]
            [--[no-]signed|--signed=(true|false|if-asked)]
            [--force-with-lease[=&lt;refname&gt;[:&lt;expect&gt;]] [--force-if-includes]]
@@ -37,7 +37,7 @@ arguments or <emphasis>--all</emphasis>, <emphasis>--mirror</emphasis>, <emphasi
 the default <emphasis>&lt;refspec&gt;</emphasis> by consulting <emphasis>remote.*.push</emphasis> configuration,
 and if it is not found, honors <emphasis>push.default</emphasis> configuration to decide
 what to push (See <xref linkend="git-config(1)" /> for the meaning of <emphasis>push.default</emphasis>).</simpara>
-<simpara>When neither the command-line nor the configuration specify what to
+<simpara>When neither the command-line nor the configuration specifies what to
 push, the default behavior is used, which corresponds to the <emphasis>simple</emphasis>
 value for <emphasis>push.default</emphasis>: the current branch is pushed to the
 corresponding upstream branch, but as a safety measure, the push is
@@ -53,7 +53,7 @@ local one.</simpara>
 </term>
 <listitem>
 <simpara>
-        The "remote" repository that is destination of a push
+        The "remote" repository that is the destination of a push
         operation.  This parameter can be either a URL
         (see the section <link linkend="git-push(1)_URLS">GIT URLS</link> below) or the name
         of a remote (see the section <link linkend="git-push(1)_REMOTES">REMOTES</link> below).
@@ -158,6 +158,9 @@ already exists on the remote side.</simpara>
 <varlistentry>
 <term>
 --all
+</term>
+<term>
+--branches
 </term>
 <listitem>
 <simpara>
@@ -355,8 +358,8 @@ remote ref is the expected value.  "git push" fails otherwise.</simpara>
 You will have to bypass the "must fast-forward" rule in order to
 replace the history you originally published with the rebased history.
 If somebody else built on top of your original history while you are
-rebasing, the tip of the branch at the remote may advance with her
-commit, and blindly pushing with <emphasis>--force</emphasis> will lose her work.</simpara>
+rebasing, the tip of the branch at the remote may advance with their
+commit, and blindly pushing with <emphasis>--force</emphasis> will lose their work.</simpara>
 <simpara>This option allows you to say that you expect the history you are
 updating is what you rebased and want to replace. If the remote ref
 still points at the commit you specified, you can be sure that no
@@ -571,11 +574,14 @@ a "no-op".</simpara>
         all submodules that changed in the revisions to be pushed will be
         pushed. If on-demand was not able to push all necessary revisions it will
         also be aborted and exit with non-zero status. If <emphasis>only</emphasis> is used all
-        submodules will be recursively pushed while the superproject is left
+        submodules will be pushed while the superproject is left
         unpushed. A value of <emphasis>no</emphasis> or using <emphasis>--no-recurse-submodules</emphasis> can be used
         to override the push.recurseSubmodules configuration variable when no
         submodule recursion is required.
 </simpara>
+<simpara>When using <emphasis>on-demand</emphasis> or <emphasis>only</emphasis>, if a submodule has a
+"push.recurseSubmodules={on-demand,only}" or "submodule.recurse" configuration,
+further recursion will occur. In this case, "only" is treated as "on-demand".</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -624,31 +630,31 @@ a "no-op".</simpara>
 address of the remote server, and the path to the repository.
 Depending on the transport protocol, some of this information may be
 absent.</simpara>
-<simpara>Git supports ssh, git, http, and https protocols (in addition, ftp,
+<simpara>Git supports ssh, git, http, and https protocols (in addition, ftp
 and ftps can be used for fetching, but this is inefficient and
-deprecated; do not use it).</simpara>
-<simpara>The native transport (i.e. git:// URL) does no authentication and
+deprecated; do not use them).</simpara>
+<simpara>The native transport (i.e. <emphasis>git://</emphasis> URL) does no authentication and
 should be used with caution on unsecured networks.</simpara>
 <simpara>The following syntaxes may be used with them:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-ssh://&#91;user@&#93;host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>ssh://[&lt;user&gt;@]&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-git://host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>git://&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-http&#91;s&#93;://host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>http[s]://&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-ftp&#91;s&#93;://host.xz&#91;:port&#93;/path/to/repo.git/
+<emphasis>ftp[s]://&lt;host&gt;[:&lt;port&gt;]/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
@@ -656,7 +662,7 @@ ftp&#91;s&#93;://host.xz&#91;:port&#93;/path/to/repo.git/
 <itemizedlist>
 <listitem>
 <simpara>
-&#91;user@&#93;host.xz:path/to/repo.git/
+<emphasis>[&lt;user&gt;@]&lt;host&gt;:/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
@@ -665,21 +671,21 @@ first colon. This helps differentiate a local path that contains a
 colon. For example the local path <emphasis>foo:bar</emphasis> could be specified as an
 absolute path or <emphasis>./foo:bar</emphasis> to avoid being misinterpreted as an ssh
 url.</simpara>
-<simpara>The ssh and git protocols additionally support ~username expansion:</simpara>
+<simpara>The ssh and git protocols additionally support <emphasis>~&lt;username&gt;</emphasis> expansion:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-ssh://&#91;user@&#93;host.xz&#91;:port&#93;/~&#91;user&#93;/path/to/repo.git/
+<emphasis>ssh://[&lt;user&gt;@]&lt;host&gt;[:&lt;port&gt;]/~&lt;user&gt;/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-git://host.xz&#91;:port&#93;/~&#91;user&#93;/path/to/repo.git/
+<emphasis>git://&lt;host&gt;[:&lt;port&gt;]/~&lt;user&gt;/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-&#91;user@&#93;host.xz:/~&#91;user&#93;/path/to/repo.git/
+<emphasis>[&lt;user&gt;@]&lt;host&gt;:~&lt;user&gt;/&lt;path-to-git-repo&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
@@ -688,17 +694,17 @@ syntaxes may be used:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-/path/to/repo.git/
+<emphasis>/path/to/repo.git/</emphasis>
 </simpara>
 </listitem>
 <listitem>
 <simpara>
-file:///path/to/repo.git/
+<emphasis>file:///path/to/repo.git/</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
 <simpara>These two syntaxes are mostly equivalent, except when cloning, when
-the former implies --local option. See <xref linkend="git-clone(1)" /> for
+the former implies <emphasis>--local</emphasis> option. See <xref linkend="git-clone(1)" /> for
 details.</simpara>
 <simpara><emphasis>git clone</emphasis>, <emphasis>git fetch</emphasis> and <emphasis>git pull</emphasis>, but not <emphasis>git push</emphasis>, will also
 accept a suitable bundle file. See <xref linkend="git-bundle(1)" />.</simpara>
@@ -709,19 +715,21 @@ may be used:</simpara>
 <itemizedlist>
 <listitem>
 <simpara>
-&lt;transport&gt;::&lt;address&gt;
+<emphasis>&lt;transport&gt;::&lt;address&gt;</emphasis>
 </simpara>
 </listitem>
 </itemizedlist>
-<simpara>where &lt;address&gt; may be a path, a server and path, or an arbitrary
+<simpara>where <emphasis>&lt;address&gt;</emphasis> may be a path, a server and path, or an arbitrary
 URL-like string recognized by the specific remote helper being
 invoked. See <xref linkend="gitremote-helpers(7)" /> for details.</simpara>
 <simpara>If there are a large number of similarly-named remote repositories and
 you want to use a different format for them (such that the URLs you
 use will be rewritten into URLs that work), you can create a
 configuration section of the form:</simpara>
-<screen>        [url "&lt;actual url base&gt;"]
-                insteadOf = &lt;other url base&gt;</screen>
+<blockquote>
+<literallayout>        [url "<emphasis>&lt;actual-url-base&gt;</emphasis>"]
+                insteadOf = <emphasis>&lt;other-url-base&gt;</emphasis></literallayout>
+</blockquote>
 <simpara>For example, with this:</simpara>
 <screen>        [url "git://git.host.xz/"]
                 insteadOf = host.xz:/path/to/
@@ -730,8 +738,10 @@ configuration section of the form:</simpara>
 rewritten in any context that takes a URL to be "git://git.host.xz/repo.git".</simpara>
 <simpara>If you want to rewrite URLs for push only, you can create a
 configuration section of the form:</simpara>
-<screen>        [url "&lt;actual url base&gt;"]
-                pushInsteadOf = &lt;other url base&gt;</screen>
+<blockquote>
+<literallayout>        [url "<emphasis>&lt;actual-url-base&gt;</emphasis>"]
+                pushInsteadOf = <emphasis>&lt;other-url-base&gt;</emphasis></literallayout>
+</blockquote>
 <simpara>For example, with this:</simpara>
 <screen>        [url "ssh://example.org/"]
                 pushInsteadOf = git://example.org/</screen>
@@ -772,12 +782,14 @@ of this remote will be used by default when you do
 not provide a refspec on the command line.  The entry in the
 config file would appear like this:</simpara>
 <screen>        [remote "&lt;name&gt;"]
-                url = &lt;url&gt;
+                url = &lt;URL&gt;
                 pushurl = &lt;pushurl&gt;
                 push = &lt;refspec&gt;
                 fetch = &lt;refspec&gt;</screen>
 <simpara>The <emphasis>&lt;pushurl&gt;</emphasis> is used for pushes only. It is optional and defaults
-to <emphasis>&lt;url&gt;</emphasis>.</simpara>
+to <emphasis>&lt;URL&gt;</emphasis>. Pushing to a remote affects all defined pushurls or all
+defined urls if no pushurls are defined. Fetch, however, will only
+fetch from the first defined url if multiple urls are defined.</simpara>
 </section>
 <section id="git-push(1)__named_file_in_emphasis_git_dir_remotes_emphasis">
 <title>Named file in <emphasis>$GIT_DIR/remotes</emphasis></title>
@@ -787,7 +799,7 @@ in this file will be used to access the repository.  The refspec
 in this file will be used as default when you do not
 provide a refspec on the command line.  This file should have the
 following format:</simpara>
-<screen>        URL: one of the above URL format
+<screen>        URL: one of the above URL formats
         Push: &lt;refspec&gt;
         Pull: &lt;refspec&gt;</screen>
 <simpara><emphasis>Push:</emphasis> lines are used by <emphasis>git push</emphasis> and
@@ -801,8 +813,8 @@ be specified for additional branch mappings.</simpara>
 file in <emphasis>$GIT_DIR/branches</emphasis>.
 The URL in this file will be used to access the repository.
 This file should have the following format:</simpara>
-<screen>        &lt;url&gt;#&lt;head&gt;</screen>
-<simpara><emphasis>&lt;url&gt;</emphasis> is required; <emphasis>#&lt;head&gt;</emphasis> is optional.</simpara>
+<screen>        &lt;URL&gt;#&lt;head&gt;</screen>
+<simpara><emphasis>&lt;URL&gt;</emphasis> is required; <emphasis>#&lt;head&gt;</emphasis> is optional.</simpara>
 <simpara>Depending on the operation, git will use one of the following
 refspecs, if you don't provide one on the command line.
 <emphasis>&lt;branch&gt;</emphasis> is the name of this file in <emphasis>$GIT_DIR/branches</emphasis> and
@@ -1070,7 +1082,7 @@ a case where you do mean to lose history.</simpara>
 <listitem>
 <simpara>
         Without additional configuration, pushes the current branch to
-        the configured upstream (<emphasis>remote.origin.merge</emphasis> configuration
+        the configured upstream (<emphasis>branch.&lt;name&gt;.merge</emphasis> configuration
         variable) if it has the same name as the current branch, and
         errors out without pushing otherwise.
 </simpara>
@@ -1244,6 +1256,218 @@ As in #1, the attacker chooses an object ID X to steal. The victim sends
 </simpara>
 </listitem>
 </orderedlist>
+</simplesect>
+<simplesect id="git-push(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+push.autoSetupRemote
+</term>
+<listitem>
+<simpara>
+        If set to "true" assume <emphasis>--set-upstream</emphasis> on default push when no
+        upstream tracking exists for the current branch; this option
+        takes effect with push.default options <emphasis>simple</emphasis>, <emphasis>upstream</emphasis>,
+        and <emphasis>current</emphasis>. It is useful if by default you want new branches
+        to be pushed to the default remote (like the behavior of
+        <emphasis>push.default=current</emphasis>) and you also want the upstream tracking
+        to be set. Workflows most likely to benefit from this option are
+        <emphasis>simple</emphasis> central workflows where all branches are expected to
+        have the same name on the remote.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.default
+</term>
+<listitem>
+<simpara>
+        Defines the action <emphasis>git push</emphasis> should take if no refspec is
+        given (whether from the command-line, config, or elsewhere).
+        Different values are well-suited for
+        specific workflows; for instance, in a purely central workflow
+        (i.e. the fetch source is equal to the push destination),
+        <emphasis>upstream</emphasis> is probably what you want.  Possible values are:
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>nothing</emphasis> - do not push anything (error out) unless a refspec is
+  given. This is primarily meant for people who want to
+  avoid mistakes by always being explicit.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>current</emphasis> - push the current branch to update a branch with the same
+  name on the receiving end.  Works in both central and non-central
+  workflows.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>upstream</emphasis> - push the current branch back to the branch whose
+  changes are usually integrated into the current branch (which is
+  called <emphasis>@{upstream}</emphasis>).  This mode only makes sense if you are
+  pushing to the same repository you would normally pull from
+  (i.e. central workflow).
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>tracking</emphasis> - This is a deprecated synonym for <emphasis>upstream</emphasis>.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>simple</emphasis> - push the current branch with the same name on the remote.
+</simpara>
+<simpara>If you are working on a centralized workflow (pushing to the same repository you
+pull from, which is typically <emphasis>origin</emphasis>), then you need to configure an upstream
+branch with the same name.</simpara>
+<simpara>This mode is the default since Git 2.0, and is the safest option suited for
+beginners.</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>matching</emphasis> - push all branches having the same name on both ends.
+  This makes the repository you are pushing to remember the set of
+  branches that will be pushed out (e.g. if you always push <emphasis>maint</emphasis>
+  and <emphasis>master</emphasis> there and no other branches, the repository you push
+  to will have these two branches, and your local <emphasis>maint</emphasis> and
+  <emphasis>master</emphasis> will be pushed there).
+</simpara>
+<simpara>To use this mode effectively, you have to make sure <emphasis>all</emphasis> the
+branches you would push out are ready to be pushed out before
+running <emphasis>git push</emphasis>, as the whole point of this mode is to allow you
+to push all of the branches in one go.  If you usually finish work
+on only one branch and push out the result, while other branches are
+unfinished, this mode is not for you.  Also this mode is not
+suitable for pushing into a shared central repository, as other
+people may add new branches there, or update the tip of existing
+branches outside your control.</simpara>
+<simpara>This used to be the default, but not since Git 2.0 (<emphasis>simple</emphasis> is the
+new default).</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.followTags
+</term>
+<listitem>
+<simpara>
+        If set to true, enable <emphasis>--follow-tags</emphasis> option by default.  You
+        may override this configuration at time of push by specifying
+        <emphasis>--no-follow-tags</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.gpgSign
+</term>
+<listitem>
+<simpara>
+        May be set to a boolean value, or the string <emphasis>if-asked</emphasis>. A true
+        value causes all pushes to be GPG signed, as if <emphasis>--signed</emphasis> is
+        passed to <xref linkend="git-push(1)" />. The string <emphasis>if-asked</emphasis> causes
+        pushes to be signed if the server supports it, as if
+        <emphasis>--signed=if-asked</emphasis> is passed to <emphasis>git push</emphasis>. A false value may
+        override a value from a lower-priority config file. An explicit
+        command-line flag always overrides this config option.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.pushOption
+</term>
+<listitem>
+<simpara>
+        When no <emphasis>--push-option=&lt;option&gt;</emphasis> argument is given from the
+        command line, <emphasis>git push</emphasis> behaves as if each &lt;value&gt; of
+        this variable is given as <emphasis>--push-option=&lt;value&gt;</emphasis>.
+</simpara>
+<simpara>This is a multi-valued variable, and an empty value can be used in a
+higher priority configuration file (e.g. <emphasis>.git/config</emphasis> in a
+repository) to clear the values inherited from a lower priority
+configuration files (e.g. <emphasis>$HOME/.gitconfig</emphasis>).</simpara>
+<screen>Example:
+
+/etc/gitconfig
+  push.pushoption = a
+  push.pushoption = b
+
+~/.gitconfig
+  push.pushoption = c
+
+repo/.git/config
+  push.pushoption =
+  push.pushoption = b
+
+This will result in only b (a and c are cleared).</screen>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.recurseSubmodules
+</term>
+<listitem>
+<simpara>
+        May be "check", "on-demand", "only", or "no", with the same behavior
+        as that of "push --recurse-submodules".
+        If not set, <emphasis>no</emphasis> is used by default, unless <emphasis>submodule.recurse</emphasis> is
+        set (in which case a <emphasis>true</emphasis> value means <emphasis>on-demand</emphasis>).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.useForceIfIncludes
+</term>
+<listitem>
+<simpara>
+        If set to "true", it is equivalent to specifying
+        <emphasis>--force-if-includes</emphasis> as an option to <xref linkend="git-push(1)" />
+        in the command line. Adding <emphasis>--no-force-if-includes</emphasis> at the
+        time of push overrides this configuration setting.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.negotiate
+</term>
+<listitem>
+<simpara>
+        If set to "true", attempt to reduce the size of the packfile
+        sent by rounds of negotiation in which the client and the
+        server attempt to find commits in common. If "false", Git will
+        rely solely on the server's ref advertisement to find commits
+        in common.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+push.useBitmaps
+</term>
+<listitem>
+<simpara>
+        If set to "false", disable use of bitmaps for "git push" even if
+        <emphasis>pack.useBitmaps</emphasis> is "true", without preventing other git operations
+        from using bitmaps. Default is true.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
 </simplesect>
 <simplesect id="git-push(1)__git">
 <title>GIT</title>

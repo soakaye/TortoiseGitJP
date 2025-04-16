@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2013-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -55,7 +55,7 @@ public:
 		int pos2 = name.ReverseFind(L'.');
 		CString url = name.Mid(pos1 + 1, pos2 - pos1 - 1);
 		CString display;
-		display.Format(L"%s:%s", static_cast<LPCTSTR>(ConfigLevelToKey(entry->level)), static_cast<LPCTSTR>(url));
+		display.Format(L"%s:%s", static_cast<LPCWSTR>(ConfigLevelToKey(entry->level)), static_cast<LPCWSTR>(url));
 		static_cast<STRING_VECTOR*>(payload)->push_back(display);
 		return 0;
 	}
@@ -74,14 +74,14 @@ public:
 		if (entry->value)
 			value = CUnicodeUtils::GetUnicode(entry->value);
 		CString text;
-		text.Format(L"%s\n%s\n%s", static_cast<LPCTSTR>(ConfigLevelToKey(entry->level)), static_cast<LPCTSTR>(name), static_cast<LPCTSTR>(value));
+		text.Format(L"%s\n%s\n%s", static_cast<LPCWSTR>(ConfigLevelToKey(entry->level)), static_cast<LPCWSTR>(name), static_cast<LPCWSTR>(value));
 		static_cast<STRING_VECTOR*>(payload)->push_back(text);
 		return 0;
 	}
 
 	static CString GetWinstorePath()
 	{
-		TCHAR winstorebuf[MAX_PATH] = { 0 };
+		wchar_t winstorebuf[MAX_PATH] = { 0 };
 		ExpandEnvironmentStrings(L"%AppData%\\GitCredStore\\git-credential-winstore.exe", winstorebuf, _countof(winstorebuf));
 		CString winstore;
 		winstore.Format(L"!'%s'", winstorebuf);
@@ -136,7 +136,7 @@ protected:
 		}
 	}
 
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
@@ -150,9 +150,10 @@ protected:
 	afx_msg void OnBnClickedCheckUsehttppath();
 	afx_msg void OnBnClickedButtonRemove();
 	afx_msg void OnBnClickedOpensettingselevated();
+	afx_msg void OnBnClickedWindowscredmgr();
 
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL OnApply() override;
+	BOOL OnInitDialog() override;
+	BOOL OnApply() override;
 
 	void EnableAdvancedOptions();
 	BOOL IsUrlExist(const CString& text);
@@ -167,7 +168,7 @@ protected:
 	bool SaveSimpleCredential(int type);
 	bool SaveSettings();
 
-	int			m_ChangedMask;
+	int			m_ChangedMask = 0;
 	int			m_iSimpleStoredValue; // the SimpleCredential value initially read from config
 
 	CComboBox	m_ctrlSimpleCredential;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011, 2014-2016, 2019 - TortoiseGit
+// Copyright (C) 2011, 2014-2016, 2019, 2021 - TortoiseGit
 // Copyright (C) 2010, 2012, 2014-2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -142,8 +142,8 @@ int CSetOverlayHandlers::GetInstalledOverlays()
 		L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ShellIconOverlayIdentifiers",
 		0, KEY_ENUMERATE_SUB_KEYS, &hKey)==ERROR_SUCCESS)
 	{
-		TCHAR value[2048] = { 0 };
-		TCHAR keystring[2048] = { 0 };
+		wchar_t value[2048] = { 0 };
+		wchar_t keystring[2048] = { 0 };
 		for (int i = 0, rc = ERROR_SUCCESS; rc == ERROR_SUCCESS; i++)
 		{
 			DWORD size = _countof(value);
@@ -208,7 +208,7 @@ void CSetOverlayHandlers::UpdateInfoLabel()
 	if (!sInfo2.IsEmpty())
 	{
 		sInfo += L'\n';
-		sInfo.AppendFormat(IDS_SETTINGS_OVERLAYINFO2, static_cast<LPCTSTR>(sInfo2));
+		sInfo.AppendFormat(IDS_SETTINGS_OVERLAYINFO2, static_cast<LPCWSTR>(sInfo2));
 	}
 	SetDlgItemText(IDC_HANDLERHINT, sInfo);
 }
@@ -218,7 +218,7 @@ void CSetOverlayHandlers::OnBnClickedRegedt()
 	CComHeapPtr<WCHAR> pszPath;
 	if (SHGetKnownFolderPath(FOLDERID_Windows, KF_FLAG_CREATE, nullptr, &pszPath) == S_OK)
 	{
-		CString path = pszPath;
+		CString path { static_cast<LPCWSTR>(pszPath) };
 		path += L"\\regedit.exe";
 
 		// regedit stores the key it showed last in

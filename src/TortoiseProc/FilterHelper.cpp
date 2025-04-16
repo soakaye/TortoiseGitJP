@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2018-2020 - TortoiseGit
+// Copyright (C) 2018-2023 - TortoiseGit
 // Copyright (C) 2010-2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -40,10 +40,10 @@ bool CFilterHelper::Match(std::wstring& text) const
 			bool found = text.find(condition.subString) != std::wstring::npos;
 			switch (condition.prefix)
 			{
-			case and_not:
+			case Prefix::AndNot:
 				found = !found;
 				[[fallthrough]];
-			case and:
+			case Prefix::And:
 				if (!found)
 				{
 					// not a match, so skip to the next "+"-prefixed item
@@ -55,7 +55,7 @@ bool CFilterHelper::Match(std::wstring& text) const
 				}
 				break;
 
-			case or:
+			case Prefix::Or:
 				current_value |= found;
 				if (!current_value)
 				{
@@ -94,14 +94,14 @@ void CFilterHelper::GetMatchRanges(std::vector<CHARRANGE>& ranges, CString textU
 
 	if (m_patterns.empty())
 	{
-		auto toScan = static_cast<LPCTSTR>(textUTF16);
+		auto toScan = static_cast<LPCWSTR>(textUTF16);
 		for (auto iter = subStringConditions.cbegin(), end = subStringConditions.cend(); iter != end; ++iter)
 		{
-			if (iter->prefix == and_not)
+			if (iter->prefix == Prefix::AndNot)
 				continue;
 
 			auto toFind = iter->subString.c_str();
-			size_t toFindLength = iter->subString.size();
+			const size_t toFindLength = iter->subString.size();
 			auto pFound = wcsstr(toScan, toFind);
 			while (pFound)
 			{
@@ -118,9 +118,9 @@ void CFilterHelper::GetMatchRanges(std::vector<CHARRANGE>& ranges, CString textU
 		for (auto it = m_patterns.cbegin(); it != m_patterns.cend(); ++it)
 		{
 			const std::wcregex_iterator end;
-			for (std::wcregex_iterator it2(static_cast<LPCTSTR>(textUTF16), static_cast<LPCTSTR>(textUTF16) + textUTF16.GetLength(), *it); it2 != end; ++it2)
+			for (std::wcregex_iterator it2(static_cast<LPCWSTR>(textUTF16), static_cast<LPCWSTR>(textUTF16) + textUTF16.GetLength(), *it); it2 != end; ++it2)
 			{
-				ptrdiff_t matchposID = it2->position(0);
+				const ptrdiff_t matchposID = it2->position(0);
 				CHARRANGE range = { static_cast<LONG>(matchposID) + offset, static_cast<LONG>(matchposID + (*it2)[0].str().size()) + offset };
 				ranges.push_back(range);
 			}
@@ -175,12 +175,12 @@ void CFilterHelper::AddSubString(CString token, Prefix prefix)
 		token.MakeLower();
 
 	// add condition to list
-	SCondition condition = { token, prefix, 0 };
+	SCondition condition = { static_cast<LPCWSTR>(token), prefix, 0 };
 	subStringConditions.push_back(condition);
 
 	// update previous conditions
-	size_t newPos = subStringConditions.size() - 1;
-	if (prefix == or)
+	const size_t newPos = subStringConditions.size() - 1;
+	if (prefix == Prefix::Or)
 	{
 		for (size_t i = newPos; i > 0; --i)
 		{
@@ -194,9 +194,6 @@ void CFilterHelper::AddSubString(CString token, Prefix prefix)
 
 // construction
 CFilterHelper::CFilterHelper()
-	: m_dwAttributeSelector(UINT_MAX)
-	, m_bCaseSensitive(false)
-	, m_bNegate(false)
 {
 }
 
@@ -208,7 +205,6 @@ CFilterHelper::CFilterHelper(const CFilterHelper& rhs)
 CFilterHelper::CFilterHelper(const CString& filter, bool filterWithRegex, DWORD selectedFilter, bool caseSensitive)
 	: m_dwAttributeSelector(selectedFilter)
 	, m_bCaseSensitive(caseSensitive)
-	, m_bNegate(false)
 {
 	// decode string matching spec
 	CString filterText = filter;
@@ -228,7 +224,7 @@ CFilterHelper::CFilterHelper(const CString& filter, bool filterWithRegex, DWORD 
 	{
 		// now split the search string into words so we can search for each of them
 		int curPos = 0;
-		int length = filterText.GetLength();
+		const int length = filterText.GetLength();
 
 		while (curPos < length && curPos >= 0)
 		{
@@ -238,18 +234,18 @@ CFilterHelper::CFilterHelper(const CString& filter, bool filterWithRegex, DWORD 
 			}
 
 			// has it a prefix?
-			Prefix prefix = and;
+			Prefix prefix = Prefix::And;
 			if (curPos < length)
 			{
 				switch (filterText[curPos])
 				{
 				case L'-':
-					prefix = and_not;
+					prefix = Prefix::AndNot;
 					++curPos;
 					break;
 
 				case L'+':
-					prefix = or ;
+					prefix = Prefix::Or;
 					++curPos;
 					break;
 				}

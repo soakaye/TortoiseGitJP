@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014, 2016, 2019 TortoiseGit
+// Copyright (C) 2014, 2016, 2019, 2021, 2023 TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,8 +17,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-#include "buffer.h"
-#include "netops.h"
+#include "str.h"
 #include "system-call.h"
 
 static void safeCloseHandle(HANDLE *handle)
@@ -29,25 +28,27 @@ static void safeCloseHandle(HANDLE *handle)
 	}
 }
 
-static int command_read(HANDLE handle, char *buffer, size_t buf_size, size_t *bytes_read)
+static int command_read(HANDLE handle, char *buffer, size_t obuf_size, size_t *pbytes_read)
 {
-	*bytes_read = 0;
+	*pbytes_read = 0;
 
-	if (!ReadFile(handle, buffer, (DWORD)buf_size, (DWORD*)bytes_read, NULL)) {
+	DWORD bytes_read = 0;
+	if (!ReadFile(handle, buffer, min(DWORD_MAX, obuf_size), &bytes_read, NULL)) {
 		git_error_set(GIT_ERROR_OS, "could not read data from external process");
 		return -1;
 	}
+	*pbytes_read = bytes_read;
 
 	return 0;
 }
 
-static int command_readall(HANDLE handle, git_buf *buf)
+static int command_readall(HANDLE handle, git_str *buf)
 {
 	size_t bytes_read = 0;
 	do {
 		char buffer[65536];
 		command_read(handle, buffer, sizeof(buffer), &bytes_read);
-		git_buf_put(buf, buffer, bytes_read);
+		git_str_put(buf, buffer, bytes_read);
 	} while (bytes_read);
 
 	return 0;
@@ -55,7 +56,7 @@ static int command_readall(HANDLE handle, git_buf *buf)
 
 struct ASYNCREADINGTHREADARGS {
 	HANDLE *handle;
-	git_buf *dest;
+	git_str *dest;
 };
 
 static DWORD WINAPI AsyncReadingThread(LPVOID lpParam)
@@ -71,7 +72,7 @@ static DWORD WINAPI AsyncReadingThread(LPVOID lpParam)
 	return ret;
 }
 
-static HANDLE commmand_start_reading_thread(HANDLE *handle, git_buf *dest)
+static HANDLE commmand_start_reading_thread(HANDLE *handle, git_str *dest)
 {
 	struct ASYNCREADINGTHREADARGS *threadArguments = git__calloc(1, sizeof(struct ASYNCREADINGTHREADARGS));
 	HANDLE thread;
@@ -91,7 +92,7 @@ static HANDLE commmand_start_reading_thread(HANDLE *handle, git_buf *dest)
 	return thread;
 }
 
-int commmand_start_stdout_reading_thread(COMMAND_HANDLE *commandHandle, git_buf *dest)
+int commmand_start_stdout_reading_thread(COMMAND_HANDLE *commandHandle, git_str *dest)
 {
 	HANDLE thread = commmand_start_reading_thread(&commandHandle->out, dest);
 	if (!thread)
@@ -130,7 +131,7 @@ void command_init(COMMAND_HANDLE *commandHandle)
 	commandHandle->asyncReadOutThread = INVALID_HANDLE_VALUE;
 }
 
-int command_start(wchar_t *cmd, COMMAND_HANDLE *commandHandle, LPWSTR* pEnv, DWORD flags)
+int command_start(wchar_t *cmd, COMMAND_HANDLE *commandHandle, const LPWSTR *pEnv, DWORD flags)
 {
 	SECURITY_ATTRIBUTES sa;
 	HANDLE hReadOut = INVALID_HANDLE_VALUE, hWriteOut = INVALID_HANDLE_VALUE, hReadIn = INVALID_HANDLE_VALUE, hWriteIn = INVALID_HANDLE_VALUE, hReadError = INVALID_HANDLE_VALUE, hWriteError = INVALID_HANDLE_VALUE;
@@ -239,7 +240,7 @@ int command_write(COMMAND_HANDLE *commandHandle, const char *buffer, size_t len)
 	return 0;
 }
 
-int command_write_gitbuf(COMMAND_HANDLE *commandHandle, const git_buf *buf)
+int command_write_gitbuf(COMMAND_HANDLE *commandHandle, const git_str *buf)
 {
 	return command_write(commandHandle, buf->ptr, buf->size);
 }

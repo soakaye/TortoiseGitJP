@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2016, 2018-2020, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@ private:
 
 public:
 	static int GetCredential(const CString& entryName, CCredentials& credentials);
-	static int SaveCredential(const CString& entryName, const CString& username, const TCHAR* password);
+	static int SaveCredential(const CString& entryName, const CString& username, const wchar_t* password);
 	static int DeleteCredential(const CString& entryName);
 	static int ListCredentials(const CString& startsWith, CStringList& result);
 };
@@ -38,7 +38,7 @@ public:
 	~CCredentials();
 
 	CString m_username;
-	TCHAR m_password[256];
+	wchar_t m_password[256]{};
 
 	friend class CWindowsCredentialsStore;
 

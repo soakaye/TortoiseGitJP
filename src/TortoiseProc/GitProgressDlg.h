@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2020, 2023 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -43,6 +43,7 @@ public:
 
 	void SetCommand(ProgressCommand* cmd) { m_ProgList.SetCommand(cmd); }
 	void SetOptions(DWORD opts) {m_ProgList.SetOptions(opts);}
+	void SetAutoClose(GitProgressAutoClose autoClose) { m_AutoClose = autoClose; }
 
 	/**
 	 * If the number of items for which the operation is done on is known
@@ -58,10 +59,10 @@ public:
 
 protected:
 
-	virtual BOOL						OnInitDialog() override;
-	virtual void						OnCancel() override;
-	virtual BOOL						PreTranslateMessage(MSG* pMsg) override;
-	virtual void						DoDataExchange(CDataExchange* pDX) override;
+	BOOL						OnInitDialog() override;
+	void						OnCancel() override;
+	BOOL						PreTranslateMessage(MSG* pMsg) override;
+	void						DoDataExchange(CDataExchange* pDX) override;
 
 	afx_msg void	OnBnClickedLogbutton();
 	afx_msg BOOL	OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
@@ -76,7 +77,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
-	virtual void OnOK() override;
+	void OnOK() override;
 
 	CAnimateCtrl			m_Animate;
 	CProgressCtrl			m_ProgCtrl;
@@ -87,14 +88,14 @@ private:
 	PostCmdList				m_PostCmdList;
 
 	CBrush					m_background_brush;
-	DWORD					m_AutoClose;
+	GitProgressAutoClose	m_AutoClose;
 
-	typedef struct {
+	struct ACCELLERATOR {
 		int id;
 		int cnt;
 		int wmid;
-	} ACCELLERATOR;
-	std::map<TCHAR, ACCELLERATOR>	m_accellerators;
-	HACCEL							m_hAccel;
-	virtual LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	};
+	std::map<wchar_t, ACCELLERATOR>	m_accellerators;
+	HACCEL							m_hAccel = nullptr;
+	LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 };

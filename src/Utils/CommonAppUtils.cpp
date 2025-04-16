@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2020, 2023-2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2010, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -18,7 +18,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 #include "stdafx.h"
-#include "../Resources/LoglistCommonResource.h"
+#include "resource.h"
 #include "CommonAppUtils.h"
 #include "PathUtils.h"
 #include "StringUtils.h"
@@ -28,6 +28,7 @@
 #include "DPIAware.h"
 #include "LoadIconEx.h"
 #include "IconBitmapUtils.h"
+#include "CreateProcessHelper.h"
 
 extern CString sOrigCWD;
 extern CString g_sGroupingUUID;
@@ -62,7 +63,7 @@ bool CCommonAppUtils::LaunchApplication(const CString& sCommandLine, const Launc
 				if (flags.uiIDErrMessageFormat != 0)
 				{
 					CString temp;
-					temp.Format(flags.uiIDErrMessageFormat, static_cast<LPCTSTR>(CFormatMessageWrapper()));
+					temp.Format(flags.uiIDErrMessageFormat, static_cast<LPCWSTR>(CFormatMessageWrapper()));
 					MessageBox(nullptr, temp, L"TortoiseGit", MB_OK | MB_ICONINFORMATION);
 				}
 				return false;
@@ -88,7 +89,7 @@ bool CCommonAppUtils::LaunchApplication(const CString& sCommandLine, const Launc
 			if (flags.uiIDErrMessageFormat != 0)
 			{
 				CString temp;
-				temp.Format(flags.uiIDErrMessageFormat, static_cast<LPCTSTR>(CFormatMessageWrapper()));
+				temp.Format(flags.uiIDErrMessageFormat, static_cast<LPCWSTR>(CFormatMessageWrapper()));
 				MessageBox(nullptr, temp, L"TortoiseGit", MB_OK | MB_ICONINFORMATION);
 			}
 			return false;
@@ -135,7 +136,7 @@ bool CCommonAppUtils::LaunchApplication(const CString& sCommandLine, const Launc
 		if (flags.uiIDErrMessageFormat)
 		{
 			CString temp;
-			temp.Format(flags.uiIDErrMessageFormat, static_cast<LPCTSTR>(CFormatMessageWrapper()));
+			temp.Format(flags.uiIDErrMessageFormat, static_cast<LPCWSTR>(CFormatMessageWrapper()));
 			MessageBox(nullptr, temp, L"TortoiseGit", MB_OK | MB_ICONINFORMATION);
 		}
 		return false;
@@ -177,7 +178,7 @@ bool CCommonAppUtils::RunTortoiseGitProc(const CString& sCommandLine, bool uac, 
 {
 	CString pathToExecutable = CPathUtils::GetAppDirectory() + L"TortoiseGitProc.exe";
 	CString sCmd;
-	sCmd.Format(L"\"%s\" %s", static_cast<LPCTSTR>(pathToExecutable), static_cast<LPCTSTR>(sCommandLine));
+	sCmd.Format(L"\"%s\" %s", static_cast<LPCWSTR>(pathToExecutable), static_cast<LPCWSTR>(sCommandLine));
 	if (AfxGetMainWnd()->GetSafeHwnd() && (sCommandLine.Find(L"/hwnd:") < 0))
 		sCmd.AppendFormat(L" /hwnd:%p", static_cast<void*>(AfxGetMainWnd()->GetSafeHwnd()));
 	if (!g_sGroupingUUID.IsEmpty() && includeGroupingUUID)
@@ -209,7 +210,7 @@ bool CCommonAppUtils::IsAdminLogin()
 
 bool CCommonAppUtils::SetListCtrlBackgroundImage(HWND hListCtrl, UINT nID)
 {
-	return SetListCtrlBackgroundImage(hListCtrl, nID, CDPIAware::Instance().ScaleX(128), CDPIAware::Instance().ScaleY(128));
+	return SetListCtrlBackgroundImage(hListCtrl, nID, CDPIAware::Instance().ScaleX(hListCtrl, 128), CDPIAware::Instance().ScaleY(hListCtrl, 128));
 }
 
 bool CCommonAppUtils::SetListCtrlBackgroundImage(HWND hListCtrl, UINT nID, int width, int height)
@@ -233,7 +234,7 @@ bool CCommonAppUtils::SetListCtrlBackgroundImage(HWND hListCtrl, UINT nID, int w
 	return true;
 }
 
-bool CCommonAppUtils::FileOpenSave(CString& path, int* filterindex, UINT title, UINT filterId, bool bOpen, HWND hwndOwner, LPCTSTR defaultExt, bool handleAsFile)
+bool CCommonAppUtils::FileOpenSave(CString& path, int* filterindex, UINT title, UINT filterId, bool bOpen, HWND hwndOwner, LPCWSTR defaultExt, bool handleAsFile)
 {
 	// Create a new common save file dialog
 	CComPtr<IFileDialog> pfd;
@@ -368,11 +369,11 @@ DWORD CCommonAppUtils::GetLogFontSize()
 	return CRegDWORD(L"Software\\TortoiseGit\\LogFontSize", 9);
 }
 
-void CCommonAppUtils::CreateFontForLogs(CFont& fontToCreate)
+void CCommonAppUtils::CreateFontForLogs(HWND hWnd, CFont& fontToCreate)
 {
 	LOGFONT logFont;
 	HDC hScreenDC = ::GetDC(nullptr);
-	logFont.lfHeight = -CDPIAware::Instance().PointsToPixelsY(GetLogFontSize());
+	logFont.lfHeight = -CDPIAware::Instance().PointsToPixelsY(hWnd, GetLogFontSize());
 	::ReleaseDC(nullptr, hScreenDC);
 	logFont.lfWidth = 0;
 	logFont.lfEscapement = 0;
@@ -386,6 +387,108 @@ void CCommonAppUtils::CreateFontForLogs(CFont& fontToCreate)
 	logFont.lfClipPrecision = CLIP_DEFAULT_PRECIS;
 	logFont.lfQuality = DRAFT_QUALITY;
 	logFont.lfPitchAndFamily = FF_DONTCARE | FIXED_PITCH;
-	wcsncpy_s(logFont.lfFaceName, static_cast<LPCTSTR>(GetLogFontName()), _TRUNCATE);
+	wcsncpy_s(logFont.lfFaceName, static_cast<LPCWSTR>(GetLogFontName()), _TRUNCATE);
 	VERIFY(fontToCreate.CreateFontIndirect(&logFont));
 }
+
+const char* CCommonAppUtils::GetResourceData(const wchar_t* resName, int id, DWORD& resLen)
+{
+	resLen = 0;
+	auto hResource = FindResource(nullptr, MAKEINTRESOURCE(id), resName);
+	if (!hResource)
+		return nullptr;
+	auto hResourceLoaded = LoadResource(nullptr, hResource);
+	if (!hResourceLoaded)
+		return nullptr;
+	auto lpResLock = static_cast<const char*>(LockResource(hResourceLoaded));
+	resLen = SizeofResource(nullptr, hResource);
+	return lpResLock;
+}
+
+bool CCommonAppUtils::StartHtmlHelp(DWORD_PTR id, CString page /* = L"index.html" */)
+{
+	ATLASSERT(page == L"index.html" || id == 0);
+
+#if !defined(IDR_HELPMAPPING) || !defined(IDS_APPNAME)
+	UNREFERENCED_PARAMETER(id);
+	UNREFERENCED_PARAMETER(page);
+	return false;
+#else
+	static std::map<DWORD_PTR, std::wstring> idMap;
+
+	if (idMap.empty())
+	{
+		DWORD resSize = 0;
+		const char* resData = GetResourceData(L"help", IDR_HELPMAPPING, resSize);
+		if (resData)
+		{
+			auto resString = std::string(resData, resSize);
+			std::vector<std::string> lines;
+			stringtok(lines, resString, true, "\r\n");
+			for (const auto& line : lines)
+			{
+				if (line.empty())
+					continue;
+				std::vector<std::string> lineParts;
+				stringtok(lineParts, line, true, "=");
+				if (lineParts.size() == 2)
+					idMap[std::stoi(lineParts[0], nullptr, 0)] = CUnicodeUtils::StdGetUnicode(lineParts[1]);
+			}
+		}
+	}
+
+	if (idMap.find(id) != idMap.end())
+	{
+		page = idMap[id].c_str();
+		page.Replace(L"@", L"%40");
+	}
+
+	CString appName(MAKEINTRESOURCE(IDS_APPNAME));
+	if (CString appHelp = CPathUtils::GetAppDirectory() + appName + L"_en\\"; PathFileExists(appHelp))
+	{
+		// We have to find the default browser, ourselves, because ShellExecute cannot handle anchors on local HTML files
+		DWORD dwszBuffPathLen = MAX_PATH;
+		if (CString application; SUCCEEDED(::AssocQueryStringW(ASSOCF_IS_PROTOCOL, ASSOCSTR_COMMAND, L"http", L"open", CStrBuf(application, dwszBuffPathLen), &dwszBuffPathLen)))
+		{
+			if (application.Find(L"%1") < 0)
+				application += L" %1";
+
+			if (application.Find(L"\"%1\"") >= 0)
+				application.Replace(L"\"%1\"", L"%1");
+
+			appHelp.Replace(L" ", L"%20");
+			appHelp.Replace(L'\\', L'/');
+			application.Replace(L"%1", L"file:///" + appHelp + page); // if the path is not prefixed with file:///, the anchor separator may not be detected correctly
+			return CCreateProcessHelper::CreateProcessDetached(nullptr, application);
+		}
+	}
+	CString url;
+	url.Format(L"https://tortoisegit.org/docs/%s/%s", static_cast<LPCWSTR>(appName.MakeLower()), static_cast<LPCWSTR>(page));
+	return reinterpret_cast<INT_PTR>(ShellExecute(nullptr, L"open", url, nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+#endif
+}
+
+int CCommonAppUtils::ExploreTo(HWND hwnd, CString path)
+{
+	if (PathFileExists(path))
+	{
+		HRESULT ret = E_FAIL;
+		ITEMIDLIST __unaligned* pidl = ILCreateFromPath(path);
+		if (pidl)
+		{
+			ret = SHOpenFolderAndSelectItems(pidl, 0, 0, 0);
+			ILFree(pidl);
+		}
+		return SUCCEEDED(ret) ? 0 : -1;
+	}
+	// if filepath does not exist any more, navigate to closest matching folder
+	do
+	{
+		const int pos = path.ReverseFind(L'\\');
+		if (pos <= 3)
+			break;
+		path.Truncate(pos);
+	} while (!PathFileExists(path));
+	return reinterpret_cast<INT_PTR>(ShellExecute(hwnd, L"explore", path, nullptr, nullptr, SW_SHOW)) > 32 ? 0 : -1;
+}
+

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2020 - TortoiseGit
+// Copyright (C) 2013-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -29,13 +29,7 @@ class CSettings;
 class CGitSettings
 {
 public:
-	CGitSettings()
-	: m_iConfigSource(CFG_SRC_EFFECTIVE)
-	, m_bGlobal(false)
-	, m_bIsBareRepo(false)
-	, m_bHonorProjectConfig(false)
-	{
-	}
+	CGitSettings() = default;
 
 protected:
 	CComboBox m_cSaveTo;
@@ -47,10 +41,10 @@ protected:
 		CFG_SRC_GLOBAL = 3,
 		CFG_SRC_SYSTEM = 4,
 	};
-	int		m_iConfigSource;
-	bool	m_bGlobal;
-	bool	m_bIsBareRepo;
-	bool	m_bHonorProjectConfig;
+	int		m_iConfigSource = CFG_SRC_EFFECTIVE;
+	bool	m_bGlobal = false;
+	bool	m_bIsBareRepo = false;
+	bool	m_bHonorProjectConfig = false;
 
 	void InitGitSettings(ISettingsPropPage *page, bool honorProjectConfig, CToolTips * tooltips)
 	{
@@ -120,7 +114,7 @@ protected:
 		if (err)
 		{
 			CString msg;
-			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(key), static_cast<LPCTSTR>(value));
+			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCWSTR>(key), static_cast<LPCWSTR>(value));
 			CMessageBox::Show(GetDialogHwnd(), g_Git.GetLibGit2LastErr(msg), L"TortoiseGit", MB_OK | MB_ICONERROR);
 			return false;
 		}
@@ -166,11 +160,6 @@ protected:
 		}
 		if (m_iConfigSource == CFG_SRC_EFFECTIVE || m_iConfigSource == CFG_SRC_SYSTEM)
 		{
-			if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty())
-			{
-				if (git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitProgramDataConfig()), GIT_CONFIG_LEVEL_PROGRAMDATA, repo, FALSE))
-					MessageBox(nullptr, g_Git.GetLibGit2LastErr(), L"TortoiseGit", MB_ICONEXCLAMATION);
-			}
 			if (git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitSystemConfig()), GIT_CONFIG_LEVEL_SYSTEM, repo, FALSE))
 				MessageBox(nullptr, g_Git.GetLibGit2LastErr(), L"TortoiseGit", MB_ICONEXCLAMATION);
 		}
@@ -187,8 +176,8 @@ protected:
 			CString dest;
 			dest.LoadString(storeTo);
 			CString msg;
-			msg.Format(IDS_WARNUSERSAFEDIFFERENT, static_cast<LPCTSTR>(dest));
-			if (CMessageBox::Show(GetDialogHwnd(), msg, L"TortoiseGit", 2, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_SAVEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+			msg.Format(IDS_WARNUSERSAFEDIFFERENT, static_cast<LPCWSTR>(dest));
+			if (CMessageBox::Show(GetDialogHwnd(), msg, IDS_APPNAME, 2, IDI_QUESTION, IDS_SAVEBUTTON, IDS_ABORTBUTTON) == 2)
 				return false;
 		}
 		return true;

@@ -11,7 +11,6 @@
 	<indexterm>
 		<primary>praise</primary>
 	</indexterm>
-	<?dbhh topicname="HIDD_BLAME"?>
 	<para>
 		Sometimes you need to know not only what lines have changed, but also
 		who exactly changed specific lines in a file. That's when the
@@ -184,6 +183,6 @@
 	</sect2>
 	-->
 	<para>
-		You can find more information at <xref linkend="git-blame(1)"/>.
+		You can find more information at <gitdoclink cmd="git-blame" section="1"/>.
 	</para>
 </sect1>

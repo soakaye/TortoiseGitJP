@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,10 +16,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-// GitLogList.cpp : implementation file
-//
-#pragma once
 
+#pragma once
 #include "HintCtrl.h"
 #include "ResizableColumnsListCtrl.h"
 #include "Git.h"
@@ -31,13 +29,11 @@
 #include "GitRevLoglist.h"
 #include "lanes.h"
 #include "GitLogCache.h"
-#include <regex>
-#include "GitStatusListCtrl.h"
 #include "FindDlg.h"
 #include <unordered_set>
 #include "LogDlgFilter.h"
 
-typedef CComCritSecLock<CComCriticalSection> Locker;
+using Locker = CComCritSecLock<CComCriticalSection>;
 
 template < typename Cont, typename Pred>
 void for_each(Cont& c, Pred&& p)
@@ -93,8 +89,7 @@ class SelectionHistory
 {
 #define HISTORYLENGTH 50
 public:
-	SelectionHistory(void)
-	: location(0)
+	SelectionHistory()
 	{
 		lastselected.reserve(HISTORYLENGTH);
 	}
@@ -103,7 +98,7 @@ public:
 		if (hash.IsEmpty())
 			return;
 
-		size_t size = lastselected.size();
+		const size_t size = lastselected.size();
 
 		// re-select last selected commit
 		if (size > 0 && hash == lastselected[size - 1])
@@ -157,12 +152,12 @@ public:
 	}
 private:
 	std::vector<CGitHash> lastselected;
-	size_t location;
+	size_t location = 0;
 };
 
-class CThreadSafePtrArray : public std::vector<GitRevLoglist*>
+class CThreadSafePtrArray : private std::vector<GitRevLoglist*>
 {
-	CComCriticalSection *m_critSec;
+	CComCriticalSection* m_critSec = nullptr;
 public:
 	CThreadSafePtrArray(CComCriticalSection* section) : m_critSec(section)
 	{
@@ -204,6 +199,17 @@ public:
 		Locker lock(*m_critSec);
 		clear();
 	}
+
+	using std::vector<GitRevLoglist*>::begin;
+	using std::vector<GitRevLoglist*>::end;
+	using std::vector<GitRevLoglist*>::cbegin;
+	using std::vector<GitRevLoglist*>::cend;
+	using std::vector<GitRevLoglist*>::clear;
+	using std::vector<GitRevLoglist*>::empty;
+	using std::vector<GitRevLoglist*>::erase;
+	using std::vector<GitRevLoglist*>::push_back;
+	using std::vector<GitRevLoglist*>::size;
+	using std::vector<GitRevLoglist*>::operator[];
 };
 
 class IAsyncDiffCB
@@ -248,28 +254,26 @@ public:
 			m_arShownList[0] = &m_wcRev;
 	}
 
-	volatile LONG		m_bNoDispUpdates;
-	BOOL m_IsIDReplaceAction;
-	BOOL m_IsOldFirst;
+	volatile LONG m_bNoDispUpdates = FALSE;
+	BOOL m_IsIDReplaceAction = FALSE;
+	BOOL m_IsOldFirst = FALSE;
 protected:
 	void hideFromContextMenu(unsigned __int64 hideMask, bool exclusivelyShow);
 public:
-	BOOL m_IsRebaseReplaceGraph;
-	BOOL m_bNoHightlightHead;
+	BOOL m_IsRebaseReplaceGraph = FALSE;
+	BOOL m_bNoHightlightHead = FALSE;
 
 protected:
 	void MeasureItem(LPMEASUREITEMSTRUCT lpMeasureItemStruct);
 
 public:
-	BOOL m_bShowBugtraqColumn;
-protected:
-	BOOL m_bSearchIndex;
+	BOOL m_bShowBugtraqColumn = FALSE;
 public:
-	bool m_bIsCherryPick;
-	unsigned __int64 m_ContextMenuMask;
+	bool m_bIsCherryPick = false;
+	unsigned __int64 m_ContextMenuMask = UINT64_MAX;
 
-	bool				m_hasWC;
-	bool				m_bShowWC;
+	bool				m_hasWC = true;
+	bool				m_bShowWC = false;
 protected:
 	GitRevLoglist		m_wcRev;
 public:
@@ -368,6 +372,7 @@ public:
 	ID_SHOWBRANCHES,
 	ID_BISECTSTART,
 	ID_LOG_VIEWRANGE,
+	ID_LOG_VIEWRANGE_REVERSE,
 	ID_LOG_VIEWRANGE_REACHABLEFROMONLYONE,
 	ID_MERGE_ABORT,
 	ID_CLEANUP,
@@ -378,6 +383,7 @@ public:
 	ID_BISECTSKIP,
 	ID_SVNDCOMMIT,
 	ID_COMPARETWOCOMMITCHANGES,
+	ID_TOGGLE_ROLLUP,
 	// the following can be >= 64 as those are not used for GetContextMenuBit(), all others must be < 64 in order to fit into __int64
 	ID_COPYCLIPBOARDFULL,
 	ID_COPYCLIPBOARDFULLNOPATHS,
@@ -409,7 +415,7 @@ public:
 		LOGACTIONS_REBASE_MODE_MASK	= 0x07C00000,
 	};
 	static_assert(ID_COMPARETWOCOMMITCHANGES < 64 && ID_COPYCLIPBOARDFULL <= 64, "IDs must be <64 in order to be usable in a bitfield");
-	static inline unsigned __int64 GetContextMenuBit(int i) { return unsigned __int64(0x1) << i; }
+	static constexpr unsigned __int64 GetContextMenuBit(int i) noexcept { return unsigned __int64(0x1) << i; }
 	static CString GetRebaseActionName(int action);
 	void InsertGitColumn();
 	virtual void CopySelectionToClipBoard(int toCopy = ID_COPYCLIPBOARDFULL);
@@ -424,12 +430,15 @@ public:
 protected:
 	CString MessageDisplayStr(GitRev* pLogEntry);
 	bool ShouldShowFilter(GitRevLoglist* pRev, const std::unordered_map<CGitHash, std::unordered_set<CGitHash>>& commitChildren, const MAP_HASH_NAME& hashMap);
+	bool ShouldShowAnyFilter();
+	bool ShouldShowRefsFilter(GitRevLoglist* pRev, const MAP_HASH_NAME& hashMap);
+	bool ShouldShowMergePointsFilter(GitRevLoglist* pRev, const std::unordered_map<CGitHash, std::unordered_set<CGitHash>>& commitChildren);
 public:
 	void ShowGraphColumn(bool bShow);
 	CString	GetTagInfo(GitRev* pLogEntry) const;
 	CString GetTagInfo(const STRING_VECTOR& refs) const;
 
-	CFindDlg *m_pFindDialog;
+	CFindDlg* m_pFindDialog = nullptr;
 	static const UINT	m_FindDialogMessage;
 	void OnFind();
 
@@ -445,34 +454,35 @@ public:
 	void Refresh(BOOL IsCleanFilter=TRUE);
 	void Clear();
 
-	FilterShow			m_ShowFilter;
+	FilterShow			m_ShowFilter = FILTERSHOW_ALL;
 	CLogDataVector		m_logEntries;
 
-	std::shared_ptr<CLogDlgFilter> m_LogFilter;
+	std::atomic<std::shared_ptr<CLogDlgFilter>> m_LogFilter = std::make_shared<CLogDlgFilter>();
 	CFilterData			m_Filter;
 
+	enum class RollUpState
+	{
+		Expand,			// Parents of the node should be shown even in a compressed graph
+		Collapse,		// Parents of the node should be hidden
+	};
+	using RollUpStateMap = std::unordered_map<CGitHash, RollUpState>;
+	std::atomic<std::shared_ptr<RollUpStateMap>> m_RollUpStates = std::make_shared<RollUpStateMap>();
+
 	CTGitPath			m_Path;
-	int					m_ShowMask;
+	int					m_ShowMask = 0;
 	CGitHash			m_lastSelectedHash;
 	SelectionHistory	m_selectionHistory;
 	CGitHash			m_highlight;
-	int					m_ShowRefMask;
+	int					m_ShowRefMask = LOGLIST_SHOWALLREFS;
 
 protected:
-	CGitHash			m_superProjectHash;
+	CGit::SubmoduleInfo	m_submoduleInfo;
 
 public:
 	void				GetTimeRange(CTime &oldest,CTime &latest);
 protected:
 	virtual void GetParentHashes(GitRev* pRev, GIT_REV_LIST& parentHash);
 	virtual void ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CMenu* menu, const MAP_HASH_NAME& hashMap) = 0;
-	void UpdateSubmodulePointer()
-	{
-		m_superProjectHash.Empty();
-		if (CRegDWORD(L"Software\\TortoiseGit\\LogShowSuperProjectSubmodulePointer", TRUE) != TRUE)
-			return;
-		m_superProjectHash = g_Git.GetSubmodulePointer();
-	}
 	void ReloadHashMap()
 	{
 		m_RefLabelPosMap.clear();
@@ -495,7 +505,7 @@ protected:
 		FetchRemoteList();
 		FetchTrackingBranchList();
 
-		UpdateSubmodulePointer();
+		g_Git.GetSubmodulePointer(m_submoduleInfo);
 	}
 	void StartAsyncDiffThread();
 	void StartLoadingThread();
@@ -527,12 +537,13 @@ public:
 
 	CString GetRange() const { return m_sRange; }
 
-	int					m_nSearchIndex;
+	int					m_nSearchIndex = 0;
 protected:
-	volatile LONG		m_bExitThread;
-	CWinThread*			m_LoadingThread;
+	volatile LONG		m_bExitThread = FALSE;
+	CWinThread*			m_LoadingThread = nullptr;
 public:
-	std::shared_ptr<MAP_HASH_NAME> m_HashMap;
+	std::atomic<std::shared_ptr<MAP_HASH_NAME>> m_HashMap = std::make_shared<MAP_HASH_NAME>();
+
 protected:
 	std::map<CString, std::pair<CString, CString>>	m_TrackingMap;
 
@@ -542,16 +553,17 @@ public:
 	CString				m_ColumnRegKey;
 
 protected:
-	typedef struct {
+	struct REFLABEL
+	{
 		CString name;
-		COLORREF color;
+		COLORREF color = 0;
 		CString simplifiedName;
 		CString fullName;
-		bool singleRemote;
-		bool hasTracking;
-		bool sameName;
-		CGit::REF_TYPE refType;
-	} REFLABEL;
+		bool singleRemote = false;
+		bool hasTracking = false;
+		bool sameName = false;
+		CGit::REF_TYPE refType = CGit::REF_TYPE::UNKNOWN;
+	};
 
 	DECLARE_MESSAGE_MAP()
 	afx_msg void OnDestroy();
@@ -566,8 +578,8 @@ protected:
 	virtual void OnNMDblclkLoglist(NMHDR * /*pNMHDR*/, LRESULT *pResult);
 	afx_msg void OnLvnOdfinditemLoglist(NMHDR *pNMHDR, LRESULT *pResult);
 	void PreSubclassWindow() override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
-	virtual ULONG GetGestureStatus(CPoint ptTouch) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
+	ULONG GetGestureStatus(CPoint ptTouch) override;
 	static UINT LogThreadEntry(LPVOID pVoid);
 	UINT LogThread();
 	bool IsOnStash(int index);
@@ -577,7 +589,7 @@ protected:
 	void FetchTrackingBranchList();
 
 	virtual afx_msg BOOL OnToolTipText(UINT id, NMHDR* pNMHDR, LRESULT* pResult);
-	virtual INT_PTR OnToolHitTest(CPoint point, TOOLINFO* pTI) const override;
+	INT_PTR OnToolHitTest(CPoint point, TOOLINFO* pTI) const override;
 	CString GetToolTipText(int nItem, int nSubItem);
 
 	/** Checks whether a referenfe label is under pt and returns the index/type
@@ -603,7 +615,7 @@ public:
 	static LRESULT DrawListItemWithMatches(CFilterHelper* filter, CListCtrl& listCtrl, NMLVCUSTOMDRAW* pLVCD, CColors& colors);
 
 protected:
-	void paintGraphLane(HDC hdc,int laneHeight, int type, int x1, int x2,
+	void paintGraphLane(HDC hdc, int laneHeight, Lanes::LaneType type, bool rolledUp, int x1, int x2,
 									  const COLORREF& col,const COLORREF& activeColor, int top) ;
 	void DrawLine(HDC hdc, int x1, int y1, int x2, int y2){ ::MoveToEx(hdc, x1, y1, nullptr); ::LineTo(hdc, x2, y2); }
 	/**
@@ -615,10 +627,10 @@ protected:
 
 	std::vector<GitRevLoglist*> m_AsynDiffList;
 	CComAutoCriticalSection m_AsynDiffListLock;
-	HANDLE	m_AsyncDiffEvent;
-	volatile LONG m_AsyncThreadExit;
-	CWinThread*			m_DiffingThread;
-	volatile LONG m_AsyncThreadRunning;
+	HANDLE m_AsyncDiffEvent = nullptr;
+	volatile LONG m_AsyncThreadExit = FALSE;
+	CWinThread* m_DiffingThread = nullptr;
+	volatile LONG m_AsyncThreadRunning = FALSE;
 
 public:
 	bool IsCached(GitRevLoglist* rev)
@@ -683,6 +695,7 @@ protected:
 	CAutoIcon m_hAddedIcon;
 	CAutoIcon m_hDeletedIcon;
 	CAutoIcon m_hFetchIcon;
+	CAutoIcon m_hErrorIcon;
 
 	CFont				m_Font;
 	CFont				m_boldFont;
@@ -691,35 +704,33 @@ protected:
 
 	CRegDWORD			m_regMaxBugIDColWidth;
 
-	void				*m_ProcData;
-
 	CColors				m_Colors;
 
 	CString				m_CurrentBranch;
 	CGitHash			m_HeadHash;
 
-	DWORD				m_LineWidth;
-	DWORD				m_NodeSize;
-	DWORD				m_DateFormat;	// DATE_SHORTDATE or DATE_LONGDATE
-	bool				m_bRelativeTimes;	// Show relative times
-	GIT_LOG				m_DllGitLog;
+	DWORD				m_LineWidth = 0;
+	DWORD				m_NodeSize = 0;
+	DWORD				m_DateFormat = DATE_SHORTDATE;	// DATE_SHORTDATE or DATE_LONGDATE
+	bool				m_bRelativeTimes = false;	// Show relative times
+	GIT_LOG				m_DllGitLog = nullptr;
 	CString				m_SingleRemote;
-	bool				m_bTagsBranchesOnRightSide;
-	bool				m_bFullCommitMessageOnLogLine;
-	bool				m_bSymbolizeRefNames;
-	bool				m_bIncludeBoundaryCommits;
+	bool				m_bTagsBranchesOnRightSide = false;
+	bool				m_bFullCommitMessageOnLogLine = false;
+	bool				m_bSymbolizeRefNames = false;
+	bool				m_bIncludeBoundaryCommits = false;
 
-	DWORD				m_dwDefaultColumns;
-	TCHAR               m_wszTip[8192];
+	DWORD				m_dwDefaultColumns = 0;
+	wchar_t				m_wszTip[8192];
 	char                m_szTip[8192];
 	std::map<CString, CRect> m_RefLabelPosMap; // ref name vs. label position
-	int					m_OldTopIndex;
+	int					m_OldTopIndex = -1;
 
-	bool				m_bDragndropEnabled;
-	BOOL				m_bDragging;
-	int					m_nDropIndex;
-	int					m_nDropMarkerLast;
-	int					m_nDropMarkerLastHot;
+	bool				m_bDragndropEnabled = false;
+	bool				m_bDragging = false;
+	int					m_nDropIndex = -1;
+	int					m_nDropMarkerLast = -1;
+	int					m_nDropMarkerLastHot = -1;
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnBeginDrag(NMHDR* pNMHDR, LRESULT* pResult);

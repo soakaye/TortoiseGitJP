@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseGit
+// Copyright (C) 2020, 2023 - TortoiseGit
 // Copyright (C) 2007 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -30,10 +30,10 @@ class CFindBar : public CDialog
 {
 public:
 	CFindBar();
-	~CFindBar(void);
+	~CFindBar();
 
 	void					SetParent(HWND hParent) {m_hParent = hParent;}
-	void					SetSearchString(LPCTSTR findStr);
+	void					SetSearchString(LPCWSTR findStr);
 	void					SelectSearchString();
 
 protected:
@@ -44,7 +44,7 @@ protected:
 	void					SetTheme(bool bDark);
 
 private:
-	HWND					m_hParent;
+	HWND m_hParent = nullptr;
 	CAutoIcon m_hIcon;
-	int m_themeCallbackId;
+	int m_themeCallbackId = 0;
 };

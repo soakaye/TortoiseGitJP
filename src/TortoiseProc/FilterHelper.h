@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2018-2019 - TortoiseGit
+// Copyright (C) 2018-2019, 2021, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,11 +26,11 @@ private:
 	std::vector<std::wregex> m_patterns;
 
 	/// sub-string matching info
-	enum Prefix
+	enum class Prefix
 	{
-		and,
-		or,
-		and_not,
+		And,
+		Or,
+		AndNot,
 	};
 
 	struct SCondition
@@ -56,14 +56,14 @@ private:
 	void AddSubString(CString token, Prefix prefix);
 
 	/// if false, normalize all strings to lower case before comparing them
-	bool m_bCaseSensitive;
+	bool m_bCaseSensitive = false;
 
 	/// attribute selector
 	/// (i.e. what members of GitRevLoglist shall be used for comparison)
-	DWORD m_dwAttributeSelector;
+	DWORD m_dwAttributeSelector = UINT_MAX;
 
 	/// negate pattern matching result
-	bool m_bNegate;
+	bool m_bNegate = false;
 
 protected:
 	/// temp / scratch objects to minimize the number memory

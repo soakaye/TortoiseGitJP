@@ -1,5 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2006 - Stefan Kueng
 
 // This program is free software; you can redistribute it and/or
@@ -16,13 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-#pragma once
 
+#pragma once
 #include "StandAloneDlg.h"
 #include "Watereffect.h"
 #include "Dib.h"
 #include "HyperLink.h"
-#include "StandAloneDlg.h"
 
 #define ID_EFFECTTIMER 1111
 #define ID_DROPTIMER 1112
@@ -44,8 +44,8 @@ public:
 	enum { IDD = IDD_ABOUT };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
@@ -55,6 +55,8 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
+	void LoadSVGLogoAndStartAnimation();
+
 	CWaterEffect m_waterEffect;
 	CDib m_renderSrc;
 	CDib m_renderDest;

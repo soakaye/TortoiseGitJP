@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2019, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
 //
 
 #include "stdafx.h"
+#include "resource.h"
 #include "SendMail.h"
 #include "HwSMTP.h"
 #include "MailMsg.h"
@@ -35,7 +36,7 @@ CSendMail::CSendMail(const CString& To, const CString& CC, bool bAttachment)
 {
 }
 
-CSendMail::~CSendMail(void)
+CSendMail::~CSendMail()
 {
 }
 
@@ -110,7 +111,7 @@ int CSendMail::SendMail(const CString& FromName, const CString& FromMail, const 
 	else
 	{
 		CString sender;
-		sender.Format(L"%s <%s>", static_cast<LPCTSTR>(CHwSMTP::GetEncodedHeader(FromName)), static_cast<LPCTSTR>(FromMail));
+		sender.Format(L"%s <%s>", static_cast<LPCWSTR>(CHwSMTP::GetEncodedHeader(FromName)), static_cast<LPCWSTR>(FromMail));
 
 		CHwSMTP mail;
 		if (CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\SendMail\\DeliveryType", SEND_MAIL_SMTP_CONFIGURED) == SEND_MAIL_SMTP_CONFIGURED)
@@ -180,7 +181,7 @@ int GetFileContents(CString &filename, CString &content)
 		{
 			content += str;
 			str.Empty();
-			content += L'\n';
+			content += L"\r\n";
 		}
 		return 0;
 	}

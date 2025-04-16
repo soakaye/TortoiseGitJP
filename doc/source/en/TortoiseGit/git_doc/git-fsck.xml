@@ -16,7 +16,7 @@
 <literallayout><emphasis>git fsck</emphasis> [--tags] [--root] [--unreachable] [--cache] [--no-reflogs]
          [--[no-]full] [--strict] [--verbose] [--lost-found]
          [--[no-]dangling] [--[no-]progress] [--connectivity-only]
-         [--[no-]name-objects] [&lt;object&gt;*]</literallayout>
+         [--[no-]name-objects] [&lt;object&gt;&#8230;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-fsck(1)__description">
@@ -35,7 +35,7 @@
         An object to treat as the head of an unreachability trace.
 </simpara>
 <simpara>If no objects are given, <emphasis>git fsck</emphasis> defaults to using the
-index file, all SHA-1 references in <emphasis>refs</emphasis> namespace, and all reflogs
+index file, all SHA-1 references in the <emphasis>refs</emphasis> namespace, and all reflogs
 (unless --no-reflogs is given) as heads.</simpara>
 </listitem>
 </varlistentry>
@@ -130,7 +130,7 @@ index file, all SHA-1 references in <emphasis>refs</emphasis> namespace, and all
 <simpara>
         Check only the connectivity of reachable objects, making sure
         that any objects referenced by a reachable tag, commit, or tree
-        is present. This speeds up the operation by avoiding reading
+        are present. This speeds up the operation by avoiding reading
         blobs entirely (though it does still check that referenced blobs
         exist). This will detect corruption in commits and trees, but
         not do any semantic checks (e.g., for format errors). Corruption
@@ -151,7 +151,7 @@ care about this output and want to speed it up further.</simpara>
         recorded with g+w bit set, which was created by older
         versions of Git.  Existing repositories, including the
         Linux kernel, Git itself, and sparse repository have old
-        objects that triggers this check, but it is recommended
+        objects that trigger this check, but it is recommended
         to check new projects with this flag.
 </simpara>
 </listitem>
@@ -210,6 +210,9 @@ care about this output and want to speed it up further.</simpara>
 </simplesect>
 <simplesect id="git-fsck(1)__configuration">
 <title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
 <variablelist>
 <varlistentry>
 <term>
@@ -228,12 +231,12 @@ to accept pushes of such data set <emphasis>receive.fsck.&lt;msg-id&gt;</emphasi
 to clone or fetch it set <emphasis>fetch.fsck.&lt;msg-id&gt;</emphasis>.</simpara>
 <simpara>The rest of the documentation discusses <emphasis>fsck.*</emphasis> for brevity, but the
 same applies for the corresponding <emphasis>receive.fsck.*</emphasis> and
-<emphasis>fetch.&lt;msg-id&gt;.*</emphasis>. variables.</simpara>
-<simpara>Unlike variables like <emphasis>color.ui</emphasis> and <emphasis>core.editor</emphasis> the
+<emphasis>fetch.fsck.*</emphasis>. variables.</simpara>
+<simpara>Unlike variables like <emphasis>color.ui</emphasis> and <emphasis>core.editor</emphasis>, the
 <emphasis>receive.fsck.&lt;msg-id&gt;</emphasis> and <emphasis>fetch.fsck.&lt;msg-id&gt;</emphasis> variables will not
 fall back on the <emphasis>fsck.&lt;msg-id&gt;</emphasis> configuration if they aren't set. To
-uniformly configure the same fsck settings in different circumstances
-all three of them they must all set to the same values.</simpara>
+uniformly configure the same fsck settings in different circumstances,
+all three of them must be set to the same values.</simpara>
 <simpara>When <emphasis>fsck.&lt;msg-id&gt;</emphasis> is set, errors can be switched to warnings and
 vice versa by configuring the <emphasis>fsck.&lt;msg-id&gt;</emphasis> setting where the
 <emphasis>&lt;msg-id&gt;</emphasis> is the fsck message ID and the value is one of <emphasis>error</emphasis>,
@@ -248,6 +251,8 @@ allow new instances of the same breakages go unnoticed.</simpara>
 <simpara>Setting an unknown <emphasis>fsck.&lt;msg-id&gt;</emphasis> value will cause fsck to die, but
 doing the same for <emphasis>receive.fsck.&lt;msg-id&gt;</emphasis> and <emphasis>fetch.fsck.&lt;msg-id&gt;</emphasis>
 will only cause git to warn.</simpara>
+<simpara>See the <emphasis>Fsck Messages</emphasis> section of <xref linkend="git-fsck(1)" /> for supported
+values of <emphasis>&lt;msg-id&gt;</emphasis>.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -258,12 +263,12 @@ fsck.skipList
 <simpara>
         The path to a list of object names (i.e. one unabbreviated SHA-1 per
         line) that are known to be broken in a non-fatal way and should
-        be ignored. On versions of Git 2.20 and later comments (<emphasis>#</emphasis>), empty
-        lines, and any leading and trailing whitespace is ignored. Everything
+        be ignored. On versions of Git 2.20 and later, comments (<emphasis>#</emphasis>), empty
+        lines, and any leading and trailing whitespace are ignored. Everything
         but a SHA-1 per line will error out on older versions.
 </simpara>
 <simpara>This feature is useful when an established project should be accepted
-despite early commits containing errors that can be safely ignored
+despite early commits containing errors that can be safely ignored,
 such as invalid committer email addresses.  Note: corrupt objects
 cannot be skipped with this setting.</simpara>
 <simpara>Like <emphasis>fsck.&lt;msg-id&gt;</emphasis> this variable has corresponding
@@ -271,10 +276,10 @@ cannot be skipped with this setting.</simpara>
 <simpara>Unlike variables like <emphasis>color.ui</emphasis> and <emphasis>core.editor</emphasis> the
 <emphasis>receive.fsck.skipList</emphasis> and <emphasis>fetch.fsck.skipList</emphasis> variables will not
 fall back on the <emphasis>fsck.skipList</emphasis> configuration if they aren't set. To
-uniformly configure the same fsck settings in different circumstances
-all three of them they must all set to the same values.</simpara>
+uniformly configure the same fsck settings in different circumstances,
+all three of them must be set to the same values.</simpara>
 <simpara>Older versions of Git (before 2.20) documented that the object names
-list should be sorted. This was never a requirement, the object names
+list should be sorted. This was never a requirement; the object names
 could appear in any order, but when reading the list we tracked whether
 the list was sorted for the purposes of an internal binary search
 implementation, which could save itself some work with an already sorted
@@ -348,6 +353,700 @@ hash mismatch &lt;object&gt;
         The database has an object whose hash doesn't match the
         object database value.
         This indicates a serious data integrity problem.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</simplesect>
+<simplesect id="git-fsck(1)__fsck_messages">
+<title>FSCK MESSAGES</title>
+<simpara>The following lists the types of errors <emphasis>git fsck</emphasis> detects and what
+each error means, with their default severity.  The severity of the
+error, other than those that are marked as "(FATAL)", can be tweaked
+by setting the corresponding <emphasis>fsck.&lt;msg-id&gt;</emphasis> configuration variable.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>badDate</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Invalid date format in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badDateOverflow</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Invalid date value in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badEmail</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Invalid email format in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badFilemode</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) A tree contains a bad filemode entry.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badName</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) An author/committer name is empty.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badObjectSha1</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) An object has a bad sha1.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badParentSha1</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A commit object has a bad parent sha1.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badRefContent</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A ref has bad content.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badRefFiletype</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A ref has a bad file type.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badRefName</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A ref has an invalid format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badReferentName</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) The referent name of a symref is invalid.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badTagName</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) A tag has an invalid format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badTimezone</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Found an invalid time zone in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badTree</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A tree cannot be parsed.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badTreeSha1</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A tree has an invalid format.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>badType</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Found an invalid object type.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>duplicateEntries</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A tree contains duplicate file entries.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>emptyName</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) A path contains an empty name.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>extraHeaderEntry</emphasis>
+</term>
+<listitem>
+<simpara>
+        (IGNORE) Extra headers found after <emphasis>tagger</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>fullPathname</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) A path contains the full path starting with "/".
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitattributesBlob</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A non-blob found at <emphasis>.gitattributes</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitattributesLarge</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) The <emphasis>.gitattributes</emphasis> blob is too large.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitattributesLineLength</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) The <emphasis>.gitattributes</emphasis> blob contains too long lines.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitattributesMissing</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Unable to read <emphasis>.gitattributes</emphasis> blob.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitattributesSymlink</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) <emphasis>.gitattributes</emphasis> is a symlink.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitignoreSymlink</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) <emphasis>.gitignore</emphasis> is a symlink.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesBlob</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A non-blob found at <emphasis>.gitmodules</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesLarge</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) The <emphasis>.gitmodules</emphasis> file is too large to parse.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesMissing</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Unable to read <emphasis>.gitmodules</emphasis> blob.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesName</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A submodule name is invalid.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesParse</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) Could not parse <emphasis>.gitmodules</emphasis> blob.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+<simpara><emphasis>gitmodulesLarge</emphasis>;
+        (ERROR) <emphasis>.gitmodules</emphasis> blob is too large to parse.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>gitmodulesPath</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) <emphasis>.gitmodules</emphasis> path is invalid.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesSymlink</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) <emphasis>.gitmodules</emphasis> is a symlink.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesUpdate</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Found an invalid submodule update setting.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gitmodulesUrl</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Found an invalid submodule url.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>hasDot</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) A tree contains an entry named <emphasis>.</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>hasDotdot</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) A tree contains an entry named <emphasis>..</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>hasDotgit</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) A tree contains an entry named <emphasis>.git</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>largePathname</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) A tree contains an entry with a very long path name. If
+        the value of <emphasis>fsck.largePathname</emphasis> contains a colon, that value
+        is used as the maximum allowable length (e.g., "warn:10" would
+        complain about any path component of 11 or more bytes). The
+        default value is 4096.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>mailmapSymlink</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) <emphasis>.mailmap</emphasis> is a symlink.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingAuthor</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Author is missing.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingCommitter</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Committer is missing.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingEmail</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Email is missing in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingNameBeforeEmail</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing name before an email in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingObject</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing <emphasis>object</emphasis> line in tag object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingSpaceBeforeDate</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing space before date in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingSpaceBeforeEmail</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing space before the email in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingTag</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Unexpected end after <emphasis>type</emphasis> line in a tag object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingTagEntry</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing <emphasis>tag</emphasis> line in a tag object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingTaggerEntry</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) Missing <emphasis>tagger</emphasis> line in a tag object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingTree</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing <emphasis>tree</emphasis> line in a commit object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingType</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Invalid type value on the <emphasis>type</emphasis> line in a tag object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>missingTypeEntry</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Missing <emphasis>type</emphasis> line in a tag object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>multipleAuthors</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Multiple author lines found in a commit.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>nulInCommit</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) Found a NUL byte in the commit object body.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>nulInHeader</emphasis>
+</term>
+<listitem>
+<simpara>
+        (FATAL) NUL byte exists in the object header.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>nullSha1</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) Tree contains entries pointing to a null sha1.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>refMissingNewline</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) A loose ref that does not end with newline(LF). As
+        valid implementations of Git never created such a loose ref
+        file, it may become an error in the future. Report to the
+        <ulink url="mailto:git@vger.kernel.org">git@vger.kernel.org</ulink> mailing list if you see this error, as
+        we need to know what tools created such a file.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>symlinkRef</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) A symbolic link is used as a symref. Report to the
+        <ulink url="mailto:git@vger.kernel.org">git@vger.kernel.org</ulink> mailing list if you see this error, as we
+        are assessing the feasibility of dropping the support to drop
+        creating symbolic links as symrefs.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>symrefTargetIsNotARef</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) The target of a symbolic reference points neither to
+        a root reference nor to a reference starting with "refs/".
+        Although we allow create a symref pointing to the referent which
+        is outside the "ref" by using <emphasis>git symbolic-ref</emphasis>, we may tighten
+        the rule in the future. Report to the <ulink url="mailto:git@vger.kernel.org">git@vger.kernel.org</ulink>
+        mailing list if you see this error, as we need to know what tools
+        created such a file.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>trailingRefContent</emphasis>
+</term>
+<listitem>
+<simpara>
+        (INFO) A loose ref has trailing content. As valid implementations
+        of Git never created such a loose ref file, it may become an
+        error in the future. Report to the <ulink url="mailto:git@vger.kernel.org">git@vger.kernel.org</ulink> mailing
+        list if you see this error, as we need to know what tools
+        created such a file.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>treeNotSorted</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) A tree is not properly sorted.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>unknownType</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Found an unknown object type.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>unterminatedHeader</emphasis>
+</term>
+<listitem>
+<simpara>
+        (FATAL) Missing end-of-line in the object header.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>zeroPaddedDate</emphasis>
+</term>
+<listitem>
+<simpara>
+        (ERROR) Found a zero padded date in an author/committer line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>zeroPaddedFilemode</emphasis>
+</term>
+<listitem>
+<simpara>
+        (WARN) Found a zero padded filemode in a tree.
 </simpara>
 </listitem>
 </varlistentry>

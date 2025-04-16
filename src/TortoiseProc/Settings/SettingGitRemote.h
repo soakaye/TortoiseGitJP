@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2015, 2017, 2020 - TortoiseGit
+// Copyright (C) 2008-2015, 2017, 2020, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,9 +16,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "SettingsPropPage.h"
-#include "registry.h"
 
 // CSettingGitRemote dialog
 class CSettingGitRemote : public ISettingsPropPage
@@ -45,7 +45,7 @@ public:
 	bool		m_bNoFetch;
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
@@ -64,8 +64,8 @@ protected:
 	afx_msg void OnBnClickedButtonRemove();
 	afx_msg void OnBnClickedButtonRenameRemote();
 
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL OnApply() override;
+	BOOL OnInitDialog() override;
+	BOOL OnApply() override;
 
 	BOOL IsRemoteExist(const CString& remote);
 	bool IsRemoteCollideWithRefspec(CString remote);
@@ -73,7 +73,7 @@ protected:
 	BOOL Save(CString key, CString value);
 	BOOL SaveGeneral(CString key, CString value);
 
-	int			m_ChangedMask;
+	int			m_ChangedMask = 0;
 
 	CListBox	m_ctrlRemoteList;
 	CString		m_strRemote;

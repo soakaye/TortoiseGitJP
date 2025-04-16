@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2017-2021 - TortoiseGit
+// Copyright (C) 2017-2025 - TortoiseGit
 // Copyright (C) 2003-2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -24,9 +24,6 @@
 #include "StringUtils.h"
 #include "UnicodeUtils.h"
 #include <fstream>
-#include <ShlObj.h>
-#include "git2/sys/repository.h"
-#include "scope_exit_noexcept.h"
 
 void LoadIgnorePatterns(const char* wc, GitWCRev_t* GitStat)
 {
@@ -51,6 +48,7 @@ void LoadIgnorePatterns(const char* wc, GitWCRev_t* GitStat)
 
 static std::wstring GetHomePath()
 {
+	// also see Git.cpp!
 	wchar_t* tmp;
 	if ((tmp = _wgetenv(L"HOME")) != nullptr && *tmp)
 		return tmp;
@@ -88,43 +86,58 @@ static int is_cygwin_msys2_hack_active()
 	return dwValue == 1;
 }
 
-static std::wstring GetProgramDataConfig()
+static int is_new_git_with_appdata()
 {
-	// do not use shared windows-wide system config when cygwin hack is active
-	if (is_cygwin_msys2_hack_active())
-		return {};
+	HKEY hKey;
+	DWORD dwValue = 0;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+	{
+		DWORD dwType = REG_DWORD;
+		DWORD dwSize = sizeof(dwValue);
+		RegQueryValueExW(hKey, L"git_cached_version", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+		RegCloseKey(hKey);
+	}
+	return dwValue >= (2 << 24 | 46 << 16);
+}
 
-	// Git >= 2.24 doesn't use ProgramData any more
-	if (CRegStdDWORD(L"Software\\TortoiseGit\\git_cached_version", (2 << 24 | 24 << 16)) >= (2 << 24 | 24 << 16))
-		return {};
+static std::wstring GetXDGConfigPath()
+{
+	// also see Git.cpp!
+	wchar_t* tmp;
+	if ((tmp = _wgetenv(L"XDG_CONFIG_HOME")) != nullptr && *tmp)
+		return std::wstring(tmp) + L"\\git";
 
-	PWSTR pszPath;
-	if (SHGetKnownFolderPath(FOLDERID_ProgramData, 0, nullptr, &pszPath) != S_OK)
-		return {};
+	if ((tmp = _wgetenv(L"APPDATA")) != nullptr && *tmp && !is_cygwin_msys2_hack_active() && is_new_git_with_appdata())
+	{
+		std::wstring xdgPath = std::wstring(tmp) + L"\\Git";
+		if (PathFileExists((xdgPath + L"\\config").c_str()))
+			return xdgPath;
+	}
 
-	SCOPE_EXIT { CoTaskMemFree(pszPath); };
+	if (std::wstring home = GetHomePath(); !home.empty())
+		return home + L"\\.config\\git";
 
-	if (wcslen(pszPath) >= MAX_PATH - wcslen(L"\\Git\\config"))
-		return {};
-
-	return std::wstring(pszPath) + L"\\Git\\config";
+	return {};
 }
 
 static std::wstring GetSystemGitConfig()
 {
 	HKEY hKey;
 	DWORD dwType = REG_SZ;
-	TCHAR path[MAX_PATH] = { 0 };
+	wchar_t path[MAX_PATH] = { 0 };
 	DWORD dwSize = _countof(path) - 1;
 	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
 	{
 		RegQueryValueExW(hKey, L"SystemConfig", nullptr, &dwType, reinterpret_cast<LPBYTE>(&path), &dwSize);
 		RegCloseKey(hKey);
+		std::wstring readPath{ path };
+		if (readPath.size() > wcslen(L"\\gitconfig"))
+			return readPath.substr(0, readPath.size() - wcslen(L"\\gitconfig"));
 	}
 	return path;
 }
 
-static int RepoStatus(const TCHAR* path, std::string pathA, git_repository* repo, GitWCRev_t& GitStat)
+static int RepoStatus(const wchar_t* path, std::string pathA, git_repository* repo, GitWCRev_t& GitStat)
 {
 	git_status_options git_status_options = GIT_STATUS_OPTIONS_INIT;
 	git_status_options.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
@@ -201,10 +214,10 @@ static int RepoStatus(const TCHAR* path, std::string pathA, git_repository* repo
 	return 0;
 }
 
-int GetStatusUnCleanPath(const TCHAR* wcPath, GitWCRev_t& GitStat)
+int GetStatusUnCleanPath(const wchar_t* wcPath, GitWCRev_t& GitStat)
 {
 	DWORD reqLen = GetFullPathName(wcPath, 0, nullptr, nullptr);
-	auto wcfullPath = std::make_unique<TCHAR[]>(reqLen + 1);
+	auto wcfullPath = std::make_unique<wchar_t[]>(reqLen + 1);
 	GetFullPathName(wcPath, reqLen, wcfullPath.get(), nullptr);
 	// GetFullPathName() sometimes returns the full path with the wrong
 	// case. This is not a problem on Windows since its filesystem is
@@ -216,33 +229,25 @@ int GetStatusUnCleanPath(const TCHAR* wcPath, GitWCRev_t& GitStat)
 	int shortlen = GetShortPathName(wcfullPath.get(), nullptr, 0);
 	if (shortlen)
 	{
-		auto shortPath = std::make_unique<TCHAR[]>(shortlen + 1);
+		auto shortPath = std::make_unique<wchar_t[]>(shortlen + 1);
 		if (GetShortPathName(wcfullPath.get(), shortPath.get(), shortlen + 1))
 		{
 			reqLen = GetLongPathName(shortPath.get(), nullptr, 0);
-			wcfullPath = std::make_unique<TCHAR[]>(reqLen + 1);
+			wcfullPath = std::make_unique<wchar_t[]>(reqLen + 1);
 			GetLongPathName(shortPath.get(), wcfullPath.get(), reqLen);
 		}
 	}
 	return GetStatus(wcfullPath.get(), GitStat);
 }
 
-int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
+int GetStatus(const wchar_t* path, GitWCRev_t& GitStat)
 {
 	// Configure libgit2 search paths
 	std::wstring systemConfig = GetSystemGitConfig();
-	if (!systemConfig.empty())
-		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_SYSTEM, CUnicodeUtils::StdGetUTF8(systemConfig).c_str());
-	else
-		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_SYSTEM, "");
-	std::string home(CUnicodeUtils::StdGetUTF8(GetHomePath()));
-	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, (home + "\\.gitconfig").c_str());
-	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_XDG, (home + "\\.config\\git\\config").c_str());
-	std::wstring programDataConfig = GetProgramDataConfig();
-	if (!programDataConfig.empty())
-		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_PROGRAMDATA, CUnicodeUtils::StdGetUTF8(programDataConfig).c_str());
-	else
-		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_PROGRAMDATA, "");
+	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_SYSTEM, CUnicodeUtils::StdGetUTF8(systemConfig).c_str());
+	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, CUnicodeUtils::StdGetUTF8(GetHomePath()).c_str());
+	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_XDG, CUnicodeUtils::StdGetUTF8(GetXDGConfigPath()).c_str());
+	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_PROGRAMDATA, L"");
 
 	std::string pathA = CUnicodeUtils::StdGetUTF8(path);
 	CAutoBuf dotgitdir;
@@ -256,10 +261,12 @@ int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 	if (git_repository_is_bare(repo))
 		return ERR_NOWC;
 
-	if (git_repository_head_unborn(repo))
+	if (int ret = git_repository_head_unborn(repo); ret < 0)
+		return ERR_GIT_ERR;
+	else if (ret == 1)
 	{
-		memset(GitStat.HeadHash, 0, sizeof(GitStat.HeadHash));
-		strncpy_s(GitStat.HeadHashReadable, GIT_OID_HEX_ZERO, strlen(GIT_OID_HEX_ZERO));
+		memset(GitStat.HeadHashReadable, '0', sizeof(GitStat.HeadHashReadable));
+		GitStat.HeadHashReadable[sizeof(GitStat.HeadHashReadable) - 1] = '\0';
 		GitStat.bIsUnborn = TRUE;
 
 		CAutoReference symbolicHead;
@@ -285,7 +292,6 @@ int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 		return ERR_GIT_ERR;
 
 	const git_oid* oid = git_object_id(object);
-	git_oid_cpy(reinterpret_cast<git_oid*>(GitStat.HeadHash), oid);
 	git_oid_tostr(GitStat.HeadHashReadable, sizeof(GitStat.HeadHashReadable), oid);
 
 	CAutoCommit commit;
@@ -311,12 +317,12 @@ int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 		GitStat.HeadEmail = sig->email;
 	}
 
-	struct TagPayload { git_repository* repo; GitWCRev_t& GitStat; } tagpayload = { repo, GitStat };
+	struct TagPayload { git_repository* repo; GitWCRev_t& GitStat; const git_oid* headOid; } tagpayload = { repo, GitStat, oid };
 
 	if (git_tag_foreach(repo, [](const char*, git_oid* tagoid, void* payload)
 	{
 		auto pl = reinterpret_cast<struct TagPayload*>(payload);
-		if (git_oid_cmp(tagoid, reinterpret_cast<git_oid*>(pl->GitStat.HeadHash)) == 0)
+		if (git_oid_cmp(tagoid, pl->headOid) == 0)
 		{
 			pl->GitStat.bIsTagged = TRUE;
 			return 0;
@@ -328,7 +334,7 @@ int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 		CAutoObject tagObject;
 		if (git_tag_peel(tagObject.GetPointer(), tag))
 			return -1;
-		if (git_oid_cmp(git_object_id(tagObject), reinterpret_cast<git_oid*>(pl->GitStat.HeadHash)) == 0)
+		if (git_oid_cmp(git_object_id(tagObject), pl->headOid) == 0)
 			pl->GitStat.bIsTagged = TRUE;
 
 		return 0;

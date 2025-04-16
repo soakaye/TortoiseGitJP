@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2021, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,7 +25,6 @@
 #include "Git.h"
 #include "AppUtils.h"
 #include "MessageBox.h"
-#include "UnicodeUtils.h"
 
 // CRefLogDlg dialog
 
@@ -35,8 +34,6 @@ UINT CRefLogDlg::m_FindDialogMessage = ::RegisterWindowMessage(FINDMSGSTRING);
 
 CRefLogDlg::CRefLogDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CRefLogDlg::IDD, pParent)
-	, m_pFindDialog(nullptr)
-	, m_nSearchLine(0)
 {
 }
 
@@ -64,7 +61,6 @@ END_MESSAGE_MAP()
 
 LRESULT CRefLogDlg::OnRefLogChanged(WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
-	m_RefList.m_RevCache.clear();
 	OnCbnSelchangeRef();
 	return 0;
 }
@@ -84,10 +80,9 @@ BOOL CRefLogDlg::OnInitDialog()
 
 	AddOthersToAnchor();
 	this->EnableSaveRestore(L"RefLogDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	m_ChooseRef.SetMaxHistoryItems(0x7FFFFFFF);
 
@@ -124,7 +119,7 @@ void CRefLogDlg::OnBnClickedClearStash()
 	size_t count = m_RefList.m_arShownList.size();
 	CString msg;
 	msg.Format(IDS_PROC_DELETEALLSTASH, count);
-	if (CMessageBox::Show(this->GetSafeHwnd(), msg, L"TortoiseGit", 2, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_DELETEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 1)
+	if (CMessageBox::Show(GetSafeHwnd(), msg, IDS_APPNAME, 2, IDI_QUESTION, IDS_DELETEBUTTON, IDS_ABORTBUTTON) == 1)
 	{
 		CString cmdOut;
 		if (g_Git.Run(L"git.exe stash clear", &cmdOut, CP_UTF8))
@@ -133,8 +128,6 @@ void CRefLogDlg::OnBnClickedClearStash()
 			return;
 		}
 
-		m_RefList.m_RevCache.clear();
-
 		OnCbnSelchangeRef();
 	}
 }
@@ -142,8 +135,9 @@ void CRefLogDlg::OnBnClickedClearStash()
 void CRefLogDlg::OnCbnSelchangeRef()
 {
 	m_CurrentBranch = m_ChooseRef.GetString(); // remember selected branch
+	m_RefList.m_CurrentBranch = m_CurrentBranch;
+	m_RefList.m_RevCache.clear();
 	m_RefList.ClearText();
-
 	m_RefList.SetRedraw(false);
 
 	if (CString err; GitRevLoglist::GetRefLog(m_CurrentBranch, m_RefList.m_RevCache, err))
@@ -170,13 +164,16 @@ void CRefLogDlg::OnCbnSelchangeRef()
 	if (m_CurrentBranch == L"refs/stash")
 	{
 		GetDlgItem(IDC_REFLOG_BUTTONCLEARSTASH)->ShowWindow(SW_SHOW);
-		BOOL enabled = !m_RefList.m_arShownList.empty();
+		const BOOL enabled = !m_RefList.m_arShownList.empty();
 		GetDlgItem(IDC_REFLOG_BUTTONCLEARSTASH)->EnableWindow(enabled);
 		if (!enabled)
 			GetDlgItem(IDOK)->SetFocus();
 	}
 	else
+	{
 		GetDlgItem(IDC_REFLOG_BUTTONCLEARSTASH)->ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_REFLOG_BUTTONCLEARSTASH)->EnableWindow(FALSE);
+	}
 }
 
 BOOL CRefLogDlg::PreTranslateMessage(MSG* pMsg)
@@ -224,8 +221,6 @@ void CRefLogDlg::Refresh()
 	if (!found)
 		m_ChooseRef.SetCurSel(0); /* Choose HEAD */
 
-	m_RefList.m_RevCache.clear();
-
 	OnCbnSelchangeRef();
 }
 
@@ -265,7 +260,7 @@ LRESULT CRefLogDlg::OnFindDialogMessage(WPARAM /*wParam*/, LPARAM /*lParam*/)
 		CString findString = m_pFindDialog->GetFindString();
 
 		bool bFound = false;
-		bool bCaseSensitive = !!(m_pFindDialog->MatchCase());
+		const bool bCaseSensitive = !!(m_pFindDialog->MatchCase());
 
 		if (!bCaseSensitive)
 			findString.MakeLower();

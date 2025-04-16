@@ -1,5 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2006-2007, 2010, 2013-2014, 2016, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "resource.h"
-#include <afxcmn.h>
 #include "HistoryCombo.h"
 #include "StandAloneDlg.h"
 #include "registry.h"
@@ -60,13 +61,13 @@ public:
 	};
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 	virtual void OnCancel();
 	virtual void PostNcDestroy();
 	virtual void OnOK();
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 	afx_msg void OnCbnEditchangeFindcombo();
 	afx_msg void OnBnClickedCount();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd *pWnd, UINT nCtlColor);
@@ -74,8 +75,8 @@ protected:
 	afx_msg void OnBnClickedReplaceall();
 	void SaveWindowPos(CWnd* pParent);
 private:
-	UINT			m_FindMsg;
-	bool			m_bTerminating;
+	UINT			m_FindMsg = 0;
+	bool			m_bTerminating = false;
 	bool			m_bFindNext;
 	BOOL			m_bMatchCase;
 	BOOL			m_bLimitToDiffs;
@@ -84,11 +85,11 @@ private:
 	CHistoryCombo	m_FindCombo;
 	CHistoryCombo	m_ReplaceCombo;
 	CStatic			m_FindStatus;
-	CWnd *			m_pParent;
+	CWnd*			m_pParent = nullptr;
 	CRegDWORD		m_regMatchCase;
 	CRegDWORD		m_regLimitToDiffs;
 	CRegDWORD		m_regWholeWord;
 	COLORREF		m_clrFindStatus;
 	bool			m_bReadonly;
-	int				m_id;
+	int				m_id = 0;
 };

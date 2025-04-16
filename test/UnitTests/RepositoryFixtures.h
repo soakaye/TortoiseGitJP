@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2018 - TortoiseGit
+// Copyright (C) 2015-2018, 2021, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -42,12 +42,11 @@ static bool GetResourcesDir(CString& resourcesDir)
 static void CopyRecursively(const CString& source, const CString& dest)
 {
 	CDirFileEnum finder(source);
-	bool isDir;
-	CString filepath;
-	while (finder.NextFile(filepath, &isDir))
+	while (auto file = finder.NextFile())
 	{
+		CString filepath = file->GetFilePath();
 		CString relpath = filepath.Mid(source.GetLength());
-		if (isDir)
+		if (file->IsDirectory())
 			EXPECT_TRUE(CreateDirectory(dest + relpath, nullptr));
 		else
 			EXPECT_TRUE(CopyFile(filepath, dest + relpath, false));
@@ -90,6 +89,9 @@ protected:
 		g_Git.m_IsUseLibGit2_mask = m_Git.m_IsUseLibGit2_mask;
 		// libgit relies on CWD being set to working tree
 		SetCurrentDirectory(m_Git.m_CurrentDir);
+
+		if (CGit::ms_LastMsysGitVersion == 0)
+			CGit::ms_LastMsysGitVersion = max(0, m_Git.GetGitVersion(nullptr, nullptr));
 	}
 
 	virtual void TearDown() override

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2022, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include "AppUtils.h"
 #include "SelectRemoteRefDlg.h"
 #include "MessageBox.h"
+
 // CPullFetchDlg dialog
 
 IMPLEMENT_DYNAMIC(CPullFetchDlg, CHorizontalResizableStandAloneDialog)
@@ -126,11 +127,11 @@ BOOL CPullFetchDlg::OnInitDialog()
 
 	m_RemoteReg = CRegString(L"Software\\TortoiseGit\\History\\PullRemote\\" + WorkingDir);
 	CString regkey;
-	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\PullFetch\\%s_%d\\rebase", static_cast<LPCTSTR>(WorkingDir), m_IsPull);
+	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\PullFetch\\%s_%d\\rebase", static_cast<LPCWSTR>(WorkingDir), m_IsPull);
 	m_regRebase=CRegDWORD(regkey,false);
-	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\PullFetch\\%s_%d\\ffonly", static_cast<LPCTSTR>(WorkingDir), m_IsPull);
+	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\PullFetch\\%s_%d\\ffonly", static_cast<LPCWSTR>(WorkingDir), m_IsPull);
 	m_regFFonly = CRegDWORD(regkey, false);
-	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\PullFetch\\%s_%d\\autoload", static_cast<LPCTSTR>(WorkingDir), m_IsPull);
+	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\PullFetch\\%s_%d\\autoload", static_cast<LPCWSTR>(WorkingDir), m_IsPull);
 
 	m_regAutoLoadPutty = CRegDWORD(regkey,this->m_bAutoLoad);
 	m_bAutoLoad = m_regAutoLoadPutty;
@@ -169,7 +170,7 @@ BOOL CPullFetchDlg::OnInitDialog()
 			{
 				CString value;
 				config.GetString(L"pull.rebase", value);
-				if (value == L"preserve")
+				if (value == L"merges")
 				{
 					rebase = TRUE;
 					m_bRebasePreserveMerges = true;
@@ -180,7 +181,7 @@ BOOL CPullFetchDlg::OnInitDialog()
 		{
 			CString value;
 			config.GetString(L"branch." + g_Git.GetCurrentBranch() + L".rebase", value);
-			if (value == L"preserve")
+			if (value == L"merges")
 			{
 				rebase = TRUE;
 				m_bRebasePreserveMerges = true;
@@ -238,7 +239,9 @@ BOOL CPullFetchDlg::OnInitDialog()
 	else
 	{
 		GetDlgItem(IDC_CHECK_DEPTH)->ShowWindow(SW_HIDE);
+		DialogEnableWindow(IDC_CHECK_DEPTH, FALSE);
 		GetDlgItem(IDC_EDIT_DEPTH)->ShowWindow(SW_HIDE);
+		DialogEnableWindow(IDC_EDIT_DEPTH, FALSE);
 	}
 	OnBnClickedCheckDepth();
 
@@ -277,10 +280,33 @@ void CPullFetchDlg::Refresh()
 	m_configPullRemote = pullRemote;
 	m_configPullBranch  = pullBranch;
 
-	if (pullBranch.IsEmpty())
-		m_RemoteBranch.AddString(currentBranch);
-	else
+	// determine default remote tracking branch of submodule to remote branch selection
+	CString defaultRemoteTrackingBranch;
+	if (CString parentRepoDir; CTGitPath(g_Git.m_CurrentDir).IsRegisteredSubmoduleOfParentProject(&parentRepoDir))
+	{
+		if (CAutoRepository parentRepo(parentRepoDir); parentRepo)
+		{
+			auto subModulePath = CUnicodeUtils::GetUTF8(g_Git.m_CurrentDir.Mid(parentRepoDir.GetLength() + 1));
+			subModulePath.Replace('\\', '/');
+
+			if (CAutoSubmodule subModule; !git_submodule_lookup(subModule.GetPointer(), parentRepo, subModulePath))
+			{
+				auto branch = git_submodule_branch(subModule);
+				if (branch)
+					defaultRemoteTrackingBranch = CUnicodeUtils::GetUnicode(branch);
+			}
+		}
+	}
+
+	// If both pullBranch and currentBranch are empty (i.e. detached HEAD) nothing
+	// will be added to the combo box. If pullBranch is empty and it is a submodule,
+	// its default remote tracking branch will be added.
+	if (!pullBranch.IsEmpty())
 		m_RemoteBranch.AddString(pullBranch);
+	else if (!defaultRemoteTrackingBranch.IsEmpty())
+		m_RemoteBranch.AddString(defaultRemoteTrackingBranch);
+	else
+		m_RemoteBranch.AddString(currentBranch);
 
 	if(pullRemote.IsEmpty())
 		pullRemote = m_RemoteReg;
@@ -319,25 +345,25 @@ void CPullFetchDlg::OnCbnSelchangeRemote()
 	}
 
 	CString key;
-	key.Format(L"remote.%s.tagopt", static_cast<LPCTSTR>(remote));
+	key.Format(L"remote.%s.tagopt", static_cast<LPCWSTR>(remote));
 	CString tagopt = g_Git.GetConfigValue(key);
-	if (tagopt == "--no-tags")
+	if (tagopt == L"--no-tags")
 		tagopt.LoadString(IDS_NONE);
-	else if (tagopt == "--tags")
+	else if (tagopt == L"--tags")
 		tagopt.LoadString(IDS_ALL);
 	else
 		tagopt.LoadString(IDS_FETCH_REACHABLE);
 	CString value;
-	value.Format(L"%s: %s", static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_DEFAULT))), static_cast<LPCTSTR>(tagopt));
+	value.Format(L"%s: %s", static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_DEFAULT))), static_cast<LPCWSTR>(tagopt));
 	GetDlgItem(IDC_STATIC_TAGOPT)->SetWindowText(value);
 
-	key.Format(L"remote.%s.prune", static_cast<LPCTSTR>(remote));
+	key.Format(L"remote.%s.prune", static_cast<LPCWSTR>(remote));
 	CString prune = g_Git.GetConfigValue(key);
 	if (prune.IsEmpty())
 		prune = g_Git.GetConfigValue(L"fetch.prune");
 	if (!prune.IsEmpty())
 	{
-		value.Format(L"%s: %s", static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_DEFAULT))), static_cast<LPCTSTR>(prune));
+		value.Format(L"%s: %s", static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_DEFAULT))), static_cast<LPCWSTR>(prune));
 		GetDlgItem(IDC_STATIC_PRUNE)->SetWindowText(value);
 	}
 	else
@@ -361,6 +387,7 @@ void CPullFetchDlg::OnBnClickedRd()
 	}
 	if( GetCheckedRadioButton(IDC_REMOTE_RD,IDC_OTHER_RD) == IDC_OTHER_RD)
 	{
+		// similar code in PushDlg::OnBnClickedRd
 		CString clippath = CAppUtils::GetClipboardLink(m_IsPull ? L"git pull" : L"git fetch", 1);
 		if (clippath.IsEmpty())
 			clippath = CAppUtils::GetClipboardLink(!m_IsPull ? L"git pull" : L"git fetch", 1);
@@ -372,11 +399,11 @@ void CPullFetchDlg::OnBnClickedRd()
 			if (argSeparator > 1 && clippath.GetLength() > argSeparator + 2)
 			{
 				CString url = clippath.Left(argSeparator);
-				if (url.GetLength() > 2 && url[0] == L'"' && url[url.GetLength() - 1] == L'"')
+				if (url.GetLength() > 2 && (url[0] == L'"' && url[url.GetLength() - 1] == L'"' || url[0] == L'\'' && url[url.GetLength() - 1] == L'\''))
 					url = url.Mid(1, url.GetLength() - 2);
 				m_Other.SetWindowText(url);
 				CString branch = clippath.Mid(argSeparator + 1);
-				if (branch.GetLength() > 2 && branch[0] == L'"' && branch[branch.GetLength() - 1] == L'"')
+				if (branch.GetLength() > 2 && (branch[0] == L'"' && branch[branch.GetLength() - 1] == L'"' || branch[0] == L'\'' && branch[branch.GetLength() - 1] == L'\''))
 					branch = branch.Mid(1, branch.GetLength() - 2);
 				m_RemoteBranch.SetWindowText(branch);
 			}

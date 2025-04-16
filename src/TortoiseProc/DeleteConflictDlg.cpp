@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2020, 2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -71,22 +71,34 @@ BOOL CDeleteConflictDlg::OnInitDialog()
 	{
 		this->GetDlgItem(IDC_MODIFY)->SetWindowText(CString(MAKEINTRESOURCE(IDS_SVNACTION_MODIFIED)));
 		if (m_bDiffMine)
+		{
+			DialogEnableWindow(IDC_SHOWDIFF, TRUE);
 			GetDlgItem(IDC_SHOWDIFF)->ShowWindow(SW_SHOW);
+		}
 		else
+		{
+			DialogEnableWindow(IDC_SHOWDIFF2, TRUE);
 			GetDlgItem(IDC_SHOWDIFF2)->ShowWindow(SW_SHOW);
+		}
 	}
 	else
 		this->GetDlgItem(IDC_MODIFY)->SetWindowText(CString(MAKEINTRESOURCE(IDS_PROC_CREATED)));
 	if (m_LocalRef.IsEmpty())
+	{
 		GetDlgItem(IDC_LOG)->ShowWindow(SW_HIDE);
+		DialogEnableWindow(IDC_LOG, FALSE);
+	}
 	if (m_RemoteRef.IsEmpty())
+	{
 		GetDlgItem(IDC_LOG2)->ShowWindow(SW_HIDE);
+		DialogEnableWindow(IDC_LOG2, FALSE);
+	}
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.CombinePath(m_File), sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.CombinePath(m_File));
 
 	GetDlgItem(IDC_INFOLABEL)->SetWindowText(m_File.GetGitPathString());
+
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	GetDlgItem(IDCANCEL)->SetFocus();
 
@@ -119,7 +131,7 @@ void CDeleteConflictDlg::OnBnClickedModify()
 void CDeleteConflictDlg::ShowLog(CString hash)
 {
 	CString sCmd;
-	sCmd.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCTSTR>(g_Git.CombinePath(m_File)), static_cast<LPCTSTR>(hash));
+	sCmd.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCWSTR>(g_Git.CombinePath(m_File)), static_cast<LPCWSTR>(hash));
 	CAppUtils::RunTortoiseGitProc(sCmd, false, false);
 }
 

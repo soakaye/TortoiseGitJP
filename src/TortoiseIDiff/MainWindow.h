@@ -1,6 +1,6 @@
 ﻿// TortoiseIDiff - an image diff viewer in TortoiseSVN
 
-// Copyright (C) 2015-2016 - TortoiseGit
+// Copyright (C) 2015-2016, 2023 - TortoiseGit
 // Copyright (C) 2006-2007, 2009, 2011-2013, 2015-2016, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -30,11 +30,11 @@
 #define WINDOW_MINHEIGHT 200
 #define WINDOW_MINWIDTH 200
 
-enum FileType
+enum class FileType
 {
-    FileTypeMine        = 1,
-    FileTypeTheirs      = 2,
-    FileTypeBase        = 3,
+    Mine        = 1,
+    Theirs      = 2,
+    Base        = 3,
 };
 
 /**
@@ -46,33 +46,9 @@ class CMainWindow : public CWindow
 {
 public:
     CMainWindow(HINSTANCE hInstance, const WNDCLASSEX* wcx = nullptr) : CWindow(hInstance, wcx)
-        , picWindow1(hInstance)
-        , picWindow2(hInstance)
-        , picWindow3(hInstance)
-        , oldx(-4)
-        , oldy(-4)
-        , bMoved(false)
-        , bDragMode(false)
-        , bDrag2(false)
-        , nSplitterPos(100)
-        , nSplitterPos2(200)
-        , bOverlap(false)
-        , bShowInfo(false)
-        , bVertical(false)
-        , bLinkedPositions(true)
-        , bFitWidths(false)
-        , bFitHeights(false)
         , transparentColor(::GetSysColor(COLOR_WINDOW))
-        , m_BlendType(CPicWindow::BLEND_ALPHA)
-        , hwndTB(0)
-        , hToolbarImgList(nullptr)
-        , bSelectionMode(false)
-        , m_themeCallbackId(0)
-        , resolveMsgWnd(nullptr)
-        , resolveMsgLParam(0)
-        , resolveMsgWParam(0)
     {
-        SetWindowTitle(static_cast<LPCTSTR>(ResString(hResource, IDS_APP_TITLE)));
+        SetWindowTitle(static_cast<LPCWSTR>(ResString(hResource, IDS_APP_TITLE)));
     };
 
     /**
@@ -83,11 +59,19 @@ public:
     /**
      * Sets the image path and title for the left image view.
      */
-    void SetLeft(const tstring& leftpath, const tstring& lefttitle) { leftpicpath = leftpath; leftpictitle = lefttitle; }
+    void SetLeft(const std::wstring& leftpath, const std::wstring& lefttitle)
+    {
+        leftpicpath = leftpath;
+        leftpictitle = lefttitle;
+    }
     /**
      * Sets the image path and the title for the right image view.
      */
-    void SetRight(const tstring& rightpath, const tstring& righttitle) { rightpicpath = rightpath; rightpictitle = righttitle; }
+    void SetRight(const std::wstring& rightpath, const std::wstring& righttitle)
+    {
+        rightpicpath = rightpath;
+        rightpictitle = righttitle;
+    }
 
     /**
      * Sets the image path and title for selection mode. In selection mode, the images
@@ -109,7 +93,7 @@ protected:
     /// Shows the "Open images" dialog where the user can select the images to diff
     bool                                OpenDialog();
     static BOOL CALLBACK                OpenDlgProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam);
-    static bool                         AskForFile(HWND owner, TCHAR * path);
+    static bool                         AskForFile(HWND owner, wchar_t* path);
 
     // splitter methods
     void                                DrawXorBar(HDC hdc, int x1, int y1, int width, int height);
@@ -119,43 +103,43 @@ protected:
     void                                Splitter_CaptureChanged();
 
     void                                SetTheme(bool bDark);
-    int                                 m_themeCallbackId;
+    int                                 m_themeCallbackId = 0;
     // toolbar
     bool                                CreateToolbar();
-    HWND                                hwndTB;
-    HIMAGELIST                          hToolbarImgList;
+    HWND                                hwndTB = nullptr;
+    HIMAGELIST                          hToolbarImgList = nullptr;
 
     // command line params
-    static tstring                      leftpicpath;
-    static tstring                      leftpictitle;
+    static std::wstring                 leftpicpath;
+    static std::wstring                 leftpictitle;
 
-    static tstring                      rightpicpath;
-    static tstring                      rightpictitle;
+    static std::wstring                 rightpicpath;
+    static std::wstring                 rightpictitle;
 
     // image data
-    CPicWindow                          picWindow1;
-    CPicWindow                          picWindow2;
-    CPicWindow                          picWindow3;
-    bool                                bShowInfo;
+    CPicWindow                          picWindow1 = nullptr;
+    CPicWindow                          picWindow2 = nullptr;
+    CPicWindow                          picWindow3 = nullptr;
+    bool                                bShowInfo = false;
     COLORREF                            transparentColor;
 
     // splitter data
-    int                                 oldx;
-    int                                 oldy;
-    bool                                bMoved;
-    bool                                bDragMode;
-    bool                                bDrag2;
-    int                                 nSplitterPos;
-    int                                 nSplitterPos2;
+    int                                 oldx = -4;
+    int                                 oldy = -4;
+    bool                                bMoved = false;
+    bool                                bDragMode = false;
+    bool                                bDrag2 = false;
+    int                                 nSplitterPos = 100;
+    int                                 nSplitterPos2 = 200;
 
     // one/two pane view
-    bool                                bSelectionMode;
-    bool                                bOverlap;
-    bool                                bVertical;
-    bool                                bLinkedPositions;
-    bool                                bFitWidths;
-    bool                                bFitHeights;
-    CPicWindow::BlendType               m_BlendType;
+    bool                                bSelectionMode = false;
+    bool                                bOverlap = false;
+    bool                                bVertical = false;
+    bool                                bLinkedPositions = true;
+    bool                                bFitWidths = false;
+    bool                                bFitHeights = false;
+    CPicWindow::BlendType               m_BlendType = CPicWindow::BlendType::Alpha;
 
     // selection mode data
     std::map<FileType, std::wstring>    selectionPaths;
@@ -163,8 +147,8 @@ protected:
     std::wstring                        selectionResult;
 
 public:
-    HWND			resolveMsgWnd;
-    WPARAM			resolveMsgWParam;
-    LPARAM			resolveMsgLParam;
+    HWND			resolveMsgWnd = nullptr;
+    WPARAM			resolveMsgWParam = 0;
+    LPARAM			resolveMsgLParam = 0;
 };
 

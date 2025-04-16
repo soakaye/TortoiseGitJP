@@ -13,21 +13,25 @@
 <simplesect id="git-am(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git am</emphasis> [--signoff] [--keep] [--[no-]keep-cr] [--[no-]utf8]
+<literallayout><emphasis>git am</emphasis> [--signoff] [--keep] [--[no-]keep-cr] [--[no-]utf8] [--no-verify]
          [--[no-]3way] [--interactive] [--committer-date-is-author-date]
          [--ignore-date] [--ignore-space-change | --ignore-whitespace]
-         [--whitespace=&lt;option&gt;] [-C&lt;n&gt;] [-p&lt;n&gt;] [--directory=&lt;dir&gt;]
+         [--whitespace=&lt;action&gt;] [-C&lt;n&gt;] [-p&lt;n&gt;] [--directory=&lt;dir&gt;]
          [--exclude=&lt;path&gt;] [--include=&lt;path&gt;] [--reject] [-q | --quiet]
          [--[no-]scissors] [-S[&lt;keyid&gt;]] [--patch-format=&lt;format&gt;]
+         [--quoted-cr=&lt;action&gt;]
+         [--empty=(stop|drop|keep)]
          [(&lt;mbox&gt; | &lt;Maildir&gt;)&#8230;]
-<emphasis>git am</emphasis> (--continue | --skip | --abort | --quit | --show-current-patch[=(diff|raw)])</literallayout>
+<emphasis>git am</emphasis> (--continue | --skip | --abort | --quit | --retry | --show-current-patch[=(diff|raw)] | --allow-empty)</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-am(1)__description">
 <title>DESCRIPTION</title>
-<simpara>Splits mail messages in a mailbox into commit log message,
-authorship information and patches, and applies them to the
-current branch.</simpara>
+<simpara>Splits mail messages in a mailbox into commit log messages,
+authorship information, and patches, and applies them to the
+current branch. You could think of it as a reverse operation
+of <xref linkend="git-format-patch(1)" /> run on a branch with a straight
+history without merges.</simpara>
 </simplesect>
 <simplesect id="git-am(1)__options">
 <title>OPTIONS</title>
@@ -122,6 +126,60 @@ current branch.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--quoted-cr=&lt;action&gt;
+</term>
+<listitem>
+<simpara>
+        This flag will be passed down to <emphasis>git mailinfo</emphasis> (see <xref linkend="git-mailinfo(1)" />).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--empty=(drop|keep|stop)
+</term>
+<listitem>
+<simpara>
+        How to handle an e-mail message lacking a patch:
+</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>drop</emphasis>
+</term>
+<listitem>
+<simpara>
+        The e-mail message will be skipped.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>keep</emphasis>
+</term>
+<listitem>
+<simpara>
+        An empty commit will be created, with the contents of the e-mail
+        message as its log.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>stop</emphasis>
+</term>
+<listitem>
+<simpara>
+        The command will fail, stopping in the middle of the current <emphasis>am</emphasis>
+        session. This is the default behavior.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 -m
 </term>
 <term>
@@ -172,7 +230,7 @@ current branch.</simpara>
         Pass <emphasis>-u</emphasis> flag to <emphasis>git mailinfo</emphasis> (see <xref linkend="git-mailinfo(1)" />).
         The proposed commit log message taken from the e-mail
         is re-coded into UTF-8 encoding (configuration variable
-        <emphasis>i18n.commitencoding</emphasis> can be used to specify project's
+        <emphasis>i18n.commitEncoding</emphasis> can be used to specify the project's
         preferred encoding if it is not UTF-8).
 </simpara>
 <simpara>This was optional in prior versions of git, but now it is the
@@ -220,8 +278,13 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
 </term>
 <listitem>
 <simpara>
-        Allow the rerere mechanism to update the index with the
-        result of auto-conflict resolution if possible.
+        After the rerere mechanism reuses a recorded resolution on
+        the current conflict to update the files in the working
+        tree, allow it to also update the index with the result of
+        resolution.  <emphasis>--no-rerere-autoupdate</emphasis> is a good way to
+        double-check what <emphasis>rerere</emphasis> did and catch potential
+        mismerges, before committing the result to the index with a
+        separate <emphasis>git add</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -233,7 +296,7 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
 --ignore-whitespace
 </term>
 <term>
---whitespace=&lt;option&gt;
+--whitespace=&lt;action&gt;
 </term>
 <term>
 -C&lt;n&gt;
@@ -259,6 +322,8 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
         program that applies
         the patch.
 </simpara>
+<simpara>Valid &lt;action&gt; for the <emphasis>--whitespace</emphasis> option are:
+<emphasis>nowarn</emphasis>, <emphasis>warn</emphasis>, <emphasis>fix</emphasis>, <emphasis>error</emphasis>, and <emphasis>error-all</emphasis>.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -271,7 +336,7 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
         automatically. This option allows the user to bypass the automatic
         detection and specify the patch format that the patch(es) should be
         interpreted as. Valid formats are mbox, mboxrd,
-        stgit, stgit-series and hg.
+        stgit, stgit-series, and hg.
 </simpara>
 </listitem>
 </varlistentry>
@@ -285,6 +350,21 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
 <listitem>
 <simpara>
         Run interactively.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+-n
+</term>
+<term>
+--no-verify
+</term>
+<listitem>
+<simpara>
+        By default, the pre-applypatch and applypatch-msg hooks are run.
+        When any of <emphasis>--no-verify</emphasis> or <emphasis>-n</emphasis> is given, these are bypassed.
+        See also <xref linkend="githooks(5)" />.
 </simpara>
 </listitem>
 </varlistentry>
@@ -389,6 +469,8 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
 <listitem>
 <simpara>
         Restore the original branch and abort the patching operation.
+        Revert the contents of files involved in the am operation to their
+        pre-am state.
 </simpara>
 </listitem>
 </varlistentry>
@@ -405,6 +487,19 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
 </varlistentry>
 <varlistentry>
 <term>
+--retry
+</term>
+<listitem>
+<simpara>
+        Try to apply the last conflicting patch again. This is generally
+        only useful for passing extra options to the retry attempt
+        (e.g., <emphasis>--3way</emphasis>), since otherwise you'll just see the same
+        failure again.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 --show-current-patch[=(diff|raw)]
 </term>
 <listitem>
@@ -413,6 +508,18 @@ default.   You can use <emphasis>--no-utf8</emphasis> to override this.</simpara
         conflicts.  If <emphasis>raw</emphasis> is specified, show the raw contents of
         the e-mail message; if <emphasis>diff</emphasis>, show the diff portion only.
         Defaults to <emphasis>raw</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--allow-empty
+</term>
+<listitem>
+<simpara>
+        After a patch failure on an input e-mail message lacking a patch,
+        create an empty commit with the contents of the e-mail message
+        as its log message.
 </simpara>
 </listitem>
 </varlistentry>
@@ -487,9 +594,47 @@ errors in the "From:" lines).</simpara>
 and <emphasis>post-applypatch</emphasis> hooks.  See <xref linkend="githooks(5)" /> for more
 information.</simpara>
 </simplesect>
+<simplesect id="git-am(1)__configuration">
+<title>CONFIGURATION</title>
+<simpara>Everything below this line in this section is selectively included
+from the <xref linkend="git-config(1)" /> documentation. The content is the same
+as what's found there:</simpara>
+<variablelist>
+<varlistentry>
+<term>
+am.keepcr
+</term>
+<listitem>
+<simpara>
+        If true, git-am will call git-mailsplit for patches in mbox format
+        with parameter <emphasis>--keep-cr</emphasis>. In this case git-mailsplit will
+        not remove <emphasis>\r</emphasis> from lines ending with <emphasis>\r\n</emphasis>. Can be overridden
+        by giving <emphasis>--no-keep-cr</emphasis> from the command line.
+        See <xref linkend="git-am(1)" />, <xref linkend="git-mailsplit(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+am.threeWay
+</term>
+<listitem>
+<simpara>
+        By default, <emphasis>git am</emphasis> will fail if the patch does not apply cleanly. When
+        set to true, this setting tells <emphasis>git am</emphasis> to fall back on 3-way merge if
+        the patch records the identity of blobs it is supposed to apply to and
+        we have those blobs available locally (equivalent to giving the <emphasis>--3way</emphasis>
+        option from the command line). Defaults to <emphasis>false</emphasis>.
+        See <xref linkend="git-am(1)" />.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</simplesect>
 <simplesect id="git-am(1)__see_also">
 <title>SEE ALSO</title>
-<simpara><xref linkend="git-apply(1)" />.</simpara>
+<simpara><xref linkend="git-apply(1)" />,
+<xref linkend="git-format-patch(1)" />.</simpara>
 </simplesect>
 <simplesect id="git-am(1)__git">
 <title>GIT</title>

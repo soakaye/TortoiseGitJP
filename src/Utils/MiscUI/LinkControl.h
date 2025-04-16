@@ -1,5 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2009, 2012, 2015-2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -22,20 +23,20 @@
 class CLinkControl : public CStatic
 {
 public:
-	CLinkControl(void);
-	virtual ~CLinkControl(void);
+	CLinkControl();
+	virtual ~CLinkControl();
 
 	static const UINT LK_LINKITEMCLICKED;
 
 protected:
-	virtual void PreSubclassWindow();
-	virtual BOOL OnWndMsg(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult);
+	void PreSubclassWindow() override;
+	BOOL OnWndMsg(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) override;
 
 private:
-	HCURSOR         m_hLinkCursor;                  // Cursor for hyperlink
+	HCURSOR         m_hLinkCursor = nullptr;        // Cursor for hyperlink
 	CFont           m_UnderlineFont;                // Font for underline display
 	CFont           m_NormalFont;                   // Font for default display
-	bool            m_bOverControl;                 // cursor over control?
+	bool            m_bOverControl = false;         // cursor over control?
 
 	void DrawFocusRect();
 	void ClearFocusRect();

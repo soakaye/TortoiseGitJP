@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2017 - TortoiseGit
+// Copyright (C) 2013-2017, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "stdafx.h"
+#include "TortoiseProc.h"
 #include "FetchProgressCommand.h"
 #include "AppUtils.h"
 
@@ -58,9 +59,10 @@ bool FetchProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, in
 
 	git_fetch_options fetchopts = GIT_FETCH_OPTIONS_INIT;
 	fetchopts.prune = m_Prune;
+	fetchopts.update_fetchhead = GIT_REMOTE_UPDATE_FETCHHEAD | GIT_REMOTE_UPDATE_REPORT_UNCHANGED;
 	fetchopts.download_tags = m_AutoTag;
 	git_remote_callbacks& callbacks = fetchopts.callbacks;
-	callbacks.update_tips = RemoteUpdatetipsCallback;
+	callbacks.reserved_update_tips = RemoteUpdatetipsCallback;
 	callbacks.sideband_progress = RemoteProgressCallback;
 	callbacks.transfer_progress = FetchCallback;
 	callbacks.completion = RemoteCompletionCallback;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013, 2016 - TortoiseGit
+// Copyright (C) 2013, 2016, 2023 - TortoiseGit
 // Copyright (C) 2003-2006 - Stefan Kueng
 
 // This program is free software; you can redistribute it and/or
@@ -39,10 +39,10 @@ public:
 protected:
 	CFont			m_logFont;
 
-	virtual void DoDataExchange(CDataExchange* pDX) override;
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
-	virtual void OnOK() override;
+	void DoDataExchange(CDataExchange* pDX) override;
+	BOOL OnInitDialog() override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
+	void OnOK() override;
 
 	afx_msg void OnEnChangeLogmessage();
 	DECLARE_MESSAGE_MAP()
@@ -51,8 +51,8 @@ public:
 	CString				m_sHintText;
 	CString				m_sTitle;
 	CString				m_sCheckText;
-	int					m_iCheck;
+	int					m_iCheck = 0;
 	CSciEdit			m_cInput;
-	ProjectProperties * m_pProjectProperties;
-	bool				m_bUseLogWidth;
+	ProjectProperties*	m_pProjectProperties = nullptr;
+	bool				m_bUseLogWidth = true;
 };

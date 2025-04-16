@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
 #include "GitRev.h"
 #include "TGitPath.h"
 #include "gitdll.h"
+#include "lanes.h"
 
 class CGit;
 extern CGit g_Git;
@@ -28,15 +29,15 @@ class GitRevLoglist;
 class CLogCache;
 class IAsyncDiffCB;
 
-typedef void CALL_UPDATE_DIFF_ASYNC(GitRevLoglist* pRev, IAsyncDiffCB* data);
+using CALL_UPDATE_DIFF_ASYNC = void(GitRevLoglist* pRev, IAsyncDiffCB* data);
 
 class GitRevLoglist : public GitRev
 {
 public:
 	friend class CLogCache;
 
-	GitRevLoglist(void);
-	~GitRevLoglist(void);
+	GitRevLoglist();
+	~GitRevLoglist();
 
 	class GitRevLoglistSharedFiles
 	{
@@ -80,8 +81,8 @@ public:
 	};
 
 protected:
-	int				m_RebaseAction;
-	unsigned int	m_Action;
+	int				m_RebaseAction = 0;
+	unsigned int	m_Action = 0;
 	CTGitPathList	m_Files;
 	CTGitPathList	m_UnRevFiles;
 
@@ -90,18 +91,20 @@ protected:
 public:
 	CString m_Notes;
 
-	TCHAR m_Mark;
+	wchar_t m_Mark = '\0';
+	bool m_RolledUp = false; // Parent commits up to the next merge, fork or ref are not shown
+	bool m_RolledUpIsForced = false; // for CGitLogList::ContextMenuAction()/ID_TOGGLE_ROLLUP
 	CString m_Ref; // for Refloglist
 	CString m_RefAction; // for Refloglist
 
 	// Show version tree Graphic
-	std::vector<int> m_Lanes;
+	std::vector<Lanes::LaneType> m_Lanes;
 
-	static std::shared_ptr<CGitMailmap> s_Mailmap;
+	static std::atomic<std::shared_ptr<CGitMailmap>> s_Mailmap;
 
-	volatile LONG m_IsDiffFiles;
+	volatile LONG m_IsDiffFiles = FALSE;
 
-	CALL_UPDATE_DIFF_ASYNC *m_CallDiffAsync;
+	CALL_UPDATE_DIFF_ASYNC* m_CallDiffAsync = nullptr;
 
 	int CheckAndDiff()
 	{
@@ -109,7 +112,10 @@ public:
 		{
 			int ret = 0;
 			ret = SafeFetchFullInfo(&g_Git);
-			InterlockedExchange(&m_IsDiffFiles, TRUE);
+			if (ret != 0)
+				InterlockedExchange(&m_IsDiffFiles, 2);
+			else
+				InterlockedExchange(&m_IsDiffFiles, TRUE);
 			return ret;
 		}
 		return 1;
@@ -221,12 +227,12 @@ public:
 
 	BOOL IsBoundary() const { return m_Mark == L'-'; }
 
-	virtual void Clear() override;
+	void Clear() override;
 
 	int SafeFetchFullInfo(CGit* git);
 
 	int SafeGetSimpleList(CGit* git);
-	volatile LONG m_IsSimpleListReady;
+	volatile LONG m_IsSimpleListReady = FALSE;
 	STRING_VECTOR m_SimpleFileList;  /* use for find and filter, no rename detection and line num stat info */
 
 	static int GetRefLog(const CString& ref, std::vector<GitRevLoglist>& refloglist, CString& error);

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2020, 2023 - TortoiseGit
 // Copyright (C) 2011-2013 Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
@@ -66,7 +66,7 @@ void RunTortoiseGitProcWithCurrentRev(const CString& command, const GitRev* pRev
 {
 	ASSERT(pRev);
 	CString  procCmd;
-	procCmd.Format(L"/command:%s /path:\"%s\" /rev:%s", static_cast<LPCTSTR>(command), static_cast<LPCTSTR>(path), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+	procCmd.Format(L"/command:%s /path:\"%s\" /rev:%s", static_cast<LPCWSTR>(command), static_cast<LPCWSTR>(path), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 	CCommonAppUtils::RunTortoiseGitProc(procCmd);
 }
 
@@ -152,7 +152,7 @@ void CGitBlameLogList::ContextMenuAction(int cmd, int /*FirstSelect*/, int /*Las
 		case ID_LOG:
 			{
 				CString procCmd;
-				procCmd.Format(L"/command:log /path:\"%s\" /endrev:%s /rev:%s", static_cast<LPCTSTR>(static_cast<CMainFrame*>(::AfxGetApp()->GetMainWnd())->GetActiveView()->GetDocument()->GetPathName()), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()), static_cast<LPCTSTR>(pRev->m_CommitHash.ToString()));
+				procCmd.Format(L"/command:log /path:\"%s\" /endrev:%s /rev:%s", static_cast<LPCWSTR>(static_cast<CMainFrame*>(::AfxGetApp()->GetMainWnd())->GetActiveView()->GetDocument()->GetPathName()), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()), static_cast<LPCWSTR>(pRev->m_CommitHash.ToString()));
 				CCommonAppUtils::RunTortoiseGitProc(procCmd);
 			}
 			break;
@@ -232,7 +232,7 @@ void CGitBlameLogList::GetParentNumbers(GitRevLoglist* pRev, const std::vector<C
 	}
 	catch (const char* msg)
 	{
-		MessageBox(L"Could not get files of parents.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+		MessageBox(L"Could not get files of parents.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 	}
 }
 
@@ -286,6 +286,6 @@ void CGitBlameLogList::GetParentHash(GitRevLoglist* pRev, int index, CGitHash& p
 	}
 	catch (const char* msg)
 	{
-		MessageBox(L"Could not get files of parents.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
+		MessageBox(L"Could not get files of parents.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg), L"TortoiseGit", MB_ICONERROR);
 	}
 }

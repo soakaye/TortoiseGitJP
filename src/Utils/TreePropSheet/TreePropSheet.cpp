@@ -1,6 +1,6 @@
 ﻿/********************************************************************
 *
-* Copyright (c) 2002 Sven Wiegand <mail@sven-wiegand.de>
+* Copyright (c) 2002, 2024 Sven Wiegand <mail@sven-wiegand.de>
 *
 * You can use this and modify this in any way you want,
 * BUT LEAVE THIS HEADER INTACT.
@@ -75,14 +75,7 @@ IMPLEMENT_DYNAMIC(CTreePropSheet, CPropertySheet)
 const UINT CTreePropSheet::s_unPageTreeId = 0x7EEE;
 
 CTreePropSheet::CTreePropSheet()
-:	CPropertySheet(),
-	m_bPageTreeSelChangedActive(FALSE),
-	m_bTreeViewMode(TRUE),
-	m_bPageCaption(FALSE),
-	m_bTreeImages(FALSE),
-	m_nPageTreeWidth(150),
-	m_pwndPageTree(nullptr),
-	m_pFrame(nullptr)
+:	CPropertySheet()
 {
 	m_psh.pfnCallback = PropSheetProc;
 	m_psh.dwFlags |= PSH_USECALLBACK;
@@ -90,29 +83,15 @@ CTreePropSheet::CTreePropSheet()
 
 
 CTreePropSheet::CTreePropSheet(UINT nIDCaption, CWnd* pParentWnd, UINT iSelectPage)
-:	CPropertySheet(nIDCaption, pParentWnd, iSelectPage),
-	m_bPageTreeSelChangedActive(FALSE),
-	m_bTreeViewMode(TRUE),
-	m_bPageCaption(FALSE),
-	m_bTreeImages(FALSE),
-	m_nPageTreeWidth(150),
-	m_pwndPageTree(nullptr),
-	m_pFrame(nullptr)
+:	CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
 {
 	m_psh.pfnCallback = PropSheetProc;
 	m_psh.dwFlags |= PSH_USECALLBACK;
 }
 
 
-CTreePropSheet::CTreePropSheet(LPCTSTR pszCaption, CWnd* pParentWnd, UINT iSelectPage)
-:	CPropertySheet(pszCaption, pParentWnd, iSelectPage),
-	m_bPageTreeSelChangedActive(FALSE),
-	m_bTreeViewMode(TRUE),
-	m_bPageCaption(FALSE),
-	m_bTreeImages(FALSE),
-	m_nPageTreeWidth(150),
-	m_pwndPageTree(nullptr),
-	m_pFrame(nullptr)
+CTreePropSheet::CTreePropSheet(LPCWSTR pszCaption, CWnd* pParentWnd, UINT iSelectPage)
+:	CPropertySheet(pszCaption, pParentWnd, iSelectPage)
 {
 	m_psh.pfnCallback = PropSheetProc;
 	m_psh.dwFlags |= PSH_USECALLBACK;
@@ -171,7 +150,7 @@ BOOL CTreePropSheet::SetTreeWidth(int nWidth)
 }
 
 
-void CTreePropSheet::SetEmptyPageText(LPCTSTR lpszEmptyPageText)
+void CTreePropSheet::SetEmptyPageText(LPCWSTR lpszEmptyPageText)
 {
 	m_strEmptyPageMessage = lpszEmptyPageText;
 }
@@ -275,7 +254,7 @@ BOOL CTreePropSheet::DestroyPageIcon(CPropertyPage *pPage)
 /////////////////////////////////////////////////////////////////////
 // Overridable implementation helpers
 
-CString CTreePropSheet::GenerateEmptyPageMessage(LPCTSTR lpszEmptyPageMessage, LPCTSTR lpszCaption)
+CString CTreePropSheet::GenerateEmptyPageMessage(LPCWSTR lpszEmptyPageMessage, LPCWSTR lpszCaption)
 {
 	CString	strMsg;
 	strMsg.Format(lpszEmptyPageMessage, lpszCaption);
@@ -439,7 +418,7 @@ void CTreePropSheet::RefillPageTree()
 }
 
 
-HTREEITEM CTreePropSheet::CreatePageTreeItem(LPCTSTR lpszPath, HTREEITEM hParent /* = TVI_ROOT */)
+HTREEITEM CTreePropSheet::CreatePageTreeItem(LPCWSTR lpszPath, HTREEITEM hParent /* = TVI_ROOT */)
 {
 	CString		strPath(lpszPath);
 	CString		strTopMostItem(SplitPageTreePath(strPath));
@@ -622,7 +601,7 @@ void CTreePropSheet::UpdateCaption()
 	if (!m_pFrame->GetShowCaption())
 		return;
 
-	// get tab control, to the the images from
+	// get tab control, to get the images from
 	CTabCtrl	*pTabCtrl = GetTabControl();
 	if (!IsWindow(pTabCtrl->GetSafeHwnd()))
 	{
@@ -838,8 +817,8 @@ BOOL CTreePropSheet::OnInitDialog()
 	m_pFrame->ShowCaption(m_bPageCaption);
 
 	// Lets make place for the tree ctrl
-	const int nTreeWidth = static_cast<int>(m_nPageTreeWidth * CDPIAware::Instance().ScaleFactorX());
-	const int nTreeSpace = CDPIAware::Instance().ScaleX(5);
+	const int nTreeWidth = static_cast<int>(m_nPageTreeWidth * CDPIAware::Instance().ScaleFactorX(GetSafeHwnd()));
+	const int nTreeSpace = CDPIAware::Instance().ScaleX(GetSafeHwnd() ,5);
 
 	CRect	rectSheet;
 	GetWindowRect(rectSheet);
@@ -907,7 +886,6 @@ BOOL CTreePropSheet::OnInitDialog()
 		m_pwndPageTree->SetImageList(&m_Images, TVSIL_NORMAL);
 		m_pwndPageTree->SetImageList(&m_Images, TVSIL_STATE);
 	}
-	SetWindowTheme(m_pwndPageTree->GetSafeHwnd(), L"Explorer", nullptr);
 
 	// Fill the tree ctrl
 	RefillPageTree();

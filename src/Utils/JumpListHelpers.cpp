@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2009-2013 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -23,10 +24,10 @@
 #include "propsys.h"
 #include <propkey.h>
 
-HRESULT SetAppID(LPCTSTR appID)
+HRESULT SetAppID(LPCWSTR appID)
 {
 	HRESULT hRes = S_FALSE;
-	typedef HRESULT STDAPICALLTYPE SetCurrentProcessExplicitAppUserModelIDFN(PCWSTR AppID);
+	using SetCurrentProcessExplicitAppUserModelIDFN = HRESULT(PCWSTR AppID);
 	CAutoLibrary hShell = AtlLoadSystemLibraryUsingFullPath(L"shell32.dll");
 	if (hShell)
 	{
@@ -124,7 +125,7 @@ bool IsItemInArray(IShellItem *psi, IObjectArray *poaRemoved)
 	return fRet;
 }
 
-void DeleteJumpList(LPCTSTR appID)
+void DeleteJumpList(LPCWSTR appID)
 {
 	ATL::CComPtr<ICustomDestinationList> pcdl;
 	HRESULT hr = pcdl.CoCreateInstance(CLSID_DestinationList, nullptr, CLSCTX_INPROC_SERVER);

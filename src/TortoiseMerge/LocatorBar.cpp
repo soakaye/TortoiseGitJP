@@ -1,5 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2006-2012, 2014-2015, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -30,13 +31,7 @@
 
 IMPLEMENT_DYNAMIC(CLocatorBar, CPaneDialog)
 CLocatorBar::CLocatorBar() : CPaneDialog()
-	, m_pMainFrm(nullptr)
-	, m_pCacheBitmap(nullptr)
 	, m_regUseFishEye(L"Software\\TortoiseGitMerge\\UseFishEye", TRUE)
-	, m_nLines(-1)
-	, m_minWidth(0)
-	, m_bDark(false)
-	, m_themeCallbackId(0)
 {
 	m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme()); });
 	SetTheme(CTheme::Instance().IsDarkTheme());
@@ -99,12 +94,12 @@ void CLocatorBar::DocumentUpdated(CBaseView* view, CDWordArray& indents, CDWordA
 
 	long identcount = 1;
 	const int linesInView = view->GetLineCount();
-	DiffStates state = DIFFSTATE_UNKNOWN;
+	DiffState state = DiffState::Unknown;
 	if (linesInView)
 		state = viewData->GetState(0);
 	for (int i=1; i<linesInView; i++)
 	{
-		const DiffStates lineState = viewData->GetState(view->GetViewLineForScreen(i));
+		const DiffState lineState = viewData->GetState(view->GetViewLineForScreen(i));
 		if (state == lineState)
 		{
 			identcount++;
@@ -112,13 +107,13 @@ void CLocatorBar::DocumentUpdated(CBaseView* view, CDWordArray& indents, CDWordA
 		else
 		{
 			indents.Add(identcount);
-			states.Add(state);
+			states.Add(static_cast<int>(state));
 			state = lineState;
 			identcount = 1;
 		}
 	}
 	indents.Add(identcount);
-	states.Add(state);
+	states.Add(static_cast<int>(state));
 }
 
 void CLocatorBar::SetTheme(bool bDark)
@@ -160,7 +155,7 @@ void CLocatorBar::OnPaint()
 	CBitmap *pOldBitmap = cacheDC.SelectObject(m_pCacheBitmap);
 
 	COLORREF color, color2;
-	CDiffColors::GetInstance().GetColors(DIFFSTATE_UNKNOWN, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
+	CDiffColors::GetInstance().GetColors(DiffState::Unknown, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
 	cacheDC.FillSolidRect(rect, color);
 
 	if (m_nLines)
@@ -300,8 +295,8 @@ void CLocatorBar::PaintView(CDC& cacheDC, CBaseView* view, CDWordArray& indents,
 		COLORREF color, color2;
 		const long identcount = indents.GetAt(i);
 		const DWORD state = states.GetAt(i);
-		CDiffColors::GetInstance().GetColors(static_cast<DiffStates>(state), CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
-		if (static_cast<DiffStates>(state) != DIFFSTATE_NORMAL)
+		CDiffColors::GetInstance().GetColors(static_cast<DiffState>(state), CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
+		if (static_cast<DiffState>(state) != DiffState::Normal)
 		{
 			cacheDC.FillSolidRect(rect.left + (width*stripeIndex/3), height*linecount/m_nLines,
 						barwidth, max(static_cast<int>(height * identcount / m_nLines), 1), static_cast<int>(color));
@@ -311,7 +306,7 @@ void CLocatorBar::PaintView(CDC& cacheDC, CBaseView* view, CDWordArray& indents,
 	if (view->GetMarkedWord()[0])
 	{
 		COLORREF color, color2;
-		CDiffColors::GetInstance().GetColors(DIFFSTATE_NORMAL, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
+		CDiffColors::GetInstance().GetColors(DiffState::Normal, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
 		color = CAppUtils::IntenseColor(200, color);
 		for (size_t i=0; i<view->m_arMarkedWordLines.size(); ++i)
 		{
@@ -325,7 +320,7 @@ void CLocatorBar::PaintView(CDC& cacheDC, CBaseView* view, CDWordArray& indents,
 	if (view->GetFindString()[0])
 	{
 		COLORREF color, color2;
-		CDiffColors::GetInstance().GetColors(DIFFSTATE_NORMAL, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
+		CDiffColors::GetInstance().GetColors(DiffState::Normal, CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark(), color, color2);
 		color = CAppUtils::IntenseColor(30, color);
 		for (size_t i=0; i<view->m_arFindStringLines.size(); ++i)
 		{

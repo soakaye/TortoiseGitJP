@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2016, 2020 - TortoiseGit
+// Copyright (C) 2015-2016, 2020, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,7 +25,7 @@ class CFindBar : public CStandAloneDialog
 
 public:
 	CFindBar(CWnd* pParent = nullptr);   // standard constructor
-	virtual ~CFindBar(void);
+	virtual ~CFindBar();
 
 	// Dialog Data
 	enum { IDD = IDD_FINDBAR };
@@ -45,19 +45,19 @@ public:
 	static UINT				WM_FINDRESET;
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
-	virtual BOOL OnInitDialog() override;
-	virtual void OnOK() override;
-	virtual void OnCancel() override;
+	BOOL OnInitDialog() override;
+	void OnOK() override;
+	void OnCancel() override;
 	afx_msg void OnFindTextChange();
 	afx_msg void OnFindNext();
 	afx_msg void OnFindPrev();
 	afx_msg void OnFindExit();
 
-	CAutoIcon m_hIcon;
+	CAutoIcon m_hCancelIcon;
 
 	CString					m_sFindStr;
 	BOOL					m_bMatchCase;

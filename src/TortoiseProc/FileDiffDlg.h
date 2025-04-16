@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2020, 2023-2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,16 +17,15 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "afxcmn.h"
 #include "StandAloneDlg.h"
-#include "Git.h"
 #include "GitRev.h"
 #include "TGitPath.h"
 #include "HintCtrl.h"
 #include "Colors.h"
 #include "FilterEdit.h"
-#include "ProgressDlg.h"
 #include "MenuButton.h"
 #include "ACEdit.h"
 #include "GestureEnabledControl.h"
@@ -63,10 +62,11 @@ public:
 	enum { IDD = IDD_DIFFFILES };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual void OnCancel() override;
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void OnCancel() override;
+	void OnOK() override;
+	BOOL OnInitDialog() override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg LRESULT OnRefLoad(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnNMDblclkFilelist(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnLvnGetInfoTipFilelist(NMHDR *pNMHDR, LRESULT *pResult);
@@ -102,7 +102,7 @@ protected:
 
 	void				EnableInputControl(bool b=true);
 
-	int					RevertSelectedItemToVersion(const CString& rev, bool isOldVersion);
+	int					RevertSelectedItemToVersion(const CGitHash& rev, bool isOldVersion);
 
 	bool				CheckMultipleDiffs();
 
@@ -135,13 +135,13 @@ private:
 
 	STRING_VECTOR		m_Reflist;
 
-	virtual BOOL DestroyWindow() override;
+	BOOL DestroyWindow() override;
 	void OnTextUpdate(CACEdit *pEdit);
 
 	CMenuButton			m_cRev1Btn;
 	CMenuButton			m_cRev2Btn;
 	CFilterEdit			m_cFilter;
-	std::shared_ptr<CLogDlgFileFilter> m_filter;
+	std::atomic<std::shared_ptr<CLogDlgFileFilter>> m_filter;
 
 	CMenuButton			m_cDiffOptionsBtn;
 
@@ -149,22 +149,22 @@ private:
 	CColors				m_colors;
 	CFont				m_font;
 	CGestureEnabledControlTmpl<CHintCtrl<CListCtrl>>	m_cFileList;
-	bool				m_bBlame;
+	bool				m_bBlame = false;
 	CTGitPathList		m_arFileList;
 	std::vector<const CTGitPath*> m_arFilteredList;
 
 	CString				m_strExportDir;
 
-	int					m_nIconFolder;
+	int					m_nIconFolder = 0;
 
-	bool				m_bIsBare;
+	bool				m_bIsBare = false;
 	CTGitPath			m_path;
 	GitRev				m_rev1;
 	GitRev				m_rev2;
 
-	volatile LONG		m_bThreadRunning;
+	volatile LONG		m_bThreadRunning = FALSE;
 
-	volatile LONG		m_bLoadingRef;
+	volatile LONG		m_bLoadingRef = FALSE;
 
 	void				Sort();
 	static bool			SortCompare(const CTGitPath& Data1, const CTGitPath& Data2);
@@ -175,11 +175,11 @@ private:
 	CACEdit				m_ctrRev1Edit;
 	CACEdit				m_ctrRev2Edit;
 
-	bool				m_bIgnoreSpaceAtEol;
-	bool				m_bIgnoreSpaceChange;
-	bool				m_bIgnoreAllSpace;
-	bool				m_bIgnoreBlankLines;
-	bool				m_bCommonAncestorDiff;
+	bool				m_bIgnoreSpaceAtEol = false;
+	bool				m_bIgnoreSpaceChange = false;
+	bool				m_bIgnoreAllSpace = false;
+	bool				m_bIgnoreBlankLines = false;
+	bool				m_bCommonAncestorDiff = false;
 
 	CHyperLink m_ctrlShowPatch;
 	afx_msg void OnStnClickedViewPatch();

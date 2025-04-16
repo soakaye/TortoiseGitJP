@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2009, 2012-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2008-2009, 2012-2016, 2018-2019, 2022, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,16 +16,16 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "SubmoduleCommand.h"
-
 #include "MessageBox.h"
 #include "Git.h"
-#include "ShellUpdater.h"
 #include "SubmoduleAddDlg.h"
 #include "SubmoduleUpdateDlg.h"
 #include "ProgressDlg.h"
 #include "AppUtils.h"
+#include "MassiveGitTaskBase.h"
 
 bool SubmoduleAddCommand::Execute()
 {
@@ -50,7 +50,7 @@ bool SubmoduleAddCommand::Execute()
 
 		CString branch;
 		if(dlg.m_bBranch)
-			branch.Format(L" -b %s ", static_cast<LPCTSTR>(dlg.m_strBranch));
+			branch.Format(L" -b %s ", static_cast<LPCWSTR>(dlg.m_strBranch));
 
 		CString force;
 		if (dlg.m_bForce)
@@ -60,8 +60,8 @@ bool SubmoduleAddCommand::Execute()
 		dlg.m_strRepos.Replace(L'\\', L'/');
 
 		cmd.Format(L"git.exe submodule add %s %s -- \"%s\" \"%s\"",
-						static_cast<LPCTSTR>(branch), static_cast<LPCTSTR>(force),
-						static_cast<LPCTSTR>(dlg.m_strRepos), static_cast<LPCTSTR>(dlg.m_strPath));
+						static_cast<LPCWSTR>(branch), static_cast<LPCWSTR>(force),
+						static_cast<LPCWSTR>(dlg.m_strRepos), static_cast<LPCWSTR>(dlg.m_strPath));
 
 		CProgressDlg progress;
 		progress.m_GitCmd=cmd;
@@ -159,12 +159,17 @@ bool SubmoduleUpdateCommand::Execute()
 	if (submoduleUpdateDlg.m_bRemote)
 		params += L" --remote";
 
-	for (size_t i = 0; i < submoduleUpdateDlg.m_PathList.size(); ++i)
+
+	CString cmd;
+	cmd.Format(L"submodule update%s", static_cast<LPCWSTR>(params));
+	if (!submoduleUpdateDlg.m_bAllSubmodulesSelected)
 	{
-		CString str;
-		str.Format(L"git.exe submodule update%s -- \"%s\"", static_cast<LPCTSTR>(params), static_cast<LPCTSTR>(submoduleUpdateDlg.m_PathList[i]));
-		progress.m_GitCmdList.push_back(str);
+		// If not all submodules are selected, let CMassiveGitTaskBase create the list of commands.
+		// Otherwise, there is no need to specify any submodule.
+		CMassiveGitTaskBase::ConvertToCmdList(cmd, submoduleUpdateDlg.m_PathList, progress.m_GitCmdList);
 	}
+	else
+		progress.m_GitCmdList.push_back(L"git.exe " + cmd);
 
 	progress.m_PostCmdCallback = [&](DWORD status, PostCmdList& postCmdList)
 	{
@@ -228,7 +233,7 @@ bool SubmoduleSyncCommand::Execute()
 			if (path.IsEmpty())
 				str = L"git.exe submodule sync";
 			else
-				str.Format(L"git.exe submodule sync -- \"%s\"", static_cast<LPCTSTR>(path));
+				str.Format(L"git.exe submodule sync -- \"%s\"", static_cast<LPCWSTR>(path));
 			progress.m_GitCmdList.push_back(str);
 		}
 	}

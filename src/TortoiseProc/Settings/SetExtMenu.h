@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2010, 2012, 2019 - TortoiseGit
+// Copyright (C) 2010, 2012, 2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "resource.h"
-#include "StandAloneDlg.h"
 
 class CSetExtMenu : public ISettingsPropPage
 {
@@ -35,8 +35,8 @@ public:
 	enum { IDD = IDD_SETTINGSEXTMENU };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnApply() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnApply() override;
 	afx_msg void OnLvnItemchangedMenulist(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnBnClickedSelectall();
 	afx_msg void OnBnClickedRestoreDefaults();
@@ -44,7 +44,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 
 private:
 	CRegStdDWORD			m_regExtmenu;
@@ -54,5 +54,5 @@ private:
 
 	CImageList			m_imgList;
 	CListCtrl			m_cMenuList;
-	bool				m_bBlock;
+	bool				m_bBlock = false;
 };

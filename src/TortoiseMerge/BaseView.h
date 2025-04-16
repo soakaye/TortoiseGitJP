@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2020 - TortoiseGit
+// Copyright (C) 2020, 2022-2025 - TortoiseGit
 // Copyright (C) 2003-2015, 2017-2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,8 +17,10 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include "DiffData.h"
+#include "FileTextLines.h"
+#include "WorkingFile.h"
 #include "SVNLineDiff.h"
 #include "ScrollTool.h"
 #include "Undo.h"
@@ -28,11 +30,11 @@
 #include "IconMenu.h"
 #include "FindDlg.h"
 
-typedef struct inlineDiffPos
+struct inlineDiffPos
 {
 	apr_off_t		start;
 	apr_off_t		end;
-} inlineDiffPos;
+};
 
 
 /**
@@ -47,7 +49,7 @@ class CBaseView : public CView, public CTripleClick
 	DECLARE_DYNCREATE(CBaseView)
 friend class CLineDiffBar;
 public:
-	typedef CFileTextLines::UnicodeType UnicodeType;
+	using UnicodeType = CFileTextLines::UnicodeType;
 	enum ECharGroup { // ordered by priority low-to-hi
 		CHG_UNKNOWN,
 		CHG_CONTROL, // x00-x08, x0a-x1f
@@ -138,9 +140,9 @@ public: // methods
 	void			SetInlineWordDiff(bool bWord) {m_bInlineWordDiff = bWord;}
 	void			SetInlineDiff(bool bDiff) {m_bShowInlineDiff = bDiff;}
 	void			SetMarkedWord(const CString& word) {m_sMarkedWord = word; BuildMarkedWordArray();}
-	LPCTSTR			GetMarkedWord() const { return static_cast<LPCTSTR>(m_sMarkedWord); }
+	LPCWSTR			GetMarkedWord() const { return static_cast<LPCWSTR>(m_sMarkedWord); }
 	int				GetMarkedWordCount() const { return m_MarkedWordCount; }
-	LPCTSTR			GetFindString() const { return static_cast<LPCTSTR>(m_sFindText); }
+	LPCWSTR			GetFindString() const { return static_cast<LPCWSTR>(m_sFindText); }
 
 	// Selection methods; all public methods dealing with selection go here
 	static void		ClearSelection();
@@ -157,10 +159,10 @@ public: // methods
 	void			CheckModifications(bool& hasMods, bool& hasConflicts, bool& hasWhitespaceMods, bool& hasFilteredMods);
 
 	// state classifying methods; note: state may belong to more classes
-	static bool		IsStateConflicted(DiffStates state);
-	static bool		IsStateEmpty(DiffStates state);
-	static bool		IsStateRemoved(DiffStates state);
-	static DiffStates	ResolveState(DiffStates state);
+	static bool		IsStateConflicted(DiffState state);
+	static bool		IsStateEmpty(DiffState state);
+	static bool		IsStateRemoved(DiffState state);
+	static DiffState	ResolveState(DiffState state);
 
 	bool			IsLineEmpty(int nLineIndex);
 	bool			IsViewLineEmpty(int nViewLine);
@@ -193,14 +195,14 @@ public: // methods
 	virtual void	UseViewFileExceptEdited() { UseViewFileExceptEdited(m_pwndLeft); }
 
 	// ViewData methods
-	void			InsertViewData(int index, const CString& sLine, DiffStates state, int linenumber, EOL ending, HIDESTATE hide, int movedline);
+	void			InsertViewData(int index, const CString& sLine, DiffState state, int linenumber, EOL ending, HideState hide, int movedline);
 	void			InsertViewData(int index, const viewdata& data);
 	void			RemoveViewData(int index);
 
 	const viewdata&	GetViewData(int index) const {return m_pViewData->GetData(index); }
 	const CString&	GetViewLine(int index) const {return m_pViewData->GetLine(index); }
-	DiffStates		GetViewState(int index) const {return m_pViewData->GetState(index); }
-	HIDESTATE		GetViewHideState(int index) {return m_pViewData->GetHideState(index); }
+	DiffState		GetViewState(int index) const {return m_pViewData->GetState(index); }
+	HideState		GetViewHideState(int index) {return m_pViewData->GetHideState(index); }
 	int				GetViewLineNumber(int index) {return m_pViewData->GetLineNumber(index); }
 	int				GetViewMovedIndex(int index) {return m_pViewData->GetMovedIndex(index); }
 	int				FindViewLineNumber(int number) {return m_pViewData->FindLineNumber(number); }
@@ -210,7 +212,7 @@ public: // methods
 	int				GetViewCount() const {return m_pViewData ? m_pViewData->GetCount() : -1; }
 
 	void			SetViewData(int index, const viewdata& data);
-	void			SetViewState(int index, DiffStates state);
+	void			SetViewState(int index, DiffState state);
 	void			SetViewLine(int index, const CString& sLine);
 	void			SetViewLineNumber(int index, int linenumber);
 	void			SetViewLineEnding(int index, EOL ending);
@@ -238,9 +240,9 @@ public: // methods
 	TWhitecharsProperties   GetWhitecharsProperties();
 
 public: // variables
-	CViewData *		m_pViewData;
-	CViewData *		m_pOtherViewData;
-	CBaseView *		m_pOtherView;
+	CViewData*		m_pViewData = nullptr;
+	CViewData*		m_pOtherViewData = nullptr;
+	CBaseView*		m_pOtherView = nullptr;
 
 	CString			m_sWindowName;		///< The name of the view which is shown as a window title to the user
 	CString			m_sFullFilePath;	///< The full path of the file shown
@@ -249,9 +251,9 @@ public: // variables
 
 	BOOL			m_bViewWhitespace;	///< If TRUE, then SPACE and TAB are shown as special characters
 	BOOL			m_bShowInlineDiff;	///< If TRUE, diffs in lines are marked colored
-	bool			m_bShowSelection;	///< If true, selection bars are shown and selected text darkened
-	bool			m_bWhitespaceInlineDiffs; ///< if true, inline diffs are shown for identical lines only differing in whitespace
-	int				m_nTopLine;			///< The topmost text line in the view
+	bool			m_bShowSelection = true;	///< If true, selection bars are shown and selected text darkened
+	bool			m_bWhitespaceInlineDiffs = false; ///< if true, inline diffs are shown for identical lines only differing in whitespace
+	int				m_nTopLine = 0;			///< The topmost text line in the view
 	std::vector<int> m_arMarkedWordLines;	///< which lines contain a marked word
 	std::vector<int> m_arFindStringLines;	///< which lines contain a found string
 
@@ -262,8 +264,8 @@ public: // variables
 	static CMainFrame * m_pMainFrame;	///< Pointer to the mainframe
 
 	int				m_nTabMode;
-	bool			m_bEditorConfigEnabled;
-	BOOL			m_bEditorConfigLoaded;
+	bool			m_bEditorConfigEnabled = false;
+	int				m_bEditorConfigLoaded = 2; // 2 = not evaluated
 
 	void			GoToFirstDifference();
 	void			GoToFirstConflict();
@@ -276,18 +278,19 @@ public: // variables
 	EOL				GetLineEndings(bool MixelEols);
 	void			ReplaceLineEndings(EOL);									///< Set AUTO lineending and replaces all EOLs
 	void			SetLineEndingStyle(EOL);									///< Set AUTO lineending
-	UnicodeType		GetTextType() { return m_texttype; }
+	UnicodeType		GetTextType() const { return m_texttype; }
 	void			SetTextType(UnicodeType);									///< Changes TextType
 	void			AskUserForNewLineEndingsAndTextType(int);					///< Open gui
-	int				GetTabMode() { return m_nTabMode; }
+	int				GetTabMode() const { return m_nTabMode; }
 	void			SetTabMode(int nTabMode) { m_nTabMode = nTabMode; }
-	int				GetTabSize() { return m_nTabSize; }
+	int				GetTabSize() const { return m_nTabSize; }
 	void			SetTabSize(int nTabSize) { m_nTabSize = nTabSize; }
-	bool			GetEditorConfigEnabled() { return m_bEditorConfigEnabled; }
+	bool			GetEditorConfigEnabled() const { return m_bEditorConfigEnabled; }
 	void			SetEditorConfigEnabled(bool bEditorConfigEnabled);
-	BOOL			GetEditorConfigLoaded() { return m_bEditorConfigLoaded; }
+	BOOL			GetEditorConfigLoaded() const { return m_bEditorConfigLoaded; }
 
-	CWorkingFile * m_pWorkingFile; ///< pointer to source/destination file parametrers
+	void DPIChanged();
+	CWorkingFile* m_pWorkingFile = nullptr; ///< pointer to source/destination file parametrers
 
 protected:  // methods
 	enum {
@@ -295,11 +298,11 @@ protected:  // methods
 		MOVELEFT = 1,
 	};
 
-	virtual BOOL	PreCreateWindow(CREATESTRUCT& cs);
-	virtual void	OnDraw(CDC * pDC);
-	virtual INT_PTR	OnToolHitTest(CPoint point, TOOLINFO* pTI) const;
-	virtual BOOL	PreTranslateMessage(MSG* pMsg);
-	virtual ULONG	GetGestureStatus(CPoint ptTouch) override;
+	BOOL			PreCreateWindow(CREATESTRUCT& cs) override;
+	void			OnDraw(CDC* pDC) override;
+	INT_PTR			OnToolHitTest(CPoint point, TOOLINFO* pTI) const override;
+	BOOL			PreTranslateMessage(MSG* pMsg) override;
+	ULONG			GetGestureStatus(CPoint ptTouch) override;
 	BOOL			OnToolTipNotify(UINT id, NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void	OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void	OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
@@ -323,7 +326,7 @@ protected:  // methods
 	afx_msg void	OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void	OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void	OnLButtonDblClk(UINT nFlags, CPoint point);
-	virtual void	OnLButtonTrippleClick(UINT nFlags, CPoint point) override;
+	void			OnLButtonTrippleClick(UINT nFlags, CPoint point) override;
 	afx_msg void	OnEditCopy();
 	afx_msg void	OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void	OnTimer(UINT_PTR nIDEvent);
@@ -372,7 +375,6 @@ protected:  // methods
 
 	void			ShowDiffLines(int nLine);
 
-	int				GetTabSize() const {return m_nTabSize;}
 	void			DeleteFonts();
 
 	void			CalcLineCharDim();
@@ -402,7 +404,7 @@ protected:  // methods
 	bool			IsViewLineHidden(int nViewLine);
 	static bool		IsViewLineHidden(CViewData * pViewData, int nViewLine);
 
-	void			OnContextMenu(CPoint point, DiffStates state);
+	void			OnContextMenu(CPoint point, DiffState state);
 	/**
 	 * Updates the status bar pane. Call this if the document changed.
 	 */
@@ -413,7 +415,7 @@ protected:  // methods
 	static bool		IsBottomViewGood() {return IsViewGood(m_pwndBottom);}
 
 	int				CalculateActualOffset(const POINT& point);
-	int				CalculateCharIndex(int nLineIndex, int nActualOffset);
+	int				CalculateCharIndex(int nLineIndex, int nActualOffset, bool allowEOL);
 	int				CalcColFromPoint(int xpos, int lineIndex);
 	POINT			TextToClient(const POINT& point);
 	void			DrawTextLine(CDC * pDC, const CRect &rc, int nLineIndex, POINT& coords);
@@ -457,11 +459,11 @@ protected:  // methods
 	void			UseViewFileOfMarked(CBaseView *pwndView);
 	void			UseViewFileExceptEdited(CBaseView *pwndView);
 
-	virtual void	AddContextItems(CIconMenu& popup, DiffStates state);
+	virtual void	AddContextItems(CIconMenu& popup, DiffState state);
 	void			AddCutCopyAndPaste(CIconMenu& popup);
 	void			CompensateForKeyboard(CPoint& point);
 	void			ReleaseBitmap();
-	static bool		LinesInOneChange( int direction, DiffStates firstLineState, DiffStates currentLineState );
+	static bool		LinesInOneChange(int direction, DiffState firstLineState, DiffState currentLineState );
 	static void		FilterWhitespaces(CString& first, CString& second);
 	static void		FilterWhitespaces(CString& line);
 	int				GetButtonEventLineIndex(const POINT& point);
@@ -478,54 +480,54 @@ protected:  // variables
 	COLORREF		m_InlineAddedDarkBk;
 	COLORREF		m_ModifiedDarkBk;
 	COLORREF		m_WhiteSpaceFg;
-	UINT			m_nStatusBarID;		///< The ID of the status bar pane used by this view. Must be set by the parent class.
+	UINT			m_nStatusBarID = 0;		///< The ID of the status bar pane used by this view. Must be set by the parent class.
 
 	SVNLineDiff		m_svnlinediff;
 	DWORD			m_nInlineDiffMaxLineLength;
-	BOOL			m_bOtherDiffChecked;
-	bool			m_bModified;
-	BOOL			m_bFocused;
+	BOOL			m_bOtherDiffChecked = FALSE;
+	bool			m_bModified = false;
+	BOOL			m_bFocused = FALSE;
 	BOOL			m_bViewLinenumbers;
-	BOOL			m_bIsHidden;
+	BOOL			m_bIsHidden = FALSE;
 	BOOL			m_bIconLFs;
-	int				m_nLineHeight;
-	int				m_nCharWidth;
-	int				m_nMaxLineLength;
-	int				m_nScreenLines;
-	int				m_nScreenChars;
-	int				m_nLastScreenChars;
-	int				m_nOffsetChar;
-	int				m_nTabSize;
-	int				m_nDigits;
-	bool			m_bInlineWordDiff;
+	int				m_nLineHeight = -1;
+	int				m_nCharWidth = -1;
+	int				m_nMaxLineLength = -1;
+	int				m_nScreenLines = -1;
+	int				m_nScreenChars = -1;
+	int				m_nLastScreenChars = -1;
+	int				m_nOffsetChar = 0;
+	int				m_nTabSize = 4;
+	int				m_nDigits = 0;
+	bool			m_bInlineWordDiff = true;
 
 	// Block selection attributes
-	int				m_nSelViewBlockStart;
-	int				m_nSelViewBlockEnd;
+	int				m_nSelViewBlockStart = -1;
+	int				m_nSelViewBlockEnd = -1;
 
-	int				m_nMouseLine;
-	int				m_nLDownLine;
-	bool			m_mouseInMargin;
-	HCURSOR			m_margincursor;
+	int				m_nMouseLine = -1;
+	int				m_nLDownLine = -1;
+	bool			m_mouseInMargin = false;
+	HCURSOR			m_margincursor = nullptr;
 
 	// caret
-	bool			m_bReadonly;
-	bool			m_bReadonlyIsChangable;
-	bool			m_bTarget;						///< view intended as result
-	POINT			m_ptCaretViewPos;
-	int				m_nCaretGoalPos;
+	bool			m_bReadonly = true;
+	bool			m_bReadonlyIsChangable = false;
+	bool			m_bTarget = false;						///< view intended as result
+	POINT			m_ptCaretViewPos{};
+	int				m_nCaretGoalPos = 0;
 
 	// Text selection attributes
-	POINT			m_ptSelectionViewPosStart;
-	POINT			m_ptSelectionViewPosEnd;
-	POINT			m_ptSelectionViewPosOrigin;
+	POINT			m_ptSelectionViewPosStart{};
+	POINT			m_ptSelectionViewPosEnd{};
+	POINT			m_ptSelectionViewPosOrigin{};
 
 	static const UINT m_FindDialogMessage;
-	CFindDlg *		m_pFindDialog;
+	CFindDlg*		m_pFindDialog = nullptr;
 	CString			m_sFindText;
-	BOOL			m_bMatchCase;
-	bool			m_bLimitToDiff;
-	bool			m_bWholeWord;
+	BOOL			m_bMatchCase = FALSE;
+	bool			m_bLimitToDiff = true;
+	bool			m_bWholeWord = false;
 
 
 	CAutoIcon m_hAddedIcon;
@@ -543,26 +545,26 @@ protected:  // variables
 	CAutoIcon m_hMovedIcon;
 	CAutoIcon m_hMarkedIcon;
 
-	LOGFONT			m_lfBaseFont;
+	LOGFONT			m_lfBaseFont{};
 	static const int fontsCount = 4;
 	CFont *			m_apFonts[fontsCount];
 	CString			m_sConflictedText;
 	CString			m_sNoLineNr;
 	CString			m_sMarkedWord;
 	CString			m_sPreviousMarkedWord;
-	int				m_MarkedWordCount;
+	int				m_MarkedWordCount = 0;
 
-	CBitmap *		m_pCacheBitmap;
-	CDC *			m_pDC;
+	CBitmap*		m_pCacheBitmap = nullptr;
+	CDC*			m_pDC = nullptr;
 	CScrollTool		m_ScrollTool;
 	CString			m_sWordSeparators;
-	CString			m_Eols[EOL__COUNT];
+	CString			m_Eols[static_cast<int>(EOL::_COUNT)];
 
-	UnicodeType		m_texttype;		///< the text encoding this view uses
-	EOL				m_lineendings;	///< the line endings the view uses
-	bool			m_bInsertMode;
-	bool			m_bDark;
-	int				m_themeCallbackId;
+	UnicodeType		m_texttype = CFileTextLines::UnicodeType::AUTOTYPE;		///< the text encoding this view uses
+	EOL				m_lineendings = EOL::AutoLine;	///< the line endings the view uses
+	bool			m_bInsertMode = true;
+	bool			m_bDark = false;
+	int				m_themeCallbackId = 0;
 	char			m_szTip[MAX_PATH*2+1];
 	wchar_t			m_wszTip[MAX_PATH*2+1];
 	// These three pointers lead to the three parent
@@ -622,7 +624,7 @@ protected:  // variables
 	std::vector<TScreenedViewLine> m_ScreenedViewLine; ///< cached data for screening
 
 	static allviewstate m_AllState;
-	viewstate *		m_pState;
+	viewstate*		m_pState = nullptr;
 
 	enum PopupCommands
 	{

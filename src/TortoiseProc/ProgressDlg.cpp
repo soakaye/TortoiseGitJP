@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2020, 2022-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -62,13 +62,13 @@ CProgressDlg::CProgressDlg(CWnd* pParent /*=nullptr*/)
 	switch (autoClose)
 	{
 	case 1:
-		m_AutoClose = AUTOCLOSE_IF_NO_OPTIONS;
+		m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_OPTIONS;
 		break;
 	case 2:
-		m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
+		m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
 		break;
 	default:
-		m_AutoClose = AUTOCLOSE_NO;
+		m_AutoClose = GitProgressAutoClose::AUTOCLOSE_NO;
 		break;
 	}
 }
@@ -110,7 +110,7 @@ BOOL CProgressDlg::OnInitDialog()
 	// were running elevated. It's OK to make the call all the time, since if we're
 	// not elevated, this is a no-op.
 	CHANGEFILTERSTRUCT cfs = { sizeof(CHANGEFILTERSTRUCT) };
-	typedef BOOL STDAPICALLTYPE ChangeWindowMessageFilterExDFN(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
+	using ChangeWindowMessageFilterExDFN = BOOL(STDAPICALLTYPE)(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
 	CAutoLibrary hUser = AtlLoadSystemLibraryUsingFullPath(L"user32.dll");
 	if (hUser)
 	{
@@ -132,6 +132,7 @@ BOOL CProgressDlg::OnInitDialog()
 	AddAnchor(IDC_CURRENT, TOP_LEFT);
 
 	this->GetDlgItem(IDC_PROGRESS_BUTTON1)->ShowWindow(SW_HIDE);
+	DialogEnableWindow(IDC_PROGRESS_BUTTON1, FALSE);
 	m_Animate.Open(IDR_DOWNLOAD);
 
 	SetupLogMessageViewControl();
@@ -150,6 +151,7 @@ BOOL CProgressDlg::OnInitDialog()
 		InsertColorText(this->m_Log, m_PreFailText, CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0));
 
 	EnableSaveRestore(L"ProgressDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	m_pThread = AfxBeginThread(ProgressThreadEntry, this, THREAD_PRIORITY_NORMAL, 0, CREATE_SUSPENDED);
 	if (!m_pThread)
@@ -163,9 +165,7 @@ BOOL CProgressDlg::OnInitDialog()
 		m_pThread->ResumeThread();
 	}
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, m_Git->m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, m_Git->m_CurrentDir);
 
 	// Make sure this dialog is shown in foreground (see issue #1536)
 	SetForegroundWindow();
@@ -184,7 +184,7 @@ redo:
 			goto redo;
 		}
 		else
-			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Message %d-%d could not be sent (error %d; %s)\n", wParam, lParam, GetLastError(), static_cast<LPCTSTR>(CFormatMessageWrapper()));
+			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Message %d-%d could not be sent (error %d; %s)\n", wParam, lParam, GetLastError(), static_cast<LPCWSTR>(CFormatMessageWrapper()));
 	}
 }
 
@@ -249,9 +249,9 @@ UINT CProgressDlg::RunCmdList(CWnd* pWnd, STRING_VECTOR& cmdlist, STRING_VECTOR&
 		CAutoGeneralHandle hRead;
 		int runAsyncRet = -1;
 		if (gitList.empty())
-			runAsyncRet = git->RunAsync(cmdlist[i].Trim(), &pi, hRead.GetPointer(), nullptr, pfilename);
+			runAsyncRet = git->RunAsync(cmdlist[i].Trim(), pi, hRead.GetPointer(), nullptr, pfilename);
 		else
-			runAsyncRet = gitList[i]->RunAsync(cmdlist[i].Trim(), &pi, hRead.GetPointer(), nullptr, pfilename);
+			runAsyncRet = gitList[i]->RunAsync(cmdlist[i].Trim(), pi, hRead.GetPointer(), nullptr, pfilename);
 		if (runAsyncRet)
 		{
 			EnsurePostMessage(pWnd, MSG_PROGRESSDLG_UPDATE_UI, MSG_PROGRESSDLG_FAILED, -1 * runAsyncRet);
@@ -287,25 +287,25 @@ UINT CProgressDlg::RunCmdList(CWnd* pWnd, STRING_VECTOR& cmdlist, STRING_VECTOR&
 		if (pdata)
 		{
 			pdata->m_critSec.Lock();
-			bool post = !pdata->empty();
+			const bool post = !pdata->empty();
 			pdata->m_critSec.Unlock();
 			if (post)
 				EnsurePostMessage(pWnd, MSG_PROGRESSDLG_UPDATE_UI, MSG_PROGRESSDLG_RUN, 0);
 		}
 
-		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": waiting for process to finish (%s), aborted: %d\n", static_cast<LPCTSTR>(cmdlist[i]), *bAbort);
+		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": waiting for process to finish (%s), aborted: %d\n", static_cast<LPCWSTR>(cmdlist[i]), *bAbort);
 
 		WaitForSingleObject(pi.hProcess, INFINITE);
 
 		DWORD status = 0;
 		if (!GetExitCodeProcess(pi.hProcess, &status) || *bAbort)
 		{
-			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": process %s finished, status code could not be fetched, (error %d; %s), aborted: %d\n", static_cast<LPCTSTR>(cmdlist[i]), GetLastError(), static_cast<LPCTSTR>(CFormatMessageWrapper()), *bAbort);
+			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": process %s finished, status code could not be fetched, (error %d; %s), aborted: %d\n", static_cast<LPCWSTR>(cmdlist[i]), GetLastError(), static_cast<LPCWSTR>(CFormatMessageWrapper()), *bAbort);
 
 			EnsurePostMessage(pWnd, MSG_PROGRESSDLG_UPDATE_UI, MSG_PROGRESSDLG_FAILED, status);
 			return TGIT_GIT_ERROR_GET_EXIT_CODE;
 		}
-		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": process %s finished with code %d\n", static_cast<LPCTSTR>(cmdlist[i]), status);
+		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": process %s finished with code %d\n", static_cast<LPCWSTR>(cmdlist[i]), status);
 		ret |= status;
 	}
 
@@ -355,7 +355,7 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 		{
 			m_Databuf.m_critSec.Lock();
 			m_Databuf.push_back(0);
-			m_Log.SetWindowText(Convert2UnionCode(reinterpret_cast<char*>(m_Databuf.data())));
+			m_Log.SetWindowText(Convert2UnionCode(m_Databuf.data()));
 			m_Databuf.m_critSec.Unlock();
 		}
 		m_BufStart = 0;
@@ -383,10 +383,10 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 		if (m_PostExecCallback)
 		{
 			CString extraMsg;
-			m_PostExecCallback(m_GitStatus, extraMsg);
+			m_PostExecCallback(GetSafeHwnd(), m_GitStatus, extraMsg);
 			if (!extraMsg.IsEmpty())
 			{
-				int start = m_Log.GetTextLength();
+				const int start = m_Log.GetTextLength();
 				m_Log.SetSel(start, start);
 				m_Log.ReplaceSel(extraMsg);
 			}
@@ -395,6 +395,8 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 			CString text;
 			m_Log.GetWindowText(text);
 			text.Remove('\r');
+			if (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\StyleGitOutput", TRUE)) == TRUE)
+				CAppUtils::StyleWarningsErrors(text, &m_Log);
 			CAppUtils::StyleURLs(text, &m_Log);
 		}
 
@@ -415,13 +417,13 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 			log.Format(IDS_PROC_PROGRESS_GITUNCLEANEXIT, m_GitStatus);
 			CString err;
 			if (CRegDWORD(L"Software\\TortoiseGit\\ShowGitexeTimings", TRUE))
-				err.Format(L"\r\n\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCTSTR>(log), tickSpent, static_cast<LPCTSTR>(strEndTime));
+				err.Format(L"\r\n\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCWSTR>(log), tickSpent, static_cast<LPCWSTR>(strEndTime));
 			else
-				err.Format(L"\r\n\r\n%s\r\n", static_cast<LPCTSTR>(log));
+				err.Format(L"\r\n\r\n%s\r\n", static_cast<LPCWSTR>(log));
 			if (!m_GitCmd.IsEmpty() || !m_GitCmdList.empty())
 				InsertColorText(this->m_Log, err, CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0));
 			if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
-				PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
+				PlaySound(reinterpret_cast<LPCWSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
 		}
 		else {
 			if (m_pTaskbarList)
@@ -430,9 +432,9 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 			temp.LoadString(IDS_SUCCESS);
 			CString log;
 			if (CRegDWORD(L"Software\\TortoiseGit\\ShowGitexeTimings", TRUE))
-				log.Format(L"\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCTSTR>(temp), tickSpent, static_cast<LPCTSTR>(strEndTime));
+				log.Format(L"\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCWSTR>(temp), tickSpent, static_cast<LPCWSTR>(strEndTime));
 			else
-				log.Format(L"\r\n%s\r\n", static_cast<LPCTSTR>(temp));
+				log.Format(L"\r\n%s\r\n", static_cast<LPCWSTR>(temp));
 			if (CTheme::Instance().IsHighContrastMode())
 				InsertColorText(this->m_Log, log, ::GetSysColor(COLOR_WINDOWTEXT));
 			else
@@ -455,7 +457,7 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 					{
 						++i;
 						m_ctrlPostCmd.AddEntry(entry.label, entry.icon);
-						TCHAR accellerator = CStringUtils::GetAccellerator(entry.label);
+						wchar_t accellerator = CStringUtils::GetAccellerator(entry.label);
 						if (accellerator == L'\0')
 							continue;
 						++m_accellerators[accellerator].cnt;
@@ -480,6 +482,7 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 						}
 						m_hAccel = CreateAcceleratorTable(lpaccelNew, static_cast<int>(m_accellerators.size()));
 					}
+					DialogEnableWindow(IDC_PROGRESS_BUTTON1, TRUE);
 					GetDlgItem(IDC_PROGRESS_BUTTON1)->ShowWindow(SW_SHOW);
 				}
 			}
@@ -487,7 +490,7 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 
 		if (wParam == MSG_PROGRESSDLG_END && m_GitStatus == 0)
 		{
-			if (m_AutoClose == AUTOCLOSE_IF_NO_OPTIONS && m_PostCmdList.empty() || m_AutoClose == AUTOCLOSE_IF_NO_ERRORS)
+			if (m_AutoClose == GitProgressAutoClose::AUTOCLOSE_IF_NO_OPTIONS && m_PostCmdList.empty() || m_AutoClose == GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS)
 				PostMessage(WM_COMMAND, 1, reinterpret_cast<LPARAM>(GetDlgItem(IDOK)->m_hWnd));
 		}
 	}
@@ -554,12 +557,12 @@ void CProgressDlg::ClearESC(CString& str)
 	// drop colors
 	while (true)
 	{
-		int escapePosition = str.Find(L'\033');
+		const int escapePosition = str.Find(L'\033');
 		if (escapePosition >= 0 && str.GetLength() >= escapePosition + 3)
 		{
 			if (str.Mid(escapePosition, 2) == L"\033[")
 			{
-				int colorEnd = str.Find(L'm', escapePosition + 2);
+				const int colorEnd = str.Find(L'm', escapePosition + 2);
 				if (colorEnd > 0)
 				{
 					bool found = true;
@@ -595,21 +598,20 @@ void CProgressDlg::ParserCmdOutput(CRichEditCtrl& log, CProgressCtrl& progressct
 		//		TRACE(L"End Char %s \r\n", ch == L'\r' ? L"lf" : L"");
 		//		TRACE(L"End Char %s \r\n", ch == L'\n' ? L"cr" : L"");
 
-		int lines = log.GetLineCount();
-		str.Trim();
+		const int lines = log.GetLineCount();
 		//		TRACE(L"%s", str);
 
 		ClearESC(str);
 
 		if (ch == ('\r'))
 		{
-			int start = log.LineIndex(lines - 1);
-			log.SetSel(start, log.GetTextLength());
+			const int start = log.LineIndex(lines - 1);
+			log.SetSel(start, std::min(static_cast<int>(log.GetTextLength()), start + str.GetLength()));
 			log.ReplaceSel(str);
 		}
 		else
 		{
-			int length = log.GetWindowTextLength();
+			const int length = log.GetWindowTextLength();
 			log.SetSel(length, length);
 			if (length > 0)
 				log.ReplaceSel(L"\r\n" + str);
@@ -619,20 +621,20 @@ void CProgressDlg::ParserCmdOutput(CRichEditCtrl& log, CProgressCtrl& progressct
 
 		if (lines > s_iProgressLinesLimit) //limited log length
 		{
-			int end = log.LineIndex(1);
+			const int end = log.LineIndex(1);
 			log.SetSel(0, end);
 			log.ReplaceSel(L"");
 		}
 		log.PostMessage(WM_VSCROLL, SB_BOTTOM, 0);
 
-		int s1 = str.ReverseFind(L':');
-		int s2 = str.Find(L'%');
+		const int s1 = str.ReverseFind(L':');
+		const int s2 = str.Find(L'%');
 		if (s1 > 0 && s2 > 0)
 		{
 			if (CurrentWork)
 				CurrentWork->SetWindowTextW(str.Left(s1));
 
-			int pos = ParsePercentage(str, s2);
+			const int pos = ParsePercentage(str, s2);
 			TRACE(L"Pos %d\r\n", pos);
 			if (pos > 0)
 			{
@@ -659,10 +661,10 @@ void CProgressDlg::WriteLog() const
 	{
 		logfile.AddTimeLine();
 		CString text = GetLogText();
-		LPCTSTR psz_string = text;
+		LPCWSTR psz_string = text;
 		while (*psz_string)
 		{
-			size_t i_len = wcscspn(psz_string, L"\r\n");
+			const size_t i_len = wcscspn(psz_string, L"\r\n");
 			logfile.AddLine(CString(psz_string, static_cast<int>(i_len)));
 			psz_string += i_len;
 			if (*psz_string == '\r')
@@ -786,10 +788,10 @@ void CProgressDlg::InsertColorText(CRichEditCtrl& edit, CString text, COLORREF r
 	edit.SetDefaultCharFormat(old);
 }
 
-CString CCommitProgressDlg::Convert2UnionCode(char* buff)
+CString CCommitProgressDlg::Convert2UnionCode(const char* buff)
 {
 	int start = 0;
-	int size = static_cast<int>(strlen(buff));
+	const int size = SafeSizeToInt(strlen(buff));
 
 	CString str;
 	if (g_Git.m_LogEncode != CP_UTF8)
@@ -806,10 +808,10 @@ CString CCommitProgressDlg::Convert2UnionCode(char* buff)
 			}
 		}
 
-		CGit::StringAppend(&str, buff, g_Git.m_LogEncode, start);
+		CGit::StringAppend(str, buff, g_Git.m_LogEncode, start);
 	}
 
-	CGit::StringAppend(&str, buff + start, CP_UTF8, size - start);
+	CGit::StringAppend(str, buff + start, CP_UTF8, size - start);
 
 	ClearESC(str);
 
@@ -863,7 +865,7 @@ BOOL CProgressDlg::PreTranslateMessage(MSG* pMsg)
 					popup.EnableMenuItem(WM_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
 				popup.AppendMenu(MF_SEPARATOR);
 				popup.AppendMenuIcon(EM_SETSEL, IDS_STATUSLIST_CONTEXT_COPYEXT, IDI_COPYCLIP);
-				int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, pMsg->pt.x, pMsg->pt.y, this);
+				const int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, pMsg->pt.x, pMsg->pt.y, this);
 				switch (cmd)
 				{
 				case 0: // no command selected
@@ -871,11 +873,11 @@ BOOL CProgressDlg::PreTranslateMessage(MSG* pMsg)
 				case EM_SETSEL:
 				{
 					pEdit->SetRedraw(FALSE);
-					int oldLine = pEdit->GetFirstVisibleLine();
+					const int oldLine = pEdit->GetFirstVisibleLine();
 					pEdit->SetSel(0, -1);
 					pEdit->Copy();
 					pEdit->SetSel(start, end);
-					int newLine = pEdit->GetFirstVisibleLine();
+					const int newLine = pEdit->GetFirstVisibleLine();
 					pEdit->LineScroll(oldLine - newLine);
 					pEdit->SetRedraw(TRUE);
 					pEdit->RedrawWindow();
@@ -925,7 +927,7 @@ void CProgressDlg::OnEnLinkLog(NMHDR* pNMHDR, LRESULT* pResult)
 		msg.Replace(L"\r\n", L"\n");
 		CString url = msg.Mid(pEnLink->chrg.cpMin, pEnLink->chrg.cpMax - pEnLink->chrg.cpMin);
 		// check if it's an email address
-		auto atpos = url.Find(L'@');
+		const auto atpos = url.Find(L'@');
 		if ((atpos > 0) && (url.ReverseFind(L'.') > atpos) && !::PathIsURL(url))
 			url = L"mailto:" + url;
 		if (::PathIsURL(url))
@@ -967,7 +969,7 @@ void CProgressDlg::OnEnscrollLog()
 void CProgressDlg::SetupLogMessageViewControl()
 {
 	CFont logFont;
-	CAppUtils::CreateFontForLogs(logFont);
+	CAppUtils::CreateFontForLogs(GetSafeHwnd(), logFont);
 	m_Log.SetFont(&logFont);
 	// make the log message rich edit control send a message when the mouse pointer is over a link
 	m_Log.SendMessage(EM_SETEVENTMASK, NULL, ENM_LINK | ENM_SCROLL);

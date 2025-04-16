@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,7 +26,6 @@
 #include "GitLogList.h"
 #include "MenuButton.h"
 #include "ProjectProperties.h"
-#include "AppUtils.h"
 
 // CRebaseDlg dialog
 #define IDC_REBASE_TAB 0x1000000
@@ -48,27 +47,27 @@ public:
 // Dialog Data
 	enum { IDD = IDD_REBASE };
 
-	enum REBASE_STAGE
+	enum class RebaseStage
 	{
-		CHOOSE_BRANCH,
-		CHOOSE_COMMIT_PICK_MODE,
-		REBASE_START,
-		REBASE_CONTINUE,
-		REBASE_ABORT,
-		REBASE_FINISH,
-		REBASE_CONFLICT,
-		REBASE_EDIT,
-		REBASE_SQUASH_EDIT,
-		REBASE_SQUASH_CONFLICT,
-		REBASE_DONE,
-		REBASE_ERROR,
+		Choose_Branch,
+		Choose_Commit_Pick_Mode,
+		Start,
+		Continue,
+		Abort,
+		Finish,
+		Conclict,
+		Edit,
+		Squash_Edit,
+		Squash_Conclict,
+		Done,
+		Error,
 	};
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
+	BOOL OnInitDialog() override;
 	DECLARE_MESSAGE_MAP()
-	virtual LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg LRESULT OnRebaseUpdateUI(WPARAM wParam, LPARAM lParam);
 	void SetTheme(bool bDark) override;
@@ -81,13 +80,13 @@ protected:
 	void LoadBranchInfo();
 	void FetchLogList();
 	void SetAllRebaseAction(int action);
-	void OnCancel();
+	void OnCancel() override;
 
 	CRect m_DlgOrigRect;
 	CRect m_CommitListOrigRect;
 	CString m_sStatusText;
-	bool m_bStatusWarning;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	bool m_bStatusWarning = false;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	bool LogListHasFocus(HWND hwnd);
 	bool LogListHasMenuItem(int i);
 
@@ -101,15 +100,15 @@ protected:
 	int  DoRebase();
 	afx_msg LRESULT OnGitStatusListCtrlNeedsRefresh(WPARAM, LPARAM);
 	void Refresh();
-	volatile LONG m_bThreadRunning;
-	volatile LONG m_bAbort;
+	volatile LONG m_bThreadRunning = FALSE;
+	volatile LONG m_bAbort = FALSE;
 	int  RebaseThread();
 	static UINT RebaseThreadEntry(LPVOID pVoid) { return static_cast<CRebaseDlg*>(pVoid)->RebaseThread(); };
 	BOOL IsEnd();
 
 	int IsCommitEmpty(const CGitHash& hash);
 
-	BOOL m_IsFastForward;
+	bool m_IsFastForward = false;
 
 	CGitHash m_OrigBranchHash;
 	CGitHash m_OrigUpstreamHash;
@@ -121,7 +120,7 @@ protected:
 	int VerifyNoConflict();
 
 	CString m_SquashMessage;
-	bool m_CurrentCommitEmpty;
+	bool m_CurrentCommitEmpty = false;
 	struct SquashFirstMetaData
 	{
 		CString name;
@@ -129,10 +128,7 @@ protected:
 		CTime time;
 		bool set = false;
 
-		SquashFirstMetaData()
-			: set(false)
-		{
-		}
+		SquashFirstMetaData() = default;
 
 		SquashFirstMetaData(GitRev* rev)
 			: set(true)
@@ -161,7 +157,7 @@ protected:
 			if (!set)
 				return CString();
 			CString temp;
-			temp.Format(L"%s <%s>", static_cast<LPCTSTR>(name), static_cast<LPCTSTR>(email));
+			temp.Format(L"%s <%s>", static_cast<LPCWSTR>(name), static_cast<LPCWSTR>(email));
 			return temp;
 		}
 
@@ -175,11 +171,11 @@ protected:
 				date = L"\"now\"";
 
 			CString temp;
-			temp.Format(L"--date=%s --author=\"%s\" ", static_cast<LPCTSTR>(date), static_cast<LPCTSTR>(GetAuthor()));
+			temp.Format(L"--date=%s --author=\"%s\" ", static_cast<LPCWSTR>(date), static_cast<LPCWSTR>(GetAuthor()));
 			return temp;
 		}
 	} m_SquashFirstMetaData;
-	int m_iSquashdate;
+	int m_iSquashdate = 0;
 
 	int CheckNextCommitIsSquash();
 	int GetCurrentCommitID();
@@ -200,10 +196,9 @@ protected:
 	CProgressCtrl		m_ProgressBar;
 	CStatic				m_CtrlStatusText;
 
-	BOOL				m_bForce;
 	BOOL				m_bAddCherryPickedFrom;
-	BOOL				m_bAutoSkipFailedCommit;
-	bool				m_bRebaseAutoEnd;
+	BOOL				m_bAutoSkipFailedCommit = FALSE;
+	bool				m_bRebaseAutoEnd = false;
 
 public:
 	CStringArray		m_PostButtonTexts;
@@ -213,9 +208,10 @@ public:
 	CString				m_Branch;
 	CString				m_Onto;
 
-	BOOL				m_IsCherryPick;
-	bool				m_bRebaseAutoStart;
+	bool				m_IsCherryPick = false;
+	bool				m_bRebaseAutoStart = false;
 	BOOL				m_bPreserveMerges;
+	BOOL				m_bForce;
 protected:
 	CSplitterControl	m_wndSplitter;
 	CMFCTabCtrl			m_ctrlTabCtrl;
@@ -229,9 +225,9 @@ protected:
 
 	BOOL				m_bSplitCommit;
 
-	REBASE_STAGE		m_RebaseStage;
-	bool				m_bFinishedRebase;
-	bool				m_bStashed;
+	RebaseStage			m_RebaseStage = RebaseStage::Choose_Branch;
+	bool				m_bFinishedRebase = false;
+	bool				m_bStashed = false;
 
 	std::unordered_map<CGitHash, CGitHash> m_rewrittenCommitsMap;
 	std::vector<CGitHash> m_forRewrite;
@@ -244,7 +240,7 @@ protected:
 	int StartRebase();
 	int CheckRebaseCondition();
 	void CheckRestoreStash();
-	int m_CurrentRebaseIndex;
+	int m_CurrentRebaseIndex = -1;
 	int GoNext();
 	void ResetParentForSquash(const CString& commitMessage);
 	void CleanUpRebaseActiveFolder();

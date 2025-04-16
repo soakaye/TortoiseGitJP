@@ -13,17 +13,23 @@
 <simplesect id="git-rev-parse(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git rev-parse</emphasis> [&lt;options&gt;] &lt;args&gt;&#8230;</literallayout>
+<literallayout><emphasis>git rev-parse</emphasis> [&lt;options&gt;] &lt;arg&gt;&#8230;</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-rev-parse(1)__description">
 <title>DESCRIPTION</title>
-<simpara>Many Git porcelainish commands take mixture of flags
+<simpara>Many Git porcelainish commands take a mixture of flags
 (i.e. parameters that begin with a dash <emphasis>-</emphasis>) and parameters
 meant for the underlying <emphasis>git rev-list</emphasis> command they use internally
 and flags and parameters for the other commands they use
-downstream of <emphasis>git rev-list</emphasis>.  This command is used to
-distinguish between them.</simpara>
+downstream of <emphasis>git rev-list</emphasis>.  The primary purpose of this command
+is to allow calling programs to distinguish between them.  There are
+a few other operation modes that have nothing to do with the above
+"help parse command line options".</simpara>
+<simpara>Unless otherwise specified, most of the options and operation modes
+require you to run this command inside a git repository or a working
+tree that is under the control of a git repository, and will give you
+a fatal error otherwise.</simpara>
 </simplesect>
 <simplesect id="git-rev-parse(1)__options">
 <title>OPTIONS</title>
@@ -38,6 +44,8 @@ distinguish between them.</simpara>
 <listitem>
 <simpara>
         Use <emphasis>git rev-parse</emphasis> in option parsing mode (see PARSEOPT section below).
+        The command in this mode can be used outside a repository or
+        a working tree controlled by a repository.
 </simpara>
 </listitem>
 </varlistentry>
@@ -49,7 +57,9 @@ distinguish between them.</simpara>
 <simpara>
         Use <emphasis>git rev-parse</emphasis> in shell quoting mode (see SQ-QUOTE
         section below). In contrast to the <emphasis>--sq</emphasis> option below, this
-        mode does only quoting. Nothing else is done to command input.
+        mode only does quoting. Nothing else is done to command input.
+        The command in this mode can be used outside a repository or
+        a working tree controlled by a repository.
 </simpara>
 </listitem>
 </varlistentry>
@@ -233,7 +243,7 @@ for another option.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---short[=length]
+--short[=&lt;length&gt;]
 </term>
 <listitem>
 <simpara>
@@ -290,9 +300,24 @@ for another option.</simpara>
         are not refs (i.e. branch or tag names; or more
         explicitly disambiguating "heads/master" form, when you
         want to name the "master" branch when there is an
-        unfortunately named tag "master"), and show them as full
+        unfortunately named tag "master"), and shows them as full
         refnames (e.g. "refs/heads/master").
 </simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--output-object-format=(sha1|sha256|storage)
+</term>
+<listitem>
+<simpara>
+        Allow oids to be input from any object format that the current
+        repository supports.
+</simpara>
+<literallayout class="monospaced">Specifying "sha1" translates if necessary and returns a sha1 oid.</literallayout>
+<literallayout class="monospaced">Specifying "sha256" translates if necessary and returns a sha256 oid.</literallayout>
+<literallayout class="monospaced">Specifying "storage" translates if necessary and returns an oid in
+encoded in the storage hash algorithm.</literallayout>
 </listitem>
 </varlistentry>
 </variablelist>
@@ -312,13 +337,13 @@ for another option.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---branches[=pattern]
+--branches[=&lt;pattern&gt;]
 </term>
 <term>
---tags[=pattern]
+--tags[=&lt;pattern&gt;]
 </term>
 <term>
---remotes[=pattern]
+--remotes[=&lt;pattern&gt;]
 </term>
 <listitem>
 <simpara>
@@ -333,7 +358,7 @@ shown.  If the pattern does not contain a globbing character (<emphasis>?</empha
 </varlistentry>
 <varlistentry>
 <term>
---glob=pattern
+--glob=&lt;pattern&gt;
 </term>
 <listitem>
 <simpara>
@@ -363,6 +388,21 @@ shown.  If the pattern does not contain a globbing character (<emphasis>?</empha
 respectively, and they must begin with <emphasis>refs/</emphasis> when applied to <emphasis>--glob</emphasis>
 or <emphasis>--all</emphasis>. If a trailing <emphasis>/&#42;</emphasis> is intended, it must be given
 explicitly.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--exclude-hidden=(fetch|receive|uploadpack)
+</term>
+<listitem>
+<simpara>
+        Do not include refs that would be hidden by <emphasis>git-fetch</emphasis>,
+        <emphasis>git-receive-pack</emphasis> or <emphasis>git-upload-pack</emphasis> by consulting the appropriate
+        <emphasis>fetch.hideRefs</emphasis>, <emphasis>receive.hideRefs</emphasis> or <emphasis>uploadpack.hideRefs</emphasis>
+        configuration along with <emphasis>transfer.hideRefs</emphasis> (see
+        <xref linkend="git-config(1)" />). This option affects the next pseudo-ref option
+        <emphasis>--all</emphasis> or <emphasis>--glob</emphasis> and is cleared after processing them.
+</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -398,6 +438,25 @@ explicitly.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--path-format=(absolute|relative)
+</term>
+<listitem>
+<simpara>
+        Controls the behavior of certain other options. If specified as absolute, the
+        paths printed by those options will be absolute and canonical. If specified as
+        relative, the paths will be relative to the current working directory if that
+        is possible.  The default is option specific.
+</simpara>
+<simpara>This option may be specified multiple times and affects only the arguments that
+follow it on the command line, either to the end of the command line or the next
+instance of this option.</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+<simpara>The following options are modified by <emphasis>--path-format</emphasis>:</simpara>
+<variablelist>
+<varlistentry>
+<term>
 --git-dir
 </term>
 <listitem>
@@ -413,22 +472,87 @@ print a message to stderr and exit with nonzero status.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
+--git-common-dir
+</term>
+<listitem>
+<simpara>
+        Show <emphasis>$GIT_COMMON_DIR</emphasis> if defined, else <emphasis>$GIT_DIR</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--resolve-git-dir &lt;path&gt;
+</term>
+<listitem>
+<simpara>
+        Check if &lt;path&gt; is a valid repository or a gitfile that
+        points at a valid repository, and print the location of the
+        repository.  If &lt;path&gt; is a gitfile then the resolved path
+        to the real repository is printed.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--git-path &lt;path&gt;
+</term>
+<listitem>
+<simpara>
+        Resolve "$GIT_DIR/&lt;path&gt;" and takes other path relocation
+        variables such as $GIT_OBJECT_DIRECTORY,
+        $GIT_INDEX_FILE&#8230; into account. For example, if
+        $GIT_OBJECT_DIRECTORY is set to /foo/bar then "git rev-parse
+        --git-path objects/abc" returns /foo/bar/abc.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--show-toplevel
+</term>
+<listitem>
+<simpara>
+        Show the (by default, absolute) path of the top-level directory
+        of the working tree. If there is no working tree, report an error.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--show-superproject-working-tree
+</term>
+<listitem>
+<simpara>
+        Show the absolute path of the root of the superproject's
+        working tree (if exists) that uses the current repository as
+        its submodule.  Outputs nothing if the current repository is
+        not used as a submodule by any project.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--shared-index-path
+</term>
+<listitem>
+<simpara>
+        Show the path to the shared index file in split index mode, or
+        empty if not in split-index mode.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+<simpara>The following options are unaffected by <emphasis>--path-format</emphasis>:</simpara>
+<variablelist>
+<varlistentry>
+<term>
 --absolute-git-dir
 </term>
 <listitem>
 <simpara>
         Like <emphasis>--git-dir</emphasis>, but its output is always the canonicalized
         absolute path.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
---git-common-dir
-</term>
-<listitem>
-<simpara>
-        Show <emphasis>$GIT_COMMON_DIR</emphasis> if defined, else <emphasis>$GIT_DIR</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -476,33 +600,6 @@ print a message to stderr and exit with nonzero status.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---resolve-git-dir &lt;path&gt;
-</term>
-<listitem>
-<simpara>
-        Check if &lt;path&gt; is a valid repository or a gitfile that
-        points at a valid repository, and print the location of the
-        repository.  If &lt;path&gt; is a gitfile then the resolved path
-        to the real repository is printed.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
---git-path &lt;path&gt;
-</term>
-<listitem>
-<simpara>
-        Resolve "$GIT_DIR/&lt;path&gt;" and takes other path relocation
-        variables such as $GIT_OBJECT_DIRECTORY,
-        $GIT_INDEX_FILE&#8230; into account. For example, if
-        $GIT_OBJECT_DIRECTORY is set to /foo/bar then "git rev-parse
-        --git-path objects/abc" returns /foo/bar/abc.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 --show-cdup
 </term>
 <listitem>
@@ -527,41 +624,6 @@ print a message to stderr and exit with nonzero status.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---show-toplevel
-</term>
-<listitem>
-<simpara>
-        Show the absolute path of the top-level directory of the working
-        tree. If there is no working tree, report an error.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
---show-superproject-working-tree
-</term>
-<listitem>
-<simpara>
-        Show the absolute path of the root of the superproject's
-        working tree (if exists) that uses the current repository as
-        its submodule.  Outputs nothing if the current repository is
-        not used as a submodule by any project.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
---shared-index-path
-</term>
-<listitem>
-<simpara>
-        Show the path to the shared index file in split index mode, or
-        empty if not in split-index mode.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 --show-object-format[=(storage|input|output)]
 </term>
 <listitem>
@@ -573,6 +635,16 @@ print a message to stderr and exit with nonzero status.</simpara>
 </simpara>
 </listitem>
 </varlistentry>
+<varlistentry>
+<term>
+--show-ref-format
+</term>
+<listitem>
+<simpara>
+        Show the reference storage format used for the repository.
+</simpara>
+</listitem>
+</varlistentry>
 </variablelist>
 </section>
 <section id="git-rev-parse(1)__other_options">
@@ -580,10 +652,10 @@ print a message to stderr and exit with nonzero status.</simpara>
 <variablelist>
 <varlistentry>
 <term>
---since=datestring
+--since=&lt;datestring&gt;
 </term>
 <term>
---after=datestring
+--after=&lt;datestring&gt;
 </term>
 <listitem>
 <simpara>
@@ -594,10 +666,10 @@ print a message to stderr and exit with nonzero status.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---until=datestring
+--until=&lt;datestring&gt;
 </term>
 <term>
---before=datestring
+--before=&lt;datestring&gt;
 </term>
 <listitem>
 <simpara>
@@ -608,7 +680,7 @@ print a message to stderr and exit with nonzero status.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
-&lt;args&gt;&#8230;
+&lt;arg&gt;&#8230;
 </term>
 <listitem>
 <simpara>
@@ -673,8 +745,9 @@ characters and to avoid word splitting.</simpara></note>
 <listitem>
 <simpara>
 If <emphasis>$GIT_DIR/&lt;refname&gt;</emphasis> exists, that is what you mean (this is usually
-    useful only for <emphasis>HEAD</emphasis>, <emphasis>FETCH_HEAD</emphasis>, <emphasis>ORIG_HEAD</emphasis>, <emphasis>MERGE_HEAD</emphasis>
-    and <emphasis>CHERRY_PICK_HEAD</emphasis>);
+    useful only for <emphasis>HEAD</emphasis>, <emphasis>FETCH_HEAD</emphasis>, <emphasis>ORIG_HEAD</emphasis>, <emphasis>MERGE_HEAD</emphasis>,
+    <emphasis>REBASE_HEAD</emphasis>, <emphasis>REVERT_HEAD</emphasis>, <emphasis>CHERRY_PICK_HEAD</emphasis>, <emphasis>BISECT_HEAD</emphasis>
+    and <emphasis>AUTO_MERGE</emphasis>);
 </simpara>
 </listitem>
 <listitem>
@@ -701,23 +774,115 @@ otherwise, <emphasis>refs/remotes/&lt;refname&gt;</emphasis> if it exists;
 <simpara>
 otherwise, <emphasis>refs/remotes/&lt;refname&gt;/HEAD</emphasis> if it exists.
 </simpara>
-<simpara><emphasis>HEAD</emphasis> names the commit on which you based the changes in the working tree.
-<emphasis>FETCH_HEAD</emphasis> records the branch which you fetched from a remote repository
-with your last <emphasis>git fetch</emphasis> invocation.
-<emphasis>ORIG_HEAD</emphasis> is created by commands that move your <emphasis>HEAD</emphasis> in a drastic
-way, to record the position of the <emphasis>HEAD</emphasis> before their operation, so that
-you can easily change the tip of the branch back to the state before you ran
-them.
-<emphasis>MERGE_HEAD</emphasis> records the commit(s) which you are merging into your branch
-when you run <emphasis>git merge</emphasis>.
-<emphasis>CHERRY_PICK_HEAD</emphasis> records the commit which you are cherry-picking
-when you run <emphasis>git cherry-pick</emphasis>.</simpara>
+</listitem>
+</orderedlist>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    names the commit on which you based the changes in the working tree.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>FETCH_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the branch which you fetched from a remote repository with
+    your last <emphasis>git fetch</emphasis> invocation.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>ORIG_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    is created by commands that move your <emphasis>HEAD</emphasis> in a drastic way (<emphasis>git
+    am</emphasis>, <emphasis>git merge</emphasis>, <emphasis>git rebase</emphasis>, <emphasis>git reset</emphasis>), to record the position
+    of the <emphasis>HEAD</emphasis> before their operation, so that you can easily change
+    the tip of the branch back to the state before you ran them.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>MERGE_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the commit(s) which you are merging into your branch when you
+    run <emphasis>git merge</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>REBASE_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    during a rebase, records the commit at which the operation is
+    currently stopped, either because of conflicts or an <emphasis>edit</emphasis> command in
+    an interactive rebase.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>REVERT_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the commit which you are reverting when you run <emphasis>git revert</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>CHERRY_PICK_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the commit which you are cherry-picking when you run <emphasis>git
+    cherry-pick</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>BISECT_HEAD</emphasis>
+</term>
+<listitem>
+<simpara>
+    records the current commit to be tested when you run <emphasis>git bisect
+    --no-checkout</emphasis>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>AUTO_MERGE</emphasis>
+</term>
+<listitem>
+<simpara>
+    records a tree object corresponding to the state the
+    <emphasis>ort</emphasis> merge strategy wrote to the working tree when a merge operation
+    resulted in conflicts.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
 <simpara>Note that any of the <emphasis>refs/*</emphasis> cases above may come either from
 the <emphasis>$GIT_DIR/refs</emphasis> directory or from the <emphasis>$GIT_DIR/packed-refs</emphasis> file.
 While the ref name encoding is unspecified, UTF-8 is preferred as
 some output processing may assume ref names in UTF-8.</simpara>
-</listitem>
-</orderedlist>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -794,12 +959,9 @@ some output processing may assume ref names in UTF-8.</simpara>
 </term>
 <listitem>
 <simpara>
-  The suffix <emphasis>@{upstream}</emphasis> to a branchname (short form <emphasis>&lt;branchname&gt;@{u}</emphasis>)
-  refers to the branch that the branch specified by branchname is set to build on
-  top of (configured with <emphasis>branch.&lt;name&gt;.remote</emphasis> and
-  <emphasis>branch.&lt;name&gt;.merge</emphasis>).  A missing branchname defaults to the
-  current one. These suffixes are also accepted when spelled in uppercase, and
-  they mean the same thing no matter the case.
+  A branch B may be set up to build on top of a branch X (configured with
+  <emphasis>branch.&lt;name&gt;.merge</emphasis>) at a remote R (configured with
+  the branch X taken from remote R, typically found at <emphasis>refs/remotes/R/X</emphasis>.
 </simpara>
 </listitem>
 </varlistentry>
@@ -811,9 +973,8 @@ some output processing may assume ref names in UTF-8.</simpara>
 <simpara>
   The suffix <emphasis>@{push}</emphasis> reports the branch "where we would push to" if
   <emphasis>git push</emphasis> were run while <emphasis>branchname</emphasis> was checked out (or the current
-  <emphasis>HEAD</emphasis> if no branchname is specified). Since our push destination is
-  in a remote repository, of course, we report the local tracking branch
-  that corresponds to that branch (i.e., something in <emphasis>refs/remotes/</emphasis>).
+  <emphasis>HEAD</emphasis> if no branchname is specified). Like for <emphasis>@{upstream}</emphasis>, we report
+  the remote-tracking branch that corresponds to that branch at the remote.
 </simpara>
 <simpara>Here's an example to make it more clear:</simpara>
 <screen>$ git config push.default current
@@ -1006,6 +1167,8 @@ commit.</simpara>
 any of the given commits.</simpara>
 <simpara>A commit's reachable set is the commit itself and the commits in
 its ancestry chain.</simpara>
+<simpara>There are several notations to specify a set of connected commits
+(called a "revision range"), illustrated below.</simpara>
 <section id="git-rev-parse(1)__commit_exclusions">
 <title>Commit Exclusions</title>
 <variablelist>
@@ -1043,7 +1206,7 @@ The <emphasis>..</emphasis> (two-dot) Range Notation
 </varlistentry>
 <varlistentry>
 <term>
-The <emphasis>&#8230;</emphasis> (three-dot) Symmetric Difference Notation
+The <emphasis>...</emphasis> (three-dot) Symmetric Difference Notation
 </term>
 <listitem>
 <simpara>
@@ -1062,6 +1225,20 @@ did I do since I forked from the origin branch?"  Similarly, <emphasis>..origin<
 is a shorthand for <emphasis>HEAD..origin</emphasis> and asks "What did the origin do since
 I forked from them?"  Note that <emphasis>..</emphasis> would mean <emphasis>HEAD..HEAD</emphasis> which is an
 empty range that is both reachable and unreachable from HEAD.</simpara>
+<simpara>Commands that are specifically designed to take two distinct ranges
+(e.g. "git range-diff R1 R2" to compare two ranges) do exist, but
+they are exceptions.  Unless otherwise noted, all "git" commands
+that operate on a set of commits work on a single revision range.
+In other words, writing two "two-dot range notation" next to each
+other, e.g.</simpara>
+<literallayout class="monospaced">$ git log A..B C..D</literallayout>
+<simpara>does <emphasis role="strong">not</emphasis> specify two revision ranges for most commands.  Instead
+it will name a single connected set of commits, i.e. those that are
+reachable from either B or D but are reachable from neither A or C.
+In a linear history like this:</simpara>
+<literallayout class="monospaced">---A---B---o---o---C---D</literallayout>
+<simpara>because A and B are reachable from C, the revision range specified
+by these two dotted ranges is a single commit D.</simpara>
 </section>
 <section id="git-rev-parse(1)__other_lt_rev_gt_94_parent_shorthand_notations">
 <title>Other &lt;rev&gt;&#94; Parent Shorthand Notations</title>
@@ -1149,7 +1326,7 @@ three notations also consider its parents. For example you can say
 <listitem>
 <simpara>
   A suffix <emphasis>&#94;</emphasis> followed by an exclamation mark is the same
-  as giving commit <emphasis>&lt;rev&gt;</emphasis> and then all its parents prefixed with
+  as giving commit <emphasis>&lt;rev&gt;</emphasis> and all its parents prefixed with
   <emphasis>&#94;</emphasis> to exclude them (and their ancestors).
 </simpara>
 </listitem>
@@ -1276,7 +1453,7 @@ Use <emphasis>!</emphasis> to not make the corresponding negated long option ava
 </varlistentry>
 </variablelist>
 <simpara>The remainder of the line, after stripping the spaces, is used
-as the help associated to the option.</simpara>
+as the help associated with the option.</simpara>
 <simpara>Blank lines are ignored, and lines that don't match this specification are used
 as option group headers (start the line with a space to create such
 lines on purpose).</simpara>
@@ -1288,7 +1465,7 @@ some-command [&lt;options&gt;] &lt;args&gt;...
 
 some-command does foo and bar!
 --
-h,help    show the help
+h,help!   show the help
 
 foo       some nifty option --foo
 bar=      some cool option --bar with an argument
@@ -1309,10 +1486,10 @@ usage text would be shown:</simpara>
     some-command does foo and bar!
 
     -h, --help            show the help
-    --foo                 some nifty option --foo
-    --bar ...             some cool option --bar with an argument
-    --baz &lt;arg&gt;           another cool option --baz with a named argument
-    --qux[=&lt;path&gt;]        qux may take a path argument but has meaning by itself
+    --[no-]foo            some nifty option --foo
+    --[no-]bar ...        some cool option --bar with an argument
+    --[no-]baz &lt;arg&gt;      another cool option --baz with a named argument
+    --[no-]qux[=&lt;path&gt;]   qux may take a path argument but has meaning by itself
 
 An option group Header
     -C[...]               option C with an optional argument</screen>

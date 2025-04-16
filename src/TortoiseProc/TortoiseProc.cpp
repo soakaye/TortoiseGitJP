@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2021 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2012-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,6 +17,7 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "SysImageList.h"
@@ -28,7 +29,6 @@
 #include "StringUtils.h"
 #include "UnicodeUtils.h"
 #include "MessageBox.h"
-#include "DirFileEnum.h"
 #include "GitAdminDir.h"
 #include "Git.h"
 #include "SmartHandle.h"
@@ -46,8 +46,8 @@
 #include "WindowsCredentialsStore.h"
 #include "FirstStartWizard.h"
 #include "AnimationManager.h"
-#include "../TGitCache/CacheInterface.h"
 #include "VersioncheckParser.h"
+#include "TempFile.h"
 
 #define STRUCT_IOVEC_DEFINED
 
@@ -64,7 +64,6 @@ END_MESSAGE_MAP()
 //////////////////////////////////////////////////////////////////////////
 
 CTortoiseProcApp::CTortoiseProcApp()
-	: hWndExplorer(nullptr)
 {
 	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Constructor\n");
 	SetDllDirectory(L"");
@@ -77,8 +76,6 @@ CTortoiseProcApp::CTortoiseProcApp()
 	CGit::SetGit2CertificateCheckCertificate(CAppUtils::Git2CertificateCheck);
 	m_bLoadUserToolbars = FALSE;
 	m_bSaveState = FALSE;
-	retSuccess = false;
-	m_gdiplusToken = NULL;
 }
 
 CTortoiseProcApp::~CTortoiseProcApp()
@@ -98,7 +95,7 @@ HWND GetExplorerHWND()
 	return theApp.GetExplorerHWND();
 }
 
-#if ENABLE_CRASHHANLDER
+#if ENABLE_CRASHHANLDER && !_M_ARM64
 CCrashReportTGit crasher(L"TortoiseGit " _T(APP_X64_STRING), TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD, TGIT_VERDATE);
 #endif
 
@@ -118,18 +115,16 @@ BOOL CTortoiseProcApp::InitInstance()
 	CRegDWORD loc = CRegDWORD(L"Software\\TortoiseGit\\LanguageID", 1033);
 	long langId = loc;
 	CString langDll;
-	CStringA langpath = CStringA(CPathUtils::GetAppParentDirectory());
-	langpath += "Languages";
 	do
 	{
-		langDll.Format(L"%sLanguages\\TortoiseProc%ld.dll", static_cast<LPCTSTR>(CPathUtils::GetAppParentDirectory()), langId);
+		langDll.Format(L"%sLanguages\\TortoiseProc%ld.dll", static_cast<LPCWSTR>(CPathUtils::GetAppParentDirectory()), langId);
 
 		if (CI18NHelper::DoVersionStringsMatch(CPathUtils::GetVersionFromFile(langDll), _T(STRPRODUCTVER)))
 		{
 			HINSTANCE hInst = LoadLibrary(langDll);
 			if (hInst)
 			{
-				CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Load Language DLL %s\n", static_cast<LPCTSTR>(langDll));
+				CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Load Language DLL %s\n", static_cast<LPCWSTR>(langDll));
 				AfxSetResourceHandle(hInst);
 				break;
 			}
@@ -198,7 +193,7 @@ BOOL CTortoiseProcApp::InitInstance()
 		DWORD len = GetCurrentDirectory(0, nullptr);
 		if (len)
 		{
-			auto originalCurrentDirectory = std::make_unique<TCHAR[]>(len);
+			auto originalCurrentDirectory = std::make_unique<wchar_t[]>(len);
 			if (GetCurrentDirectory(len, originalCurrentDirectory.get()))
 			{
 				sOrigCWD = originalCurrentDirectory.get();
@@ -223,17 +218,9 @@ BOOL CTortoiseProcApp::InitInstance()
 		}
 		return FALSE;
 	}
-	auto oldGitVersion = static_cast<int>(CRegDWORD(L"Software\\TortoiseGit\\git_cached_version", 0));
+	CGit::ms_LastMsysGitVersion = 0; // HACK to re-check Git version in next method call to CheckGitVersion, only needed becasue APPDATA is a Git config dir since 2.46
 	if (!CConfigureGitExe::CheckGitVersion(hWndExplorer))
 		return FALSE;
-	// Git < 2.24 also has ProgramData config file location
-	if (CGit::ms_LastMsysGitVersion != oldGitVersion && (oldGitVersion != 0 && oldGitVersion < ConvertVersionToInt(2, 24, 0) && CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 24, 0) || (oldGitVersion == 0 || oldGitVersion >= ConvertVersionToInt(2, 24, 0)) && CGit::ms_LastMsysGitVersion < ConvertVersionToInt(2, 24, 0)))
-	{
-		if (HWND hWnd = ::FindWindow(TGIT_CACHE_WINDOW_NAME, TGIT_CACHE_WINDOW_NAME); hWnd)
-			::PostMessage(hWnd, WM_CLOSE, reinterpret_cast<WPARAM>(nullptr), reinterpret_cast<LPARAM>(nullptr));
-		CMessageBox::Show(hWndExplorer, IDS_GITCHANGED_NEEDRESTART, IDS_APPNAME, MB_ICONINFORMATION);
-		return FALSE;
-	}
 
 	{
 		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Registering Crash Report ...\n");
@@ -241,7 +228,7 @@ BOOL CTortoiseProcApp::InitInstance()
 		CString versionString;
 		versionString.Format(L"%X", CGit::ms_LastMsysGitVersion);
 		CCrashReport::Instance().AddUserInfoToReport(L"msysGitVersion", versionString);
-		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": msysGitVersion: %s\n", static_cast<LPCTSTR>(versionString));
+		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": msysGitVersion: %s\n", static_cast<LPCWSTR>(versionString));
 		if (CGit::ms_bCygwinGit)
 			CCrashReport::Instance().AddUserInfoToReport(L"CygwinHack", L"true");
 		if (CGit::ms_bMsys2Git)
@@ -260,7 +247,7 @@ BOOL CTortoiseProcApp::InitInstance()
 				if (version.major == TGIT_VERMAJOR && version.minor == TGIT_VERMINOR && version.micro == TGIT_VERMICRO && version.build > TGIT_VERBUILD)
 				{
 					CCrashReport::Instance().AddUserInfoToReport(L"Hotfix", versionparser.GetTortoiseGitVersion().version);
-					CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Hotfix: %s\n", static_cast<LPCTSTR>(versionparser.GetTortoiseGitVersion().version));
+					CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Hotfix: %s\n", static_cast<LPCWSTR>(versionparser.GetTortoiseGitVersion().version));
 				}
 			}
 		}
@@ -293,7 +280,7 @@ BOOL CTortoiseProcApp::InitInstance()
 			return FALSE;
 		}
 		CString newCmd;
-		newCmd.Format(L"/command:clone /url:\"%s\" /hasurlhandler", static_cast<LPCTSTR>(url));
+		newCmd.Format(L"/command:clone /url:\"%s\" /hasurlhandler", static_cast<LPCWSTR>(url));
 		parser = CCmdLineParser(newCmd);
 	}
 
@@ -326,51 +313,15 @@ BOOL CTortoiseProcApp::InitInstance()
 	}
 	else
 	{
-		CString sPathArgument = CPathUtils::GetLongPathname(parser.GetVal(L"path"));
-		if (parser.HasKey(L"expaths"))
-		{
-			// an /expaths param means we're started via the buttons in our Win7 library
-			// and that means the value of /expaths is the current directory, and
-			// the selected paths are then added as additional parameters but without a key, only a value
-
-			// because of the "strange treatment of quotation marks and backslashes by CommandLineToArgvW"
-			// we have to escape the backslashes first. Since we're only dealing with paths here, that's
-			// a save bet.
-			// Without this, a command line like:
-			// /command:commit /expaths:"D:\" "D:\Utils"
-			// would fail because the "D:\" is treated as the backslash being the escape char for the quotation
-			// mark and we'd end up with:
-			// argv[1] = /command:commit
-			// argv[2] = /expaths:D:" D:\Utils
-			// See here for more details: http://blogs.msdn.com/b/oldnewthing/archive/2010/09/17/10063629.aspx
-			CString cmdLine = GetCommandLineW();
-			cmdLine.Replace(L"\\", L"\\\\");
-			int nArgs = 0;
-			LPWSTR *szArglist = CommandLineToArgvW(cmdLine, &nArgs);
-			if (szArglist)
-			{
-				// argument 0 is the process path, so start with 1
-				for (int i = 1; i < nArgs; ++i)
-				{
-					if (szArglist[i][0] != '/')
-					{
-						if (!sPathArgument.IsEmpty())
-							sPathArgument += '*';
-						sPathArgument += szArglist[i];
-					}
-				}
-				sPathArgument.Replace(L"\\\\", L"\\");
-			}
-			LocalFree(szArglist);
-		}
+		CString sPathArgument = parser.GetVal(L"path");
 		if (sPathArgument.IsEmpty() && parser.HasKey(L"path"))
 		{
 			CMessageBox::Show(hWndExplorer, IDS_ERR_INVALIDPATH, IDS_APPNAME, MB_ICONERROR);
 			return FALSE;
 		}
-		int asterisk = sPathArgument.Find('*');
-		cmdLinePath.SetFromUnknown(asterisk >= 0 ? sPathArgument.Left(asterisk) : sPathArgument);
 		pathList.LoadFromAsteriskSeparatedString(sPathArgument);
+		if (!pathList.IsEmpty())
+			cmdLinePath = pathList[0];
 	}
 
 	if (pathList.IsEmpty()) {
@@ -382,14 +333,14 @@ BOOL CTortoiseProcApp::InitInstance()
 		DWORD len = GetCurrentDirectory(0, nullptr);
 		if (len)
 		{
-			auto originalCurrentDirectory = std::make_unique<TCHAR[]>(len);
+			auto originalCurrentDirectory = std::make_unique<wchar_t[]>(len);
 			if (GetCurrentDirectory(len, originalCurrentDirectory.get()))
 			{
 				sOrigCWD = originalCurrentDirectory.get();
 				sOrigCWD = CPathUtils::GetLongPathname(sOrigCWD);
 			}
 		}
-		TCHAR pathbuf[MAX_PATH] = {0};
+		wchar_t pathbuf[MAX_PATH] = { 0 };
 		GetTortoiseGitTempPath(_countof(pathbuf), pathbuf);
 		SetCurrentDirectory(pathbuf);
 	}
@@ -428,11 +379,11 @@ BOOL CTortoiseProcApp::InitInstance()
 				if (GitAdminDir::HasAdminDir(g_Git.m_CurrentDir, true, &wcroot))
 				{
 					git_oid oid;
-					CStringA wcRootA(wcroot + CPathUtils::GetAppDirectory());
+					CStringA wcRootA{ CUnicodeUtils::GetUTF8(wcroot + CPathUtils::GetAppDirectory()) };
 					if (!git_odb_hash(&oid, wcRootA.MakeLower(), wcRootA.GetLength(), GIT_OBJECT_BLOB))
 					{
 						CStringA hash;
-						git_oid_tostr(CStrBufA(hash, GIT_OID_HEXSZ, CStrBufA::SET_LENGTH), GIT_OID_HEXSZ + 1, &oid);
+						git_oid_tostr(CStrBufA(hash, GIT_OID_SHA1_HEXSIZE, CStrBufA::SET_LENGTH), GIT_OID_SHA1_HEXSIZE + 1, &oid);
 						g_sGroupingUUID = hash;
 					}
 					ProjectProperties pp;
@@ -461,14 +412,14 @@ BOOL CTortoiseProcApp::InitInstance()
 			// make sure all config files are read in order to check that none contains an error
 			g_Git.GetConfigValue(L"doesnot.exist");
 		}
-		catch (char* msg)
+		catch (const char* msg)
 		{
-			err = CString(msg);
+			err = CUnicodeUtils::GetUnicode(msg);
 		}
 
 		if (!err.IsEmpty())
 		{
-			UINT choice = CMessageBox::Show(hWndExplorer, err, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_PROC_EDITLOCALGITCONFIG)), CString(MAKEINTRESOURCE(IDS_PROC_EDITGLOBALGITCONFIG)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)));
+			const auto choice = CMessageBox::Show(hWndExplorer, err, IDS_APPNAME, 1, IDI_ERROR, IDS_PROC_EDITLOCALGITCONFIG, IDS_PROC_EDITGLOBALGITCONFIG, IDS_ABORTBUTTON);
 			if (choice == 1)
 			{
 				// open the config file with alternative editor
@@ -497,46 +448,10 @@ BOOL CTortoiseProcApp::InitInstance()
 		delete cmd;
 	}
 
-	// Look for temporary files left around by TortoiseSVN and
+	// Look for temporary files left around by TortoiseGit and
 	// remove them. But only delete 'old' files because some
 	// apps might still be needing the recent ones.
-	{
-		DWORD len = GetTortoiseGitTempPath(0, nullptr);
-		auto path = std::make_unique<TCHAR[]>(len + 100);
-		len = GetTortoiseGitTempPath (len + 100, path.get());
-		if (len != 0)
-		{
-			CDirFileEnum finder(path.get());
-			FILETIME systime_;
-			::GetSystemTimeAsFileTime(&systime_);
-			__int64 systime = static_cast<__int64>(systime_.dwHighDateTime) << 32 | systime_.dwLowDateTime;
-			bool isDir;
-			CString filepath;
-			while (finder.NextFile(filepath, &isDir))
-			{
-				HANDLE hFile = ::CreateFile(filepath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, isDir ? FILE_FLAG_BACKUP_SEMANTICS : 0, nullptr);
-				if (hFile != INVALID_HANDLE_VALUE)
-				{
-					FILETIME createtime_;
-					if (::GetFileTime(hFile, &createtime_, nullptr, nullptr))
-					{
-						::CloseHandle(hFile);
-						__int64 createtime = static_cast<__int64>(createtime_.dwHighDateTime) << 32 | createtime_.dwLowDateTime;
-						if ((createtime + 864000000000) < systime)		//only delete files older than a day
-						{
-							::SetFileAttributes(filepath, FILE_ATTRIBUTE_NORMAL);
-							if (isDir)
-								::RemoveDirectory(filepath);
-							else
-								::DeleteFile(filepath);
-						}
-					}
-					else
-						::CloseHandle(hFile);
-				}
-			}
-		}
-	}
+	CTempFiles::Instance().DeleteOldTempFiles();
 
 	Animator::Instance().ShutDown();
 
@@ -549,7 +464,7 @@ void CTortoiseProcApp::CheckUpgrade()
 {
 	CRegString regVersion = CRegString(L"Software\\TortoiseGit\\CurrentVersion");
 	CString sVersion = regVersion;
-	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Current TGit Version %s vs. last used version %s\n", _T(STRPRODUCTVER), static_cast<LPCTSTR>(sVersion));
+	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Current TGit Version %s vs. last used version %s\n", _T(STRPRODUCTVER), static_cast<LPCWSTR>(sVersion));
 	if (sVersion.Compare(_T(STRPRODUCTVER))==0)
 		return;
 	// we're starting the first time with a new version!
@@ -770,14 +685,14 @@ void CTortoiseProcApp::DoInitializeJumpList(const CString& appid)
 	CStringUtils::RemoveAccelerators(sTemp);
 
 	ATL::CComPtr<IShellLink> psl;
-	hr = CreateShellLink(L"/command:settings", static_cast<LPCTSTR>(sTemp), 18, &psl);
+	hr = CreateShellLink(L"/command:settings", static_cast<LPCWSTR>(sTemp), 18, &psl);
 	if (SUCCEEDED(hr)) {
 		poc->AddObject(psl);
 	}
 	sTemp = CString(MAKEINTRESOURCE(IDS_MENUHELP));
 	CStringUtils::RemoveAccelerators(sTemp);
 	psl.Release(); // Need to release the object before calling operator&()
-	hr = CreateShellLink(L"/command:help", static_cast<LPCTSTR>(sTemp), 17, &psl);
+	hr = CreateShellLink(L"/command:help", static_cast<LPCWSTR>(sTemp), 17, &psl);
 	if (SUCCEEDED(hr)) {
 		poc->AddObject(psl);
 	}
@@ -785,7 +700,7 @@ void CTortoiseProcApp::DoInitializeJumpList(const CString& appid)
 	ATL::CComPtr<IObjectArray> poa;
 	hr = poc.QueryInterface(&poa);
 	if (SUCCEEDED(hr)) {
-		pcdl->AppendCategory(static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_PROC_TASKS))), poa);
+		pcdl->AppendCategory(static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_PROC_TASKS))), poa);
 		pcdl->CommitList();
 	}
 }

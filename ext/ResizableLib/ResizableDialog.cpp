@@ -29,28 +29,18 @@ static char THIS_FILE[] = __FILE__;
 /////////////////////////////////////////////////////////////////////////////
 // CResizableDialog
 
-inline void CResizableDialog::PrivateConstruct()
-{
-	m_bEnableSaveRestore = FALSE;
-	m_dwGripTempState = 1;
-	m_bRectOnly = FALSE;
-}
-
 CResizableDialog::CResizableDialog()
 {
-	PrivateConstruct();
 }
 
 CResizableDialog::CResizableDialog(UINT nIDTemplate, CWnd* pParentWnd)
 	: CDialog(nIDTemplate, pParentWnd)
 {
-	PrivateConstruct();
 }
 
 CResizableDialog::CResizableDialog(LPCTSTR lpszTemplateName, CWnd* pParentWnd)
 	: CDialog(lpszTemplateName, pParentWnd)
 {
-	PrivateConstruct();
 }
 
 CResizableDialog::~CResizableDialog()
@@ -162,7 +152,7 @@ BOOL CResizableDialog::OnEraseBkgnd(CDC* pDC)
 
 LRESULT CResizableDialog::WindowProc(UINT message, WPARAM wParam, LPARAM lParam) 
 {
-	if (message != WM_NCCALCSIZE || wParam == 0)
+	if (message != WM_NCCALCSIZE || wParam == 0 || m_noNcCalcSizeAdjustments)
 		return CDialog::WindowProc(message, wParam, lParam);
 
 	LRESULT lResult = 0;

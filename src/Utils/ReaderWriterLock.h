@@ -90,21 +90,21 @@ protected:
 	// A critical section to guard all the other members
 	mutable CRITICAL_SECTION m_cs;
 	// Auto-reset event, will be dynamically created/destroyed on demand
-	volatile HANDLE m_hSafeToWriteEvent;
+	volatile HANDLE m_hSafeToWriteEvent = nullptr;
 	// Manual-reset event, will be dynamically created/destroyed on demand
-	volatile HANDLE m_hSafeToReadEvent;
+	volatile HANDLE m_hSafeToReadEvent = nullptr;
 	// Total number of writers on this object
-	volatile INT m_iNumOfWriter;
+	volatile INT m_iNumOfWriter = 0;
 	// Total number of readers have already owned this object
-	volatile INT m_iNumOfReaderEntered;
+	volatile INT m_iNumOfReaderEntered = 0;
 	// Total number of readers are waiting to be owners of this object
-	volatile INT m_iNumOfReaderWaiting;
+	volatile INT m_iNumOfReaderWaiting = 0;
 	// Internal/Real implementation
 	void EnterCS() const noexcept;
 	void LeaveCS() const noexcept;
-	bool _ReaderWait(DWORD dwTimeout) noexcept;
-	bool _WriterWaitAndLeaveCSIfSuccess(DWORD dwTimeout) noexcept;
-	bool _UpgradeToWriterLockAndLeaveCS(DWORD dwTimeout) noexcept;
+	bool _ReaderWait(ULONGLONG dwTimeout) noexcept;
+	bool _WriterWaitAndLeaveCSIfSuccess(ULONGLONG dwTimeout) noexcept;
+	bool _UpgradeToWriterLockAndLeaveCS(ULONGLONG dwTimeout) noexcept;
 	void _ReaderRelease() noexcept;
 	void _WriterRelease(bool blDowngrade) noexcept;
 
@@ -143,7 +143,7 @@ public:
 protected:
 	CReaderWriterLockNonReentrance m_impl;
 
-	typedef std::map<DWORD,DWORD> CMapThreadToState;
+	using CMapThreadToState = std::map<DWORD,DWORD>;
 	CMapThreadToState m_map;
 };
 
@@ -257,10 +257,10 @@ protected:
 //////////////////////////////////////////////////////////////////
 // Instances of above template helper classes
 
-typedef CAutoReadLockT<CReaderWriterLock> CAutoReadLock;
-typedef CAutoWriteLockT<CReaderWriterLock> CAutoWriteLock;
-typedef CAutoReadWeakLockT<CReaderWriterLock> CAutoReadWeakLock;
-typedef CAutoWriteWeakLockT<CReaderWriterLock> CAutoWriteWeakLock;
+using CAutoReadLock = CAutoReadLockT<CReaderWriterLock>;
+using CAutoWriteLock = CAutoWriteLockT<CReaderWriterLock>;
+using CAutoReadWeakLock = CAutoReadWeakLockT<CReaderWriterLock>;
+using CAutoWriteWeakLock = CAutoWriteWeakLockT<CReaderWriterLock>;
 
 //////////////////////////////////////////////////////////////////
 // Inline methods

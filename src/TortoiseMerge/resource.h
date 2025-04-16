@@ -2,7 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by d:\TortoiseGit\src\Resources\TortoiseMergeENG.rc
 //
-#define IDR_MAINFRAME                   100
+#define IDR_MAINFRAME                   1
 #define IDP_OLE_INIT_FAILED             101
 #define IDS_TITLE_REJECTEDHUNKS         101
 #define IDS_CONFIGUREREGEXES            102
@@ -39,10 +39,12 @@
 #define IDD_REGEXFILTERS                164
 #define IDD_REGEXFILTER                 165
 #define IDR_REGEXFILTERINI              166
-#define IDB_LOGOFLIPPED                 168
 #define IDR_IGNORECOMMENTSTXT           169
 #define IDI_LINEMARKED                  170
 #define IDB_REGEX_FILTER                171
+#define IDR_TGITMERGELOGO               172
+#define IDR_HELPMAPPING                 173
+#define IDI_EXPLORER                    174
 #define IDS_SELECTFILE                  200
 #define IDS_INDICATOR_COLUMN            202
 #define IDS_INDICATOR_MARKEDWORDCOUNT   203
@@ -305,6 +307,7 @@
 #define IDS_EDIT_TAB2SPACE              8003
 #define IDS_EDIT_SPACE2TAB              8004
 #define IDS_EDIT_TRIM                   8005
+#define IDS_EXPLORETO                   8006
 #define ID_VIEW_WHITESPACES             32774
 #define ID_VIEW_ONEWAYDIFF              32775
 #define ID_NAVIGATE_NEXTDIFFERENCE      32779
@@ -357,6 +360,7 @@
 #define ID_VIEW_IGNORECOMMENTS          32896
 #define ID_LOGOBUTTON                   32897
 #define ID_VIEW_BARS                    32898
+#define ID_VIEW_IGNOREEOL               32899
 #define ID_USEBLOCKS                    32914
 #define ID_EDIT_ENABLE                  32976
 #define ID_FILE_ENABLEEDIT              32978
@@ -369,7 +373,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        172
+#define _APS_NEXT_RESOURCE_VALUE        175
 #define _APS_NEXT_COMMAND_VALUE         33003
 #define _APS_NEXT_CONTROL_VALUE         1514
 #define _APS_NEXT_SYMED_VALUE           101

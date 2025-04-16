@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2018, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -21,11 +21,8 @@
 #include "TGitPath.h"
 #include "PathUtils.h"
 
-class CGitFileName;
-
-#include "GitHash.h"
-
-typedef enum type_git_wc_status_kind
+struct CGitFileName;
+enum git_wc_status_kind
 {
 	git_wc_status_none,
 	git_wc_status_unversioned,
@@ -36,19 +33,19 @@ typedef enum type_git_wc_status_kind
 	git_wc_status_added,
 	git_wc_status_conflicted,
 	git_wc_status_unknown, // should be last, see TGitCache/CacheInterface.h
-}git_wc_status_kind;
+};
 
-typedef struct git_wc_status2_t
+struct git_wc_status2_t
 {
-	git_wc_status_kind status;
+	git_wc_status_kind status = git_wc_status_none;
 
-	bool assumeValid;
-	bool skipWorktree;
-} git_wc_status2;
+	bool assumeValid = false;
+	bool skipWorktree = false;
+};
 
 #define MAX_STATUS_STRING_LENGTH		256
 
-typedef BOOL (*FILL_STATUS_CALLBACK)(const CString& path, const git_wc_status2_t* status, bool isDir, __int64 lastwritetime, void* baton);
+using FILL_STATUS_CALLBACK = BOOL(const CString& path, const git_wc_status2_t* status, bool isDir, __int64 lastwritetime, void* baton);
 
 static CString CombinePath(const CString& part1, const CString& part2)
 {
@@ -120,7 +117,7 @@ public:
 	/**
 	 * This member variable hold the status of the last call to GetStatus().
 	 */
-	git_wc_status2_t *			status;				///< the status result of GetStatus()
+	git_wc_status2_t*			status = nullptr;	///< the status result of GetStatus()
 
 private:
 	git_wc_status2_t			m_status;		// used for GetStatus

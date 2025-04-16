@@ -2,6 +2,7 @@
 
 // TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2022 - TortoiseGit
 // Copyright (C) 2003-2008, 2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -129,14 +130,14 @@ public:
 
 inline CRecordProfileEvent::CRecordProfileEvent (CProfilingRecord* aRecord)
 	: record (aRecord)
-	, start (__rdtsc())
+	, start(ReadTimeStampCounter())
 {
 }
 
 inline CRecordProfileEvent::~CRecordProfileEvent()
 {
 	if (record)
-		record->Add (__rdtsc() - start);
+		record->Add(ReadTimeStampCounter() - start);
 }
 
 #endif
@@ -147,7 +148,7 @@ inline void CRecordProfileEvent::Stop()
 {
 	if (record)
 	{
-		record->Add (__rdtsc() - start);
+		record->Add(ReadTimeStampCounter() - start);
 		record = nullptr;
 	}
 }
@@ -161,13 +162,13 @@ class CProfilingInfo
 {
 private:
 
-	typedef std::vector<CProfilingRecord*> TRecords;
+	using TRecords = std::vector<CProfilingRecord*>;
 	TRecords records;
 
 	/// construction / destruction
 
 	CProfilingInfo();
-	~CProfilingInfo(void);
+	~CProfilingInfo();
 	// prevent cloning
 	CProfilingInfo(const CProfilingInfo&) = delete;
 	CProfilingInfo& operator=(const CProfilingInfo&) = delete;

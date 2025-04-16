@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2019-2020 - TortoiseGit
+// Copyright (C) 2019-2021, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2006, 2008-2013, 2017, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "SplitterControl.h"
-#include "MyMemDC.h"
 #include "Theme.h"
 
 #ifdef _DEBUG
@@ -37,14 +37,6 @@ static HCURSOR SplitterControl_hCursor1 = nullptr;
 static HCURSOR SplitterControl_hCursor2 = nullptr;
 
 CSplitterControl::CSplitterControl()
-	: m_bIsPressed(false)
-	, m_nMin(-1)
-	, m_nMax(-1)
-	, m_bMouseOverControl(false)
-	, m_nType(0)
-	, m_nX(0)
-	, m_nY(0)
-	, m_nSavePos(0)
 {
 	m_AnimVarHot = Animator::Instance().CreateAnimationVariable(0.0);
 
@@ -97,7 +89,7 @@ void CSplitterControl::OnPaint()
 		Gdiplus::Graphics g(dcreal);
 
 		Gdiplus::Color c1;
-		c1.SetFromCOLORREF(CTheme::Instance().GetThemeColor(GetSysColor(COLOR_3DFACE)));
+		c1.SetFromCOLORREF(CTheme::Instance().IsDarkTheme() ? CTheme::darkBkColor : GetSysColor(COLOR_3DFACE));
 		Gdiplus::Color c2;
 		c2.SetFromCOLORREF(CTheme::Instance().GetThemeColor(GetSysColor(COLOR_BTNSHADOW)));
 

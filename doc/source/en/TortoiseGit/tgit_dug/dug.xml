@@ -4,6 +4,7 @@
 	<title>TortoiseGit Daily Use Guide</title>
 	<?dbhh topicname="HIDD_URL"?>
 	<?dbhh topicname="HIDD_SVNPROGRESS"?>
+	<?dbhh topicname="HIDD_GITPROGRESS"?>
 	<simplesect>
 		<para>
 			This document describes day to day usage of the TortoiseGit client.
@@ -71,9 +72,8 @@
 	<xi:include href="./dug_repobrowser.xml"/>
 	<xi:include href="./dug_diff.xml"/>
 	<xi:include href="./dug_add.xml"/>
-	<xi:include href="./dug_copy.xml"/>
 	<xi:include href="./dug_ignore.xml"/>
-	<xi:include href="./dug_rename.xml"/>
+	<xi:include href="./dug_delete_copy_move.xml"/>
 	<xi:include href="./dug_revert.xml"/>
 	<xi:include href="./dug_cleanup.xml"/>
 	<xi:include href="./dug_reset.xml"/>
@@ -90,6 +90,7 @@
 	<xi:include href="./dug_export.xml"/>
 	<xi:include href="./dug_bugtracker.xml"/>
 	<xi:include href="./dug_settings.xml"/>
+	<xi:include href="./dug_worktrees.xml"/>
 	<xi:include href="./dug_gitsvn.xml"/>
 	<xi:include href="./dug_lfslocking.xml"/>
 	<sect1 id="tgit-dug-donate">

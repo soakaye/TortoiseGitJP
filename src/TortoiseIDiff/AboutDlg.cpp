@@ -1,5 +1,6 @@
 ﻿// TortoiseIDiff - an image diff viewer in TortoiseGit
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2012-2013, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,24 +17,19 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "resource.h"
 #include "AboutDlg.h"
-#include "registry.h"
 #include "Theme.h"
 #include "../version.h"
-#include <string>
-#include <Commdlg.h>
-
 
 CAboutDlg::CAboutDlg(HWND hParent)
     : m_hParent(hParent)
-    , m_hHiddenWnd(0)
-    , m_themeCallbackId(0)
 {
 }
 
-CAboutDlg::~CAboutDlg(void)
+CAboutDlg::~CAboutDlg()
 {
 }
 
@@ -46,8 +42,8 @@ LRESULT CAboutDlg::DlgFunc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         {
             InitDialog(hwndDlg, IDI_TORTOISEIDIFF);
             // initialize the controls
-            TCHAR verbuf[1024] = {0};
-            TCHAR maskbuf[1024] = {0};
+            wchar_t verbuf[1024] = { 0 };
+            wchar_t maskbuf[1024] = { 0 };
             ::LoadString (hResource, IDS_VERSION, maskbuf, _countof(maskbuf));
             swprintf_s(verbuf, maskbuf, TGIT_VERMAJOR, TGIT_VERMINOR, TGIT_VERMICRO, TGIT_VERBUILD);
             SetDlgItemText(hwndDlg, IDC_ABOUTVERSION, verbuf);

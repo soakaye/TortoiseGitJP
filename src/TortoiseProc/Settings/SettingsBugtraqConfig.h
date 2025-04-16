@@ -1,6 +1,6 @@
 // TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009, 2011-2017 - TortoiseGit
+// Copyright (C) 2009, 2011-2017, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -36,17 +36,17 @@ public:
 	UINT GetIconID() override { return IDI_BUGTRAQ; }
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL OnApply() override;
+	BOOL OnInitDialog() override;
+	BOOL OnApply() override;
 
 	afx_msg void OnBnClickedTestbugtraqregexbutton();
 
-	virtual void LoadDataImpl(CAutoConfig& config) override;
-	virtual BOOL SafeDataImpl(CAutoConfig& config) override;
-	virtual void EnDisableControls() override;
-	virtual HWND GetDialogHwnd() const override { return GetSafeHwnd(); }
+	void LoadDataImpl(CAutoConfig& config) override;
+	BOOL SafeDataImpl(CAutoConfig& config) override;
+	void EnDisableControls() override;
+	HWND GetDialogHwnd() const override { return GetSafeHwnd(); }
 
 	DECLARE_MESSAGE_MAP()
 
@@ -55,7 +55,7 @@ protected:
 
 	CRegexEdit	m_BugtraqRegex1;
 
-	bool	m_bNeedSave;
+	bool	m_bNeedSave = false;
 	CString	m_URL;
 	BOOL	m_bInheritURL;
 	CComboBox	m_cWarningifnoissue;

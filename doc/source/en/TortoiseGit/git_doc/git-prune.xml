@@ -21,7 +21,7 @@
 <note><simpara>In most cases, users should run <emphasis>git gc</emphasis>, which calls
 <emphasis>git prune</emphasis>. See the section "NOTES", below.</simpara></note>
 <simpara>This runs <emphasis>git fsck --unreachable</emphasis> using all the refs
-available in <emphasis>refs/</emphasis>, optionally with additional set of
+available in <emphasis>refs/</emphasis>, optionally with an additional set of
 objects specified on the command line, and prunes all unpacked
 objects unreachable from any of these head objects from the object database.
 In addition, it

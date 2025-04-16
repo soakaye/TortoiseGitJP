@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016, 2019-2020 - TortoiseGit
+// Copyright (C) 2016, 2019-2020, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -38,12 +38,12 @@ public:
 
 	/// construction / destruction
 
-	ColumnManager(CListCtrl* control) : control(control), m_dwDefaultColumns(0) {};
+	ColumnManager(CListCtrl* control) : control(control) {};
 	~ColumnManager() {};
 
 	/// registry access
 
-	void ReadSettings(DWORD defaultColumns, DWORD hideColumns, const CString& containerName, DWORD version, int maxsize, int* withlist = nullptr);
+	void ReadSettings(DWORD defaultColumns, DWORD hideColumns, const CString& containerName, DWORD version, int maxsize, int* widthlist = nullptr);
 	void WriteSettings() const;
 
 	/// read column definitions
@@ -168,8 +168,8 @@ private:
 		}
 	}
 
-	DWORD m_dwDefaultColumns;
-	DWORD m_dwVersion;
+	DWORD m_dwDefaultColumns = 0;
+	DWORD m_dwVersion = 0;
 
 	/// initialization utilities
 	void ParseWidths(const CString& widths);
@@ -188,7 +188,7 @@ private:
 	CString GetColumnOrderString() const;
 
 	/// our parent control and its data
-	CListCtrl* control;
+	CListCtrl* control = nullptr;
 
 	/// where to store in the registry
 	CString registryPrefix;

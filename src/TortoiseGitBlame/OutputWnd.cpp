@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2008-2013, 2016, 2018-2020, 2022-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -50,6 +50,7 @@ BEGIN_MESSAGE_MAP(COutputWnd, CDockablePane)
 	ON_WM_SIZE()
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LOG, OnLvnItemchangedLoglist)
 	ON_WM_SYSCOLORCHANGE()
+	ON_WM_ERASEBKGND()
 END_MESSAGE_MAP()
 
 void COutputWnd::OnSysColorChange()
@@ -67,7 +68,7 @@ int COutputWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	rectDummy.SetRectEmpty();
 
 	// Create output panes:
-	const DWORD dwStyle =LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_OWNERDATA | WS_BORDER | WS_TABSTOP |LVS_SINGLESEL |WS_CHILD | WS_VISIBLE;
+	constexpr DWORD dwStyle = LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_OWNERDATA | WS_BORDER | WS_TABSTOP | WS_CHILD | WS_VISIBLE;
 
 	if (!m_LogList.Create(dwStyle, rectDummy, this, IDC_LOG))
 	{
@@ -109,8 +110,8 @@ void COutputWnd::OnSize(UINT nType, int cx, int cy)
 	// Tab control should cover the whole client area:
 	if (m_Gravatar.IsGravatarEnabled())
 	{
-		m_LogList.SetWindowPos(nullptr, -1, -1, cx - CDPIAware::Instance().ScaleX(80), cy, SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER);
-		m_Gravatar.SetWindowPos(nullptr, cx - CDPIAware::Instance().ScaleX(80), 0, CDPIAware::Instance().ScaleX(80), CDPIAware::Instance().ScaleY(80), SWP_NOACTIVATE | SWP_NOZORDER);
+		m_LogList.SetWindowPos(nullptr, -1, -1, cx - CDPIAware::Instance().ScaleX(GetSafeHwnd(), 80), cy, SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER);
+		m_Gravatar.SetWindowPos(nullptr, cx - CDPIAware::Instance().ScaleX(GetSafeHwnd(), 80), 0, CDPIAware::Instance().ScaleX(GetSafeHwnd(), 80), CDPIAware::Instance().ScaleY(GetSafeHwnd(), 80), SWP_NOACTIVATE | SWP_NOZORDER);
 		return;
 	}
 	m_LogList.SetWindowPos(nullptr, -1, -1, cx, cy, SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER);
@@ -145,19 +146,30 @@ void COutputWnd::OnLvnItemchangedLoglist(NMHDR *pNMHDR, LRESULT *pResult)
 	*pResult = 0;
 
 	//if (this->IsThreadRunning())
-	if (pNMLV->iItem >= 0)
-	{
-		if (pNMLV->iSubItem != 0)
-			return;
+	if (pNMLV->iSubItem != 0)
+		return;
 
-		if (pNMLV->uNewState & LVIS_SELECTED)
+	if ((pNMLV->uChanged & LVIF_STATE) && ((pNMLV->uNewState & LVIS_SELECTED) || (pNMLV->uOldState & LVIS_SELECTED)))
+	{
+		CMainFrame* pMain = DYNAMIC_DOWNCAST(CMainFrame, AfxGetApp()->GetMainWnd());
+		POSITION pos = pMain->GetActiveDocument()->GetFirstViewPosition();
+		CTortoiseGitBlameView* pView = DYNAMIC_DOWNCAST(CTortoiseGitBlameView, pMain->GetActiveDocument()->GetNextView(pos));
+
+		std::unordered_set<CGitHash> selectedHashes;
+		auto selPos = m_LogList.GetFirstSelectedItemPosition();
+		while (selPos)
 		{
-			CMainFrame *pMain=DYNAMIC_DOWNCAST(CMainFrame,AfxGetApp()->GetMainWnd());
-			POSITION pos=pMain->GetActiveDocument()->GetFirstViewPosition();
-			CTortoiseGitBlameView *pView=DYNAMIC_DOWNCAST(CTortoiseGitBlameView,pMain->GetActiveDocument()->GetNextView(pos));
-			pView->FocusOn(&this->m_LogList.m_logEntries.GetGitRevAt(pNMLV->iItem));
-			m_Gravatar.LoadGravatar(m_LogList.m_logEntries.GetGitRevAt(pNMLV->iItem).GetAuthorEmail());
+			int item = m_LogList.GetNextSelectedItem(selPos);
+			selectedHashes.insert(m_LogList.m_logEntries.GetGitRevAt(item).m_CommitHash);
 		}
+
+		GitRevLoglist* selected = nullptr;
+		if (pNMLV->iItem >= 0 && (pNMLV->uChanged & LVIF_STATE) && (pNMLV->uNewState & LVIS_SELECTED))
+			selected = &m_LogList.m_logEntries.GetGitRevAt(pNMLV->iItem);
+
+		pView->FocusOn(std::move(selectedHashes), selected);
+		if (selected)
+			m_Gravatar.LoadGravatar(m_LogList.m_logEntries.GetGitRevAt(pNMLV->iItem).GetAuthorEmail());
 	}
 }
 /////////////////////////////////////////////////////////////////////////////
@@ -211,4 +223,13 @@ void COutputList::OnViewOutput()
 		pMainFrame->ShowPane(pParentBar, FALSE, FALSE, FALSE);
 		pMainFrame->RecalcLayout();
 	}
+}
+
+BOOL COutputWnd::OnEraseBkgnd(CDC* pDC)
+{
+	RECT rc{};
+	GetClientRect(&rc);
+	CBrush brush = CBrush(CTheme::Instance().IsDarkTheme() ? CTheme::darkBkColor : GetSysColor(COLOR_WINDOW));
+	pDC->FillRect(&rc, &brush);
+	return CDockablePaneUnscaledStoredState::OnEraseBkgnd(pDC);
 }

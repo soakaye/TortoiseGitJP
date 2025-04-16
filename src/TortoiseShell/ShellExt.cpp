@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2020 - TortoiseGit
+// Copyright (C) 2011-2023 - TortoiseGit
 // Copyright (C) 2003-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -35,10 +35,6 @@ extern ShellObjects g_shellObjects;
 // *********************** CShellExt *************************
 CShellExt::CShellExt(FileState state)
 	: m_State(state)
-	, itemStates(0)
-	, itemStatesFolder(0)
-	, space(0)
-	, m_cRef(0)
 	,regDiffLater(L"Software\\TortoiseGit\\DiffLater", L"")
 {
 	InterlockedIncrement(&g_cRefThisDll);
@@ -69,12 +65,12 @@ void LoadLangDll()
 	{
 		g_langid = g_ShellCache.GetLangID();
 		DWORD langId = g_langid;
-		TCHAR langDll[MAX_PATH*4] = {0};
+		wchar_t langDll[MAX_PATH * 4] = { 0 };
 		HINSTANCE hInst = nullptr;
-		TCHAR langdir[MAX_PATH] = {0};
+		wchar_t langdir[MAX_PATH] = { 0 };
 		if (GetModuleFileName(g_hmodThisDll, langdir, _countof(langdir))==0)
 			return;
-		TCHAR* dirpoint = wcsrchr(langdir, L'\\');
+		wchar_t* dirpoint = wcsrchr(langdir, L'\\');
 		if (dirpoint)
 			*dirpoint = L'\0';
 		dirpoint = wcsrchr(langdir, L'\\');
@@ -148,6 +144,10 @@ STDMETHODIMP CShellExt::QueryInterface(REFIID riid, LPVOID FAR *ppv)
 		*ppv = static_cast<LPSHELLPROPSHEETEXT>(this);
 	else if (IsEqualIID(riid, IID_IShellCopyHook))
 		*ppv = static_cast<ICopyHook*>(this);
+	else if (IsEqualIID(riid, IID_IExplorerCommand))
+		*ppv = static_cast<IExplorerCommand*>(this);
+	else if (IsEqualIID(riid, IID_IObjectWithSite))
+		*ppv = static_cast<IObjectWithSite*>(this);
 	else
 		return E_NOINTERFACE;
 
@@ -185,7 +185,7 @@ STDMETHODIMP CShellExt::Load(LPCOLESTR /*pszFileName*/, DWORD /*dwMode*/)
 }
 
 // ICopyHook member
-UINT __stdcall CShellExt::CopyCallback(HWND /*hWnd*/, UINT wFunc, UINT /*wFlags*/, LPCTSTR pszSrcFile, DWORD /*dwSrcAttribs*/, LPCTSTR /*pszDestFile*/, DWORD /*dwDestAttribs*/)
+UINT __stdcall CShellExt::CopyCallback(HWND /*hWnd*/, UINT wFunc, UINT /*wFlags*/, LPCWSTR pszSrcFile, DWORD /*dwSrcAttribs*/, LPCWSTR /*pszDestFile*/, DWORD /*dwDestAttribs*/)
 {
 	switch (wFunc)
 	{
@@ -194,7 +194,7 @@ UINT __stdcall CShellExt::CopyCallback(HWND /*hWnd*/, UINT wFunc, UINT /*wFlags*
 	case FO_RENAME:
 		if (pszSrcFile && pszSrcFile[0] && g_ShellCache.IsPathAllowed(pszSrcFile))
 		{
-			auto cacheType = g_ShellCache.GetCacheType();
+			const auto cacheType = g_ShellCache.GetCacheType();
 			switch (cacheType)
 			{
 			case ShellCache::exe:
@@ -222,4 +222,16 @@ UINT __stdcall CShellExt::CopyCallback(HWND /*hWnd*/, UINT wFunc, UINT /*wFlags*
 	// if it first fails. So if the cache hasn't released the handle yet, the explorer
 	// will retry anyway, so we just leave here immediately.
 	return IDYES;
+}
+
+// IObjectWithSite
+HRESULT __stdcall CShellExt::SetSite(IUnknown* pUnkSite)
+{
+	m_site = pUnkSite;
+	return S_OK;
+}
+
+HRESULT __stdcall CShellExt::GetSite(REFIID riid, void** ppvSite)
+{
+	return m_site.CopyTo(riid, ppvSite);
 }

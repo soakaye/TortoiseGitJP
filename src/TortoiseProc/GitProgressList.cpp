@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -18,8 +18,8 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "stdafx.h"
-#include "GitProgressList.h"
 #include "TortoiseProc.h"
+#include "GitProgressList.h"
 #include "Git.h"
 #include "registry.h"
 #include "AppUtils.h"
@@ -28,6 +28,7 @@
 #include "LoglistUtils.h"
 #include "Theme.h"
 #include "TempFile.h"
+#include "git2/sys/errors.h"
 
 BOOL	CGitProgressList::m_bAscending = FALSE;
 int		CGitProgressList::m_nSortedColumn = -1;
@@ -39,27 +40,6 @@ int		CGitProgressList::m_nSortedColumn = -1;
 IMPLEMENT_DYNAMIC(CGitProgressList, CListCtrl)
 
 CGitProgressList::CGitProgressList():CListCtrl()
-	, m_bCancelled(FALSE)
-	, m_pThread(nullptr)
-	, m_bErrorsOccurred(false)
-	, m_options(ProgOptNone)
-	, m_bSetTitle(false)
-	, m_pTaskbarList(nullptr)
-	, m_Command(nullptr)
-	, m_bThreadRunning(FALSE)
-	, iFirstResized(0)
-	, bSecondResized(false)
-	, nEnsureVisibleCount(0)
-	, m_TotalBytesTransferred(0)
-	, m_bFinishedItemAdded(false)
-	, m_bLastVisible(false)
-	, m_itemCount(-1)
-	, m_itemCountTotal(-1)
-	, m_pInfoCtrl(nullptr)
-	, m_pAnimate(nullptr)
-	, m_pProgControl(nullptr)
-	, m_pProgressLabelCtrl(nullptr)
-	, m_pPostWnd(nullptr)
 {
 	m_columnbuf[0] = L'\0';
 }
@@ -147,7 +127,7 @@ svn_wc_conflict_choice_t CGitProgressList::ConflictResolveCallback(const svn_wc_
 #endif
 void CGitProgressList::AddItemToList()
 {
-	int totalcount = GetItemCount();
+	const int totalcount = GetItemCount();
 
 	SetItemCountEx(totalcount+1, LVSICF_NOSCROLL|LVSICF_NOINVALIDATEALL);
 	// make columns width fit
@@ -163,7 +143,7 @@ void CGitProgressList::AddItemToList()
 
 	// Make sure the item is *entirely* visible even if the horizontal
 	// scroll bar is visible.
-	int count = GetCountPerPage();
+	const int count = GetCountPerPage();
 	if (totalcount <= (GetTopIndex() + count + nEnsureVisibleCount + 2))
 	{
 		++nEnsureVisibleCount;
@@ -327,22 +307,22 @@ void CGitProgressList::ResizeColumns()
 {
 	SetRedraw(FALSE);
 
-	TCHAR textbuf[MAX_PATH] = {0};
+	wchar_t textbuf[MAX_PATH] = { 0 };
 
 	auto pHeaderCtrl = GetHeaderCtrl();
 	if (pHeaderCtrl)
 	{
-		int maxcol = pHeaderCtrl->GetItemCount()-1;
+		const int maxcol = pHeaderCtrl->GetItemCount()-1;
 		for (int col = 0; col <= maxcol; ++col)
 		{
 			// find the longest width of all items
-			int count = min(static_cast<int>(m_arData.size()), GetItemCount());
+			const int count = min(static_cast<int>(m_arData.size()), GetItemCount());
 			HDITEM hdi = {0};
 			hdi.mask = HDI_TEXT;
 			hdi.pszText = textbuf;
 			hdi.cchTextMax = _countof(textbuf);
 			pHeaderCtrl->GetItem(col, &hdi);
-			int cx = GetStringWidth(hdi.pszText)+CDPIAware::Instance().ScaleX(20); // 20 pixels for col separator and margin
+			int cx = GetStringWidth(hdi.pszText) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 20); // 20 pixels for col separator and margin
 
 			for (int index = 0; index<count; ++index)
 			{
@@ -351,10 +331,10 @@ void CGitProgressList::ResizeColumns()
 				switch (col)
 				{
 				case 0:
-					linewidth = GetStringWidth(m_arData[index]->sActionColumnText) + CDPIAware::Instance().ScaleX(12);
+					linewidth = GetStringWidth(m_arData[index]->sActionColumnText) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 12);
 					break;
 				case 1:
-					linewidth = GetStringWidth(m_arData[index]->sPathColumnText) + CDPIAware::Instance().ScaleX(12);
+					linewidth = GetStringWidth(m_arData[index]->sPathColumnText) + CDPIAware::Instance().ScaleX(GetSafeHwnd(), 12);
 					break;
 				}
 				if (cx < linewidth)
@@ -385,7 +365,7 @@ void CGitProgressList::ReportUserCanceled()
 void CGitProgressList::ReportError(const CString& sError)
 {
 	if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
-		PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
+		PlaySound(reinterpret_cast<LPCWSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
 	ReportString(sError, CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), true, m_Colors.GetColor(CColors::Conflict));
 	m_bErrorsOccurred = true;
 }
@@ -393,14 +373,14 @@ void CGitProgressList::ReportError(const CString& sError)
 void CGitProgressList::ReportWarning(const CString& sWarning)
 {
 	if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
-		PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMDEFAULT), nullptr, SND_ALIAS_ID | SND_ASYNC);
+		PlaySound(reinterpret_cast<LPCWSTR>(SND_ALIAS_SYSTEMDEFAULT), nullptr, SND_ALIAS_ID | SND_ASYNC);
 	ReportString(sWarning, CString(MAKEINTRESOURCE(IDS_WARN_WARNING)), true, m_Colors.GetColor(CColors::Conflict));
 }
 
 void CGitProgressList::ReportNotification(const CString& sNotification)
 {
 	if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
-		PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMDEFAULT), nullptr, SND_ALIAS_ID | SND_ASYNC);
+		PlaySound(reinterpret_cast<LPCWSTR>(SND_ALIAS_SYSTEMDEFAULT), nullptr, SND_ALIAS_ID | SND_ASYNC);
 	ReportString(sNotification, CString(MAKEINTRESOURCE(IDS_WARN_NOTE)), false);
 }
 
@@ -520,7 +500,7 @@ UINT CGitProgressList::ProgressThread()
 	if (!m_sTotalBytesTransferred.IsEmpty())
 	{
 		temp.FormatMessage(IDS_PROGRS_TIME, static_cast<DWORD>(time / 1000) / 60, static_cast<DWORD>(time / 1000) % 60);
-		sFinalInfo.FormatMessage(IDS_PROGRS_FINALINFO, static_cast<LPCTSTR>(m_sTotalBytesTransferred), static_cast<LPCTSTR>(temp));
+		sFinalInfo.FormatMessage(IDS_PROGRS_FINALINFO, static_cast<LPCWSTR>(m_sTotalBytesTransferred), static_cast<LPCWSTR>(temp));
 		if (m_pProgressLabelCtrl)
 			m_pProgressLabelCtrl->SetWindowText(sFinalInfo);
 	}
@@ -550,14 +530,14 @@ UINT CGitProgressList::ProgressThread()
 			str.LoadString(IDS_FAIL);
 			color = CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0);
 		}
-		log.Format(L"%s (%lu ms @ %s)", static_cast<LPCTSTR>(str), time, static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(CTime::GetCurrentTime(), DATE_SHORTDATE, true, false)));
+		log.Format(L"%s (%I64u ms @ %s)", static_cast<LPCWSTR>(str), time, static_cast<LPCWSTR>(CLoglistUtils::FormatDateAndTime(CTime::GetCurrentTime(), DATE_SHORTDATE, true, false)));
 
 		// there's no "finished: xxx" line at the end. We add one here to make
 		// sure the user sees that the command is actually finished.
 		ReportString(log, CString(MAKEINTRESOURCE(IDS_PROGRS_FINISHED)), !(CTheme::Instance().IsHighContrastMode() && bSuccess), color);
 	}
 
-	int count = GetItemCount();
+	const int count = GetItemCount();
 	if ((count > 0)&&(m_bLastVisible))
 		EnsureVisible(count-1, FALSE);
 
@@ -568,7 +548,7 @@ UINT CGitProgressList::ProgressThread()
 		for (size_t i = 0; i < m_arData.size(); ++i)
 		{
 			NotificationData * data = m_arData[i];
-			temp.Format(L"%-20s : %s", static_cast<LPCTSTR>(data->sActionColumnText), static_cast<LPCTSTR>(data->sPathColumnText));
+			temp.Format(L"%-20s : %s", static_cast<LPCWSTR>(data->sActionColumnText), static_cast<LPCWSTR>(data->sPathColumnText));
 			logfile.AddLine(temp);
 		}
 		if (!sFinalInfo.IsEmpty())
@@ -614,6 +594,7 @@ void CGitProgressList::OnLvnGetdispinfoSvnprogress(NMHDR *pNMHDR, LRESULT *pResu
 						{
 							CFont * pFont = pDC->SelectObject(GetFont());
 							PathCompactPath(pDC->GetSafeHdc(), m_columnbuf, cWidth);
+							CPathUtils::ConvertToSlash(m_columnbuf);
 							pDC->SelectObject(pFont);
 							ReleaseDC(pDC);
 						}
@@ -758,14 +739,14 @@ int CGitProgressList::UpdateProgress(const git_indexer_progress* stat)
 	if (dt > 100)
 	{
 		start = GetTickCount64();
-		size_t ds = stat->received_bytes - m_TotalBytesTransferred;
+		const size_t ds = stat->received_bytes - m_TotalBytesTransferred;
 		speed = ds * 1000.0/dt;
 		m_TotalBytesTransferred = stat->received_bytes;
 	}
 	else
 		return 0;
 
-	int progress = stat->received_objects + stat->indexed_objects;
+	const int progress = stat->received_objects + stat->indexed_objects;
 
 	if ((stat->total_objects > 1000) && m_pProgControl && (!m_pProgControl->IsWindowVisible()))
 		m_pProgControl->ShowWindow(SW_SHOW);
@@ -800,7 +781,7 @@ int CGitProgressList::UpdateProgress(const git_indexer_progress* stat)
 	else
 		str.Format(L"%.2f MiB/s", speed / 1048576.0);
 
-	progText.FormatMessage(IDS_SVN_PROGRESS_TOTALANDSPEED, static_cast<LPCTSTR>(m_sTotalBytesTransferred), static_cast<LPCTSTR>(str));
+	progText.FormatMessage(IDS_SVN_PROGRESS_TOTALANDSPEED, static_cast<LPCWSTR>(m_sTotalBytesTransferred), static_cast<LPCWSTR>(str));
 	if (m_pProgressLabelCtrl)
 		m_pProgressLabelCtrl->SetWindowText(progText);
 
@@ -815,7 +796,7 @@ void CGitProgressList::OnTimer(UINT_PTR nIDEvent)
 	{
 		CString progText;
 		CString progSpeed = L"0 B/s";
-		progText.FormatMessage(IDS_SVN_PROGRESS_TOTALANDSPEED, static_cast<LPCTSTR>(m_sTotalBytesTransferred), static_cast<LPCTSTR>(progSpeed));
+		progText.FormatMessage(IDS_SVN_PROGRESS_TOTALANDSPEED, static_cast<LPCWSTR>(m_sTotalBytesTransferred), static_cast<LPCWSTR>(progSpeed));
 		if (m_pProgressLabelCtrl)
 			m_pProgressLabelCtrl->SetWindowText(progText);
 
@@ -887,7 +868,7 @@ void CGitProgressList::OnContextMenu(CWnd* pWnd, CPoint point)
 	if (pWnd != this)
 		return;
 
-	int selIndex = GetSelectionMark();
+	const int selIndex = GetSelectionMark();
 	if ((point.x == -1) && (point.y == -1))
 	{
 		// Menu was invoked from the keyboard rather than by right-clicking
@@ -918,7 +899,7 @@ void CGitProgressList::OnContextMenu(CWnd* pWnd, CPoint point)
 		POSITION pos = GetFirstSelectedItemPosition();
 		while (pos)
 		{
-			int nItem = GetNextSelectedItem(pos);
+			const int nItem = GetNextSelectedItem(pos);
 			NotificationData* data = m_arData[nItem];
 			if (data)
 			{
@@ -935,7 +916,7 @@ void CGitProgressList::OnContextMenu(CWnd* pWnd, CPoint point)
 	if (actions.empty())
 		return;
 
-	int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
+	const int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 
 	if (cmd <= 0 || static_cast<size_t>(cmd) > actions.size())
 		return;
@@ -985,7 +966,7 @@ void CGitProgressList::OnSize(UINT nType, int cx, int cy)
 		if(!m_hWnd)
 			return;
 
-		int count = GetItemCount();
+		const int count = GetItemCount();
 		if (count > 0)
 			EnsureVisible(count-1, false);
 	}
@@ -1070,7 +1051,7 @@ BOOL CGitProgressList::PreTranslateMessage(MSG* pMsg)
 							CString sAction = GetItemText(nItem, 0);
 							CString sPath = GetItemText(nItem, 1);
 							CString sMime = GetItemText(nItem, 2);
-							sClipdata.AppendFormat(L"%s: %s  %s\r\n", static_cast<LPCTSTR>(sAction), static_cast<LPCTSTR>(sPath), static_cast<LPCTSTR>(sMime));
+							sClipdata.AppendFormat(L"%s: %s  %s\r\n", static_cast<LPCWSTR>(sAction), static_cast<LPCWSTR>(sPath), static_cast<LPCWSTR>(sMime));
 						}
 						CStringUtils::WriteAsciiStringToClipboard(sClipdata);
 					}
@@ -1106,8 +1087,8 @@ void CGitProgressList::SetProgressLabelText(const CString& str)
 		m_pProgressLabelCtrl->SetWindowText(str);
 }
 
-CGitProgressList::WC_File_NotificationData::WC_File_NotificationData(const CTGitPath& path, git_wc_notify_action_t action)
-: NotificationData()
+CGitProgressList::WC_File_NotificationData::WC_File_NotificationData(const CTGitPath& path, Git_WC_Notify_Action action)
+	: NotificationData()
 , action(action)
 {
 	this->path = path;
@@ -1115,22 +1096,25 @@ CGitProgressList::WC_File_NotificationData::WC_File_NotificationData(const CTGit
 
 	switch (action)
 	{
-	case git_wc_notify_add:
+	case Git_WC_Notify_Action::Skip:
+		sActionColumnText.LoadString(IDS_SVNACTION_SKIP);
+		break;
+	case Git_WC_Notify_Action::Add:
 		sActionColumnText.LoadString(IDS_SVNACTION_ADD);
 		break;
-	case git_wc_notify_resolved:
+	case Git_WC_Notify_Action::Resolved:
 		sActionColumnText.LoadString(IDS_SVNACTION_RESOLVE);
 		break;
-	case git_wc_notify_revert:
+	case Git_WC_Notify_Action::Revert:
 		sActionColumnText.LoadString(IDS_SVNACTION_REVERT);
 		break;
-	case git_wc_notify_checkout:
+	case Git_WC_Notify_Action::Checkout:
 		sActionColumnText.LoadString(IDS_PROGRS_CMD_CHECKOUT);
 		break;
-	case git_wc_notify_lfs_lock:
+	case Git_WC_Notify_Action::LFS_Lock:
 		sActionColumnText.LoadString(IDS_PROGRS_CMD_LFS_LOCK);
 		break;
-	case git_wc_notify_lfs_unlock:
+	case Git_WC_Notify_Action::LFS_Unlock:
 		sActionColumnText.LoadString(IDS_PROGRS_CMD_LFS_UNLOCK);
 		break;
 	default:
@@ -1142,9 +1126,9 @@ void CGitProgressList::WC_File_NotificationData::SetColorCode(CColors& colors)
 {
 	switch (action)
 	{
-	case git_wc_notify_checkout:
+	case Git_WC_Notify_Action::Checkout:
 		[[fallthrough]];
-	case git_wc_notify_add:
+	case Git_WC_Notify_Action::Add:
 		color = colors.GetColor(CColors::Added);
 		colorIsDirect = true;
 		break;
@@ -1156,12 +1140,12 @@ void CGitProgressList::WC_File_NotificationData::SetColorCode(CColors& colors)
 
 void CGitProgressList::WC_File_NotificationData::GetContextMenu(CIconMenu& popup, ContextMenuActionList& actions)
 {
-	if ((action == git_wc_notify_add) ||
-		(action == git_wc_notify_revert) ||
-		(action == git_wc_notify_resolved) ||
-		(action == git_wc_notify_checkout) ||
-		(action == git_wc_notify_lfs_lock) ||
-		(action == git_wc_notify_lfs_unlock))
+	if ((action == Git_WC_Notify_Action::Add) ||
+		(action == Git_WC_Notify_Action::Revert) ||
+		(action == Git_WC_Notify_Action::Resolved) ||
+		(action == Git_WC_Notify_Action::Checkout) ||
+		(action == Git_WC_Notify_Action::LFS_Lock) ||
+		(action == Git_WC_Notify_Action::LFS_Unlock))
 	{
 		actions.push_back([&]()
 		{
@@ -1184,8 +1168,8 @@ void CGitProgressList::WC_File_NotificationData::GetContextMenu(CIconMenu& popup
 		actions.push_back([&]{ CAppUtils::ExploreTo(nullptr, g_Git.CombinePath(path)); });
 		popup.AppendMenuIcon(actions.size(), IDS_STATUSLIST_CONTEXT_EXPLORE, IDI_EXPLORER);
 
-		if ((action == git_wc_notify_lfs_lock) ||
-			(action == git_wc_notify_lfs_unlock))
+		if ((action == Git_WC_Notify_Action::LFS_Lock) ||
+			(action == Git_WC_Notify_Action::LFS_Unlock))
 		{
 			popup.AppendMenu(MF_SEPARATOR, NULL);
 
@@ -1195,7 +1179,7 @@ void CGitProgressList::WC_File_NotificationData::GetContextMenu(CIconMenu& popup
 				CString tempfilename = CTempFiles::Instance().GetTempFilePath(false).GetWinPathString();
 				VERIFY(pathList.WriteToFile(tempfilename));
 				CString sCmd;
-				sCmd.Format(L"/command:lfslock /pathfile:\"%s\" /deletepathfile", static_cast<LPCTSTR>(tempfilename));
+				sCmd.Format(L"/command:lfslock /pathfile:\"%s\" /deletepathfile", static_cast<LPCWSTR>(tempfilename));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 			popup.AppendMenuIcon(actions.size(), IDS_PROGRS_TITLE_LFS_LOCK, IDI_LFSLOCK);
@@ -1204,7 +1188,7 @@ void CGitProgressList::WC_File_NotificationData::GetContextMenu(CIconMenu& popup
 				CString tempfilename = CTempFiles::Instance().GetTempFilePath(false).GetWinPathString();
 				VERIFY(pathList.WriteToFile(tempfilename));
 				CString sCmd;
-				sCmd.Format(L"/command:lfsunlock /pathfile:\"%s\" /deletepathfile", static_cast<LPCTSTR>(tempfilename));
+				sCmd.Format(L"/command:lfsunlock /pathfile:\"%s\" /deletepathfile", static_cast<LPCWSTR>(tempfilename));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
 			popup.AppendMenuIcon(actions.size(), IDS_PROGRS_TITLE_LFS_UNLOCK, IDI_LFSUNLOCK);

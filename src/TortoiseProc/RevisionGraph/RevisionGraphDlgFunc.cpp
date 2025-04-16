@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2011 - TortoiseSVN
-// Copyright (C) 2012-2020 - TortoiseGit
+// Copyright (C) 2012-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,16 +17,15 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include <gdiplus.h>
-#include "Revisiongraphdlg.h"
+#include "RevisionGraphWnd.h"
 #include "Git.h"
-#include "TempFile.h"
-#include "UnicodeUtils.h"
-#include "TGitPath.h"
 #include "DPIAware.h"
 #include <regex>
+#include "AppUtils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -58,8 +57,8 @@ void CRevisionGraphWnd::BuildPreview()
 	float origZoom = m_fZoomFactor;
 
 	CRect clientRect = GetClientRect();
-	CSize preViewSize(max(CDPIAware::Instance().ScaleX(REVGRAPH_PREVIEW_WIDTH), clientRect.Width() / 4),
-					  max(CDPIAware::Instance().ScaleY(REVGRAPH_PREVIEW_HEIGHT), clientRect.Height() / 4));
+	CSize preViewSize(max(CDPIAware::Instance().ScaleX(GetSafeHwnd(), REVGRAPH_PREVIEW_WIDTH), clientRect.Width() / 4),
+					  max(CDPIAware::Instance().ScaleY(GetSafeHwnd(), REVGRAPH_PREVIEW_HEIGHT), clientRect.Height() / 4));
 
 	// zoom the graph so that it is completely visible in the window
 	CRect graphRect = GetGraphRect();
@@ -191,7 +190,7 @@ bool CRevisionGraphWnd::FetchRevisionData
 	this->m_LogCache.ClearAllParent();
 	this->m_logEntries.ClearAll();
 	CString range;
-	DWORD infomask = CGit::LOG_INFO_SIMPILFY_BY_DECORATION | (m_bShowBranchingsMerges ? CGit::LOG_ORDER_TOPOORDER | CGit::LOG_INFO_SPARSE : 0);
+	DWORD infomask = CGit::LOG_INFO_SIMPILFY_BY_DECORATION | (m_bShowBranchingsMerges ? CGit::LOG_INFO_SPARSE : 0);
 
 	if (!m_FromRev.IsEmpty())
 	{
@@ -199,7 +198,7 @@ bool CRevisionGraphWnd::FetchRevisionData
 		try
 		{
 			const std::wsregex_iterator end;
-			std::wstring string = m_FromRev;
+			std::wstring string { static_cast<LPCWSTR>(m_FromRev) };
 			std::wregex regex(L"[^\\s]+");
 			for (std::wsregex_iterator it(string.cbegin(), string.cend(), regex); it != end; ++it)
 			{
@@ -214,7 +213,7 @@ bool CRevisionGraphWnd::FetchRevisionData
 		try
 		{
 			const std::wsregex_iterator end;
-			std::wstring string = m_ToRev;
+			std::wstring string { static_cast<LPCWSTR>(m_ToRev) };
 			std::wregex regex(L"[^\\s]+");
 			for (std::wsregex_iterator it(string.cbegin(), string.cend(), regex); it != end; ++it)
 			{
@@ -238,9 +237,7 @@ bool CRevisionGraphWnd::FetchRevisionData
 	ReloadHashMap();
 	this->m_Graph.clear();
 
-	m_superProjectHash.Empty();
-	if (CRegDWORD(L"Software\\TortoiseGit\\LogShowSuperProjectSubmodulePointer", TRUE) != FALSE)
-		m_superProjectHash = g_Git.GetSubmodulePointer();
+	g_Git.GetSubmodulePointer(m_submoduleInfo);
 
 	// build child graph
 	if (!m_bShowAllTags || m_bShowBranchingsMerges)
@@ -259,10 +256,11 @@ bool CRevisionGraphWnd::FetchRevisionData
 			auto& rev = m_logEntries.GetGitRevAt(i);
 
 			// keep labeled commits
-			if (auto foundNames = m_HashMap.find(rev.m_CommitHash); foundNames != m_HashMap.cend() || rev.m_CommitHash == m_superProjectHash)
+			const bool isSuperRepoHash = m_submoduleInfo.AnyMatches(rev.m_CommitHash);
+			if (auto foundNames = m_HashMap.find(rev.m_CommitHash); foundNames != m_HashMap.cend() || isSuperRepoHash)
 			{
 				// by default any label is enough to keep this commit visible
-				if (m_bShowAllTags || rev.m_CommitHash == m_superProjectHash)
+				if (m_bShowAllTags || isSuperRepoHash)
 					continue;
 
 				// if hiding tags, check if there are any branch names for this commit
@@ -364,10 +362,9 @@ bool CRevisionGraphWnd::FetchRevisionData
 
 	m_SugiyamLayout.call(m_GraphAttr);
 
-	ogdf::node v;
 	double xmax = 0;
 	double ymax = 0;
-	forall_nodes(v,m_Graph)
+	for (auto v : m_Graph.nodes)
 	{
 		double x = m_GraphAttr.x(v) + m_GraphAttr.width(v)/2;
 		double y = m_GraphAttr.y(v) + m_GraphAttr.height(v)/2;
@@ -376,7 +373,6 @@ bool CRevisionGraphWnd::FetchRevisionData
 		if(y>ymax)
 			ymax = y;
 	}
-
 	this->m_GraphRect.top=m_GraphRect.left=0;
 	m_GraphRect.bottom = static_cast<LONG>(ymax);
 	m_GraphRect.right = static_cast<LONG>(xmax);
@@ -446,9 +442,9 @@ void CRevisionGraphWnd::CompareRevs(const CString& revTo)
 	CString sCmd;
 
 	sCmd.Format(L"/command:showcompare %s /revision1:%s /revision2:%s",
-			this->m_sPath.IsEmpty() ? L"" : static_cast<LPCTSTR>(L"/path:\"" + this->m_sPath + L'"'),
-			static_cast<LPCTSTR>(GetFriendRefName(m_SelectedEntry1)),
-			!revTo.IsEmpty() ? static_cast<LPCTSTR>(revTo) : static_cast<LPCTSTR>(GetFriendRefName(m_SelectedEntry2)));
+			this->m_sPath.IsEmpty() ? L"" : static_cast<LPCWSTR>(L"/path:\"" + this->m_sPath + L'"'),
+			static_cast<LPCWSTR>(GetFriendRefName(m_SelectedEntry1)),
+			!revTo.IsEmpty() ? static_cast<LPCWSTR>(revTo) : static_cast<LPCWSTR>(GetFriendRefName(m_SelectedEntry2)));
 
 	if (alternativeTool)
 		sCmd += L" /alternative";
@@ -463,7 +459,7 @@ void CRevisionGraphWnd::UnifiedDiffRevs(bool bHead)
 
 	bool alternativeTool = !!(GetAsyncKeyState(VK_SHIFT) & 0x8000);
 	CAppUtils::StartShowUnifiedDiff(m_hWnd, CString(), GetFriendRefName(m_SelectedEntry1), CString(),
-		bHead ? L"HEAD" : GetFriendRefName(m_SelectedEntry2),
+		bHead ? CString(L"HEAD") : GetFriendRefName(m_SelectedEntry2),
 		alternativeTool);
 }
 

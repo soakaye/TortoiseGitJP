@@ -1,6 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
@@ -8,6 +12,10 @@
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
@@ -40,7 +48,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\Resources;$InputDir;..\..\ext\ResizableLib;..\Git;..\Utils;..\..\ext\json\include;..\..\ext\scintilla\include;..\Utils\TreePropSheet;..\Utils\MiscUI;..\TortoiseShell;..\..\ext\gitdll;..\..\ext\libgit2\include;..\..\ext\zlib;..\..\ext\OGDF\include;..\..\ext\build\ogdf;..\AsyncFramework;..\TortoiseMerge;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Resources;$InputDir;..\..\ext\ResizableLib;..\Git;..\Utils;..\..\ext\json\include;..\..\ext\scintilla\include;..\..\ext\lexilla\include;..\Utils\TreePropSheet;..\Utils\MiscUI;..\TortoiseShell;..\..\ext\gitdll;..\..\ext\libgit2\include;..\..\ext\zlib;..\..\ext\OGDF\include;..\..\ext\build\ogdf;..\AsyncFramework;..\TortoiseMerge;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>HUNSPELL_STATIC;TGIT_LFS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
     </ClCompile>
@@ -50,6 +58,9 @@
     <Link>
       <AdditionalDependencies>Winmm.lib;gdiplus.lib;shfolder.lib;comctl32.lib;ws2_32.lib;shlwapi.lib;wininet.lib;UxTheme.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>true</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Git\Git.cpp" />
@@ -136,6 +147,7 @@
     <ClCompile Include="Commands\LFSCommands.cpp" />
     <ClCompile Include="CommitIsOnRefsDlg.cpp" />
     <ClCompile Include="CreateChangelistDlg.cpp" />
+    <ClCompile Include="DiffLinesForStaging.cpp" />
     <ClCompile Include="FilterHelper.cpp" />
     <ClCompile Include="FindBar.cpp" />
     <ClCompile Include="FirstStartWizard.cpp" />
@@ -200,6 +212,7 @@
     <ClCompile Include="LogDataVector.cpp" />
     <ClCompile Include="LogDlg.cpp" />
     <ClCompile Include="LoglistUtils.cpp" />
+    <ClCompile Include="StagingOperations.cpp" />
     <ClCompile Include="StatGraphDlg.cpp" />
     <ClCompile Include="Commands\RefLogCommand.cpp" />
     <ClCompile Include="RefLogDlg.cpp" />
@@ -226,6 +239,8 @@
     <ClCompile Include="Commands\BranchCommand.cpp" />
     <ClCompile Include="CreateBranchTagDlg.cpp" />
     <ClCompile Include="Commands\TagCommand.cpp" />
+    <ClCompile Include="Commands\WorktreeCommand.cpp" />
+    <ClCompile Include="CreateWorktreeDlg.cpp" />
     <ClCompile Include="Commands\ExportCommand.cpp" />
     <ClCompile Include="ExportDlg.cpp" />
     <ClCompile Include="Commands\AddCommand.cpp" />
@@ -310,6 +325,7 @@
     <ClCompile Include="BisectStartDlg.cpp" />
     <ClCompile Include="RepositoryBrowser.cpp" />
     <ClCompile Include="Commands\RepositoryBrowserCommand.cpp" />
+    <ClCompile Include="WorktreeListDlg.cpp" />
     <ClCompile Include="RevisionGraph\RevGraphFilterDlg.cpp" />
     <ClCompile Include="Commands\RevisionGraphCommand.cpp" />
     <ClCompile Include="RevisionGraph\RevisionGraphDlg.cpp" />
@@ -351,6 +367,7 @@
     <ClInclude Include="..\Git\MassiveGitTaskBase.h" />
     <ClInclude Include="..\Git\TGitPath.h" />
     <ClInclude Include="..\Resources\LoglistCommonResource.h" />
+    <ClInclude Include="..\Resources\TGitHelpMapping.ini" />
     <ClInclude Include="..\TortoiseMerge\FileTextLines.h" />
     <ClInclude Include="..\TortoiseShell\ShellCache.h" />
     <ClInclude Include="..\Utils\ACEdit.h" />
@@ -426,6 +443,7 @@
     <ClInclude Include="..\Utils\TreePropSheet\PropPageFrameDefault.h" />
     <ClInclude Include="..\Utils\TreePropSheet\TreePropSheet.h" />
     <ClInclude Include="..\Utils\UnicodeUtils.h" />
+    <ClInclude Include="..\Utils\URLFinder.h" />
     <ClInclude Include="..\Utils\WindowsCredentialsStore.h" />
     <ClInclude Include="AddRemoteDlg.h" />
     <ClInclude Include="AutoTextTestDlg.h" />
@@ -443,6 +461,8 @@
     <ClInclude Include="CommitIsOnRefsDlg.h" />
     <ClInclude Include="ConfigureGitExe.h" />
     <ClInclude Include="CreateChangelistDlg.h" />
+    <ClInclude Include="EnableStagingTypes.h" />
+    <ClInclude Include="DiffLinesForStaging.h" />
     <ClInclude Include="FilterHelper.h" />
     <ClInclude Include="FindBar.h" />
     <ClInclude Include="FirstStartWizard.h" />
@@ -487,6 +507,7 @@
     <ClInclude Include="Settings\SettingsProgsDiff.h" />
     <ClInclude Include="Settings\SettingsProgsMerge.h" />
     <ClInclude Include="Settings\SettingsTUDiff.h" />
+    <ClInclude Include="Settings\SetWin11ContextMenu.h" />
     <ClInclude Include="SinglePropSheetDlg.h" />
     <ClInclude Include="DeleteConflictDlg.h" />
     <ClInclude Include="HistoryDlg.h" />
@@ -509,6 +530,7 @@
     <ClInclude Include="LogDlg.h" />
     <ClInclude Include="LogDlgHelper.h" />
     <ClInclude Include="LoglistUtils.h" />
+    <ClInclude Include="StagingOperations.h" />
     <ClInclude Include="StatGraphDlg.h" />
     <ClInclude Include="Commands\RefLogCommand.h" />
     <ClInclude Include="RefLogDlg.h" />
@@ -535,6 +557,8 @@
     <ClInclude Include="Commands\BranchCommand.h" />
     <ClInclude Include="CreateBranchTagDlg.h" />
     <ClInclude Include="Commands\TagCommand.h" />
+    <ClInclude Include="Commands\WorktreeCommand.h" />
+    <ClInclude Include="CreateWorktreeDlg.h" />
     <ClInclude Include="Commands\ExportCommand.h" />
     <ClInclude Include="ExportDlg.h" />
     <ClInclude Include="Commands\AddCommand.h" />
@@ -616,6 +640,7 @@
     <ClInclude Include="BisectStartDlg.h" />
     <ClInclude Include="RepositoryBrowser.h" />
     <ClInclude Include="Commands\RepositoryBrowserCommand.h" />
+    <ClInclude Include="WorktreeListDlg.h" />
     <ClInclude Include="RevisionGraph\RevGraphFilterDlg.h" />
     <ClInclude Include="Commands\RevisionGraphCommand.h" />
     <ClInclude Include="RevisionGraph\RevisionGraphDlg.h" />
@@ -644,6 +669,7 @@
     <Image Include="..\Resources\actionadded.ico" />
     <Image Include="..\Resources\actionconflicted.ico" />
     <Image Include="..\Resources\actiondeleted.ico" />
+    <Image Include="..\Resources\actionerror.ico" />
     <Image Include="..\Resources\actionfetching.ico" />
     <Image Include="..\Resources\actionmodified.ico" />
     <Image Include="..\Resources\actionreplaced.ico" />
@@ -654,6 +680,7 @@
     <Image Include="..\Resources\certcheck.ico" />
     <Image Include="..\Resources\CFMBackground.ico" />
     <Image Include="..\Resources\checkout.ico" />
+    <Image Include="..\Resources\cherry-pick.ico" />
     <Image Include="..\Resources\clippaste.ico" />
     <Image Include="..\Resources\code.ico" />
     <Image Include="..\Resources\CommitBackground.ico" />
@@ -678,9 +705,9 @@
     <Image Include="..\Resources\hook.ico" />
     <Image Include="..\Resources\iconset.ico" />
     <Image Include="..\Resources\ImportPatchesBackground.ico" />
+    <Image Include="..\Resources\indeterminate.ico" />
     <Image Include="..\Resources\jumpdown.ico" />
     <Image Include="..\Resources\jumpup.ico" />
-    <Image Include="..\Resources\Library.ico" />
     <Image Include="..\Resources\lineadded.ico" />
     <Image Include="..\Resources\lineconflicted.ico" />
     <Image Include="..\Resources\lineremoved.ico" />
@@ -757,12 +784,16 @@
     <None Include="..\Resources\download.avi" />
     <None Include="..\Resources\pan.cur" />
     <None Include="..\Resources\pandown.cur" />
+    <None Include="..\Resources\TortoiseGit_Logo.svgz" />
     <None Include="..\Resources\TortoiseLoglistCommon.rc2" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\Resources\TortoiseProcENG.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\ext\build\Detours.vcxproj">
+      <Project>{e5af2264-b5a2-424c-9c5c-7e88375583ce}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\ext\build\libgit2.vcxproj">
       <Project>{2b4f366c-93ba-491e-87af-5ef7b37f75f7}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

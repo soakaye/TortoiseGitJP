@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2013, 2015-2019 - TortoiseGit
+// Copyright (C) 2009-2013, 2015-2019, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -38,7 +38,7 @@ bool SVNRebaseCommand::Execute()
 
 	if(!g_Git.CheckCleanWorkTree())
 	{
-		if (CMessageBox::Show(GetExplorerHWND(), g_Git.m_CurrentDir + L"\r\n" + CString(MAKEINTRESOURCE(IDS_ERROR_NOCLEAN_STASH)), L"TortoiseGit", 1, IDI_QUESTION, CString(MAKEINTRESOURCE(IDS_STASHBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 1)
+		if (CMessageBox::Show(GetExplorerHWND(), g_Git.m_CurrentDir + L"\r\n" + CString(MAKEINTRESOURCE(IDS_ERROR_NOCLEAN_STASH)), IDS_APPNAME, 1, IDI_QUESTION, IDS_STASHBUTTON, IDS_ABORTBUTTON) == 1)
 		{
 			CSysProgressDlg sysProgressDlg;
 			sysProgressDlg.SetTitle(CString(MAKEINTRESOURCE(IDS_APPNAME)));
@@ -102,7 +102,7 @@ bool SVNRebaseCommand::Execute()
 	}
 	CProgressDlg progress;
 	progress.m_GitCmd = L"git.exe svn fetch";
-	progress.m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
+	progress.m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
 
 	if(progress.DoModal()!=IDOK)
 		return false;
@@ -131,9 +131,12 @@ bool SVNRebaseCommand::Execute()
 	{
 		CProgressDlg progressReset;
 		CString cmd;
-		cmd.Format(L"git.exe reset --hard %s --", static_cast<LPCTSTR>(out));
+		CString endOfOptions;
+		if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+			endOfOptions = L" --end-of-options";
+		cmd.Format(L"git.exe reset --hard%s %s --", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(out));
 		progressReset.m_GitCmd = cmd;
-		progressReset.m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
+		progressReset.m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
 
 		if (progressReset.DoModal() != IDOK)
 			return false;

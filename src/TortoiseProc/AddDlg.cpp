@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2021, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -30,9 +30,6 @@
 IMPLEMENT_DYNAMIC(CAddDlg, CResizableStandAloneDialog)
 CAddDlg::CAddDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CAddDlg::IDD, pParent)
-	, m_bThreadRunning(FALSE)
-	, m_bCancelled(false)
-	, m_bIncludeIgnored(FALSE)
 {
 }
 
@@ -72,9 +69,7 @@ BOOL CAddDlg::OnInitDialog()
 	m_addListCtrl.SetBackgroundImage(IDI_ADD_BKG);
 	m_addListCtrl.EnableFileDrop();
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.CombinePath(m_pathList.GetCommonRoot().GetUIPathString()), sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.CombinePath(m_pathList.GetCommonRoot().GetUIPathString()));
 
 	AdjustControlSize(IDC_SELECTALL);
 	AdjustControlSize(IDC_INCLUDE_IGNORED);
@@ -89,6 +84,7 @@ BOOL CAddDlg::OnInitDialog()
 	if (GetExplorerHWND())
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"AddDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	//first start a thread to obtain the file list with the status without
 	//blocking the dialog
@@ -214,7 +210,7 @@ LRESULT CAddDlg::OnFileDropped(WPARAM, LPARAM lParam)
 	// but only if it isn't already running - otherwise we
 	// restart the timer.
 	CTGitPath path;
-	path.SetFromWin(reinterpret_cast<LPCTSTR>(lParam));
+	path.SetFromWin(reinterpret_cast<LPCWSTR>(lParam));
 
 	// check whether the dropped file belongs to the very same repository
 	CString projectDir;

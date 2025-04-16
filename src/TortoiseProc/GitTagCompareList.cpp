@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2020 - TortoiseGit
+// Copyright (C) 2015-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -67,14 +67,6 @@ inline static bool SortPredicate(bool sortLogical, const CString& e1, const CStr
 
 CGitTagCompareList::CGitTagCompareList()
 	: CHintCtrl<CListCtrl>()
-	, colTag(0)
-	, colDiff(0)
-	, colMyHash(0)
-	, colMyMessage(0)
-	, colTheirHash(0)
-	, colTheirMessage(0)
-	, m_bAscending(false)
-	, m_nSortedColumn(-1)
 {
 	m_bSortLogical = !CRegDWORD(L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoStrCmpLogical", 0, false, HKEY_CURRENT_USER);
 	if (m_bSortLogical)
@@ -91,8 +83,6 @@ void CGitTagCompareList::Init()
 	colMyMessage = InsertColumn(index++, CString(MAKEINTRESOURCE(IDS_TAGCOMPARE_LOCALMESSAGE)));
 	colTheirHash = InsertColumn(index++, CString(MAKEINTRESOURCE(IDS_TAGCOMPARE_REMOTEHASH)));
 	colTheirMessage = InsertColumn(index++, CString(MAKEINTRESOURCE(IDS_TAGCOMPARE_REMOTEMESSAGE)));
-
-	SetWindowTheme(m_hWnd, L"Explorer", nullptr);
 
 	if (!!CRegDWORD(L"Software\\TortoiseGit\\SortTagsReversed", 0, false, HKEY_LOCAL_MACHINE) || !!CRegDWORD(L"Software\\TortoiseGit\\SortTagsReversed", 0, false, HKEY_CURRENT_USER))
 	{
@@ -160,8 +150,8 @@ int CGitTagCompareList::Fill(const CString& remote, CString& err)
 			}
 		});
 	}
-	std::sort(remoteTags.begin(), remoteTags.end(), std::bind(SortPredicate, !!m_bSortLogical, std::placeholders::_1, std::placeholders::_2));
-	std::sort(localTags.begin(), localTags.end(), std::bind(SortPredicate, !!m_bSortLogical, std::placeholders::_1, std::placeholders::_2));
+	std::sort(remoteTags.begin(), remoteTags.end(), [](const auto& first, const auto& second) { return SortPredicate(!!m_bSortLogical, first, second); });
+	std::sort(localTags.begin(), localTags.end(), [](const auto& first, const auto& second) { return SortPredicate(!!m_bSortLogical, first, second); });
 
 	auto remoteIt = remoteTags.cbegin();
 	auto localIt = localTags.cbegin();
@@ -268,36 +258,30 @@ void CGitTagCompareList::Show()
 
 	if (m_nSortedColumn >= 0)
 	{
-		auto predicate = [](bool sortLogical, int sortColumn, const TagEntry& e1, const TagEntry& e2)
+		const auto predicate = [sortColumn=m_nSortedColumn, sortLogical=!!m_bSortLogical](const TagEntry& e1, const TagEntry& e2)
 		{
 			switch (sortColumn)
 			{
 			case 0:
 				return SortPredicate(sortLogical, e1.name, e2.name);
-				break;
 			case 1:
 				return SortPredicate(false, e1.diffstate, e2.diffstate);
-				break;
 			case 2:
 				return e1.myHash < e2.myHash;
-				break;
 			case 3:
 				return SortPredicate(sortLogical, e1.myMessage, e2.myMessage);
-				break;
 			case 4:
 				return e1.theirHash < e2.theirHash;
-				break;
 			case 5:
 				return SortPredicate(sortLogical, e1.theirMessage, e2.theirMessage);
-				break;
 			}
 			return false;
 		};
 
 		if (m_bAscending)
-			std::stable_sort(m_TagList.begin(), m_TagList.end(), std::bind(predicate, !!m_bSortLogical, m_nSortedColumn, std::placeholders::_1, std::placeholders::_2));
+			std::stable_sort(m_TagList.begin(), m_TagList.end(), [&predicate](const auto& first, const auto& second) { return predicate(first, second); });
 		else
-			std::stable_sort(m_TagList.begin(), m_TagList.end(), std::bind(predicate, !!m_bSortLogical, m_nSortedColumn, std::placeholders::_2, std::placeholders::_1));
+			std::stable_sort(m_TagList.begin(), m_TagList.end(), [&predicate](const auto& first, const auto& second) { return predicate(second, first); });
 	}
 
 	int index = 0;
@@ -377,7 +361,7 @@ void CGitTagCompareList::OnContextMenu(CWnd *pWnd, CPoint point)
 
 void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 {
-	int selIndex = GetSelectionMark();
+	const int selIndex = GetSelectionMark();
 	if (selIndex < 0)
 		return;
 
@@ -391,7 +375,7 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 	CString logStr;
 	if (!myHash.IsEmpty())
 	{
-		logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(myHash));
+		logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(myHash));
 		popup.AppendMenuIcon(IDGITRCL_MYLOG, logStr, IDI_LOG);
 	}
 
@@ -399,7 +383,7 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 	{
 		if (!theirHash.IsEmpty())
 		{
-			logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCTSTR>(theirHash));
+			logStr.Format(IDS_SHOWLOG_OF, static_cast<LPCWSTR>(theirHash));
 			popup.AppendMenuIcon(IDGITRCL_THEIRLOG, logStr, IDI_LOG);
 		}
 
@@ -423,21 +407,21 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 	if (!theirHash.IsEmpty())
 		popup.AppendMenuIcon(IDGITRCL_DELETEREMOTE, IDS_DELETE_REMOTETAG, IDI_DELETE);
 
-	int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
+	const int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 	switch (cmd)
 	{
 		case IDGITRCL_MYLOG:
 		case IDGITRCL_THEIRLOG:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\" /endrev:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), cmd == IDGITRCL_MYLOG ? static_cast<LPCTSTR>(myHash) : static_cast<LPCTSTR>(theirHash));
+			sCmd.Format(L"/command:log /path:\"%s\" /endrev:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), cmd == IDGITRCL_MYLOG ? static_cast<LPCWSTR>(myHash) : static_cast<LPCWSTR>(theirHash));
 			CAppUtils::RunTortoiseGitProc(sCmd);
 			break;
 		}
 		case IDGITRCL_COMPARE:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:\"%s\" /revision2:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(myHash), static_cast<LPCTSTR>(theirHash));
+			sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:\"%s\" /revision2:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(myHash), static_cast<LPCWSTR>(theirHash));
 			if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
 				sCmd += L" /alternative";
 			CAppUtils::RunTortoiseGitProc(sCmd);
@@ -446,7 +430,7 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 		case IDGITRCL_DELETELOCAL:
 		{
 			CString csMessage;
-			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(tag));
+			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(tag));
 			if (MessageBox(csMessage, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION) != IDYES)
 				return;
 
@@ -459,7 +443,7 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 		case IDGITRCL_DELETEREMOTE:
 		{
 			CString csMessage;
-			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCTSTR>(tag));
+			csMessage.Format(IDS_PROC_DELETEBRANCHTAG, static_cast<LPCWSTR>(tag));
 			if (MessageBox(csMessage, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION) != IDYES)
 				return;
 			CSysProgressDlg sysProgressDlg;
@@ -491,7 +475,7 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 		case IDGITRCL_PUSH:
 		{
 			CProgressDlg dlg;
-			dlg.m_GitCmd.Format(L"git.exe push --force \"%s\" refs/tags/%s", static_cast<LPCTSTR>(m_remote), static_cast<LPCTSTR>(tag));
+			dlg.m_GitCmd.Format(L"git.exe push --force -- \"%s\" refs/tags/%s", static_cast<LPCWSTR>(m_remote), static_cast<LPCWSTR>(tag));
 			dlg.DoModal();
 
 			if (CString err; Fill(m_remote, err))
@@ -502,7 +486,7 @@ void CGitTagCompareList::OnContextMenuList(CWnd * /*pWnd*/, CPoint point)
 		case IDGITRCL_FETCH:
 		{
 			CProgressDlg dlg;
-			dlg.m_GitCmd.Format(L"git.exe fetch \"%s\" refs/tags/%s:refs/tags/%s", static_cast<LPCTSTR>(m_remote), static_cast<LPCTSTR>(tag), static_cast<LPCTSTR>(tag));
+			dlg.m_GitCmd.Format(L"git.exe fetch -- \"%s\" refs/tags/%s:refs/tags/%s", static_cast<LPCWSTR>(m_remote), static_cast<LPCWSTR>(tag), static_cast<LPCWSTR>(tag));
 			dlg.DoModal();
 
 			if (CString err; Fill(m_remote, err))
@@ -527,7 +511,7 @@ void CGitTagCompareList::OnContextMenuHeader(CWnd * /*pWnd*/, CPoint point)
 	{
 		AppendMenuChecked(popup, IDS_HIDEUNCHANGED, IDGITRCLH_HIDEUNCHANGED, m_bHideEqual);
 
-		int selection = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
+		const int selection = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 		switch (selection)
 		{
 			case IDGITRCLH_HIDEUNCHANGED:

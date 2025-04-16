@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -21,7 +21,8 @@
 #define GIT_HASH_SIZE 20
 
 /* also see gitdll.c */
-static_assert(GIT_HASH_SIZE == GIT_OID_RAWSZ, "hash size needs to be the same as in libgit2");
+static_assert(sizeof(git_oid) == GIT_HASH_SIZE, "hash size needs to be the same as in libgit2");
+static_assert(sizeof(git_oid) == GIT_HASH_SIZE, "hash size needs to be the same as in libgit2");
 static_assert(sizeof(git_oid::id) == GIT_HASH_SIZE, "hash size needs to be the same as in libgit2");
 
 #define GIT_REV_ZERO_C "0000000000000000000000000000000000000000"
@@ -34,12 +35,10 @@ struct std::hash<CGitHash>;
 class CGitHash
 {
 private:
-	unsigned char m_hash[GIT_HASH_SIZE];
+	unsigned char m_hash[GIT_HASH_SIZE]{};
+
 public:
-	CGitHash()
-	{
-		memset(m_hash,0, GIT_HASH_SIZE);
-	}
+	CGitHash() = default;
 	CGitHash(const git_oid* oid)
 	{
 		git_oid_cpy(reinterpret_cast<git_oid*>(m_hash), oid);
@@ -59,35 +58,63 @@ public:
 		return *this;
 	}
 
-	static CGitHash FromHexStrTry(const CString& str)
+#ifdef TGIT_TESTS_ONLY
+	static CGitHash FromHexStr(const wchar_t* str, bool* isHash = nullptr)
 	{
-		if (!IsValidSHA1(str))
-			return CGitHash();
-
-		return FromHexStr(str);
+		return FromHexStr(std::wstring_view(str), isHash);
 	}
+#endif
 
-	static CGitHash FromHexStr(const CString& str)
+	template <typename T>
+	static CGitHash FromHexStr(const T& str, bool* isHash = nullptr)
 	{
+		static_assert(std::is_assignable_v<T, const CString&> || std::is_assignable_v<T, const CStringA&> || std::is_assignable_v<T, const std::string_view&> || std::is_assignable_v<T, const std::wstring_view&>, "only applicable to 'const CString&', 'const CStringA&', 'std::string_view&' and 'std::string_view&'");
+		if constexpr (!(std::is_assignable_v<T, const std::string_view&> || std::is_assignable_v<T, const std::wstring_view&>))
+		{
+			if (str.GetLength() != 2 * GIT_HASH_SIZE)
+			{
+				if (isHash)
+					*isHash = false;
+				return CGitHash();
+			}
+		}
+		else
+		{
+			if (str.size() != 2 * GIT_HASH_SIZE)
+			{
+				if (isHash)
+					*isHash = false;
+				return CGitHash();
+			}
+		}
+
 		CGitHash hash;
 		for (int i = 0; i < GIT_HASH_SIZE; ++i)
 		{
-			unsigned char a;
-			a=0;
+			unsigned char a = 0;
 			for (int j = 2 * i; j <= 2 * i + 1; ++j)
 			{
-				a =a<<4;
+				a = a << 4;
 
-				TCHAR ch = str[j];
-				if (ch >= L'0' && ch <= L'9')
-					a |= (ch - L'0') & 0xF;
-				else if (ch >=L'A' && ch <= L'F')
-					a |= ((ch - L'A') & 0xF) + 10 ;
-				else if (ch >=L'a' && ch <= L'f')
-					a |= ((ch - L'a') & 0xF) + 10;
+				const auto ch = str[j];
+				static_assert('_' == L'_', "This method expects that char and wchar_t literals are comparable for ASCII characters");
+				if (ch >= '0' && ch <= '9')
+					a |= (ch - '0') & 0xF;
+				else if (ch >= 'A' && ch <= 'F')
+					a |= ((ch - 'A') & 0xF) + 10;
+				else if (ch >= 'a' && ch <= 'f')
+					a |= ((ch - 'a') & 0xF) + 10;
+				else
+				{
+					if (isHash)
+						*isHash = false;
+					return CGitHash();
+				}
 			}
 			hash.m_hash[i] = a;
 		}
+		if (isHash)
+			*isHash = true;
 		return hash;
 	}
 
@@ -98,43 +125,14 @@ public:
 		return hash;
 	}
 
-	static CGitHash FromHexStr(const char* str)
-	{
-		CGitHash hash;
-		for (int i = 0; i < GIT_HASH_SIZE; ++i)
-		{
-			unsigned char a;
-			a=0;
-			for (int j = 2 * i; j <= 2 * i + 1; ++j)
-			{
-				a =a<<4;
-
-				char ch = str[j];
-				if (ch >= '0' && ch <= '9')
-					a |= (ch - '0') & 0xF;
-				else if (ch >= 'A' && ch <= 'F')
-					a |= ((ch - 'A') & 0xF) + 10 ;
-				else if (ch >= 'a' && ch <= 'f')
-					a |= ((ch - 'a') & 0xF) + 10;
-
-			}
-			hash.m_hash[i] = a;
-		}
-		return hash;
-	}
-
 	void Empty()
 	{
 		memset(m_hash,0, GIT_HASH_SIZE);
 	}
-	bool IsEmpty() const
+	inline bool IsEmpty() const
 	{
-		for (int i = 0; i < GIT_HASH_SIZE; ++i)
-		{
-			if(m_hash[i] != 0)
-				return false;
-		}
-		return true;
+		static const unsigned char empty[GIT_HASH_SIZE]{};
+		return memcmp(m_hash, empty, GIT_HASH_SIZE) == 0;
 	}
 
 	CString ToString() const
@@ -189,18 +187,6 @@ public:
 		if (memcmp(m_hash, hash.m_hash, prefixLen >> 1))
 			return false;
 		return prefixLen == 2 * GIT_HASH_SIZE || wcsncmp(ToString(), hashString, prefixLen) == 0;
-	}
-
-	static bool IsValidSHA1(const CString &possibleSHA1)
-	{
-		if (possibleSHA1.GetLength() != 2 * GIT_HASH_SIZE)
-			return false;
-		for (int i = 0; i < possibleSHA1.GetLength(); ++i)
-		{
-			if (!((possibleSHA1[i] >= '0' && possibleSHA1[i] <= '9') || (possibleSHA1[i] >= 'a' && possibleSHA1[i] <= 'f') || (possibleSHA1[i] >= 'A' && possibleSHA1[i] <= 'F')))
-				return false;
-		}
-		return true;
 	}
 
 	friend struct std::hash<CGitHash>;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2020 - TortoiseGit
+// Copyright (C) 2016-2020, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,12 +16,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "FirstStartWizard.h"
 #include "FirstStartWizardGit.h"
 #include "Git.h"
-#include "MessageBox.h"
 #include "GitForWindows.h"
 #include "../../TGitCache/CacheInterface.h"
 #include "Theme.h"
@@ -88,7 +88,7 @@ LRESULT CFirstStartWizardGit::OnWizardNext()
 
 	// only complete if the msysgit directory is ok
 	bool needWorkarounds = (GetDlgItem(IDC_WORKAROUNDS)->IsWindowVisible() == TRUE);
-	if (!CheckGitExe(GetSafeHwnd(), m_sMsysGitPath, m_sMsysGitExtranPath, IDC_MSYSGIT_VER, [&](UINT helpid) { HtmlHelp(0x20000 + helpid); }, &needWorkarounds))
+	if (!CheckGitExe(GetSafeHwnd(), m_sMsysGitPath, m_sMsysGitExtranPath, IDC_MSYSGIT_VER, [&](UINT helpid) { if (!CAppUtils::StartHtmlHelp(0x20000 + helpid)) { AfxMessageBox(AFX_IDP_FAILED_TO_LAUNCH_HELP); } }, &needWorkarounds))
 	{
 		if (needWorkarounds)
 			ShowWorkarounds(true);
@@ -115,9 +115,12 @@ void CFirstStartWizardGit::ShowWorkarounds(bool show)
 	if (!(CGit::ms_bCygwinGit || CGit::ms_bMsys2Git || show))
 		return;
 
+	GetDlgItem(IDC_WORKAROUNDS)->EnableWindow(TRUE);
 	GetDlgItem(IDC_WORKAROUNDS)->ShowWindow(SW_SHOW);
 
+	GetDlgItem(IDC_GITHACKS1)->EnableWindow(m_bEnableHacks);
 	GetDlgItem(IDC_GITHACKS1)->ShowWindow(m_bEnableHacks ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_GITHACKS2)->EnableWindow(m_bEnableHacks);
 	GetDlgItem(IDC_GITHACKS2)->ShowWindow(m_bEnableHacks ? SW_SHOW : SW_HIDE);
 
 	if (CGit::ms_bCygwinGit)
@@ -226,7 +229,7 @@ void CFirstStartWizardGit::OnCheck()
 	SetGitHacks();
 
 	bool needWorkarounds = (GetDlgItem(IDC_WORKAROUNDS)->IsWindowVisible() == TRUE);
-	CheckGitExe(GetSafeHwnd(), m_sMsysGitPath, m_sMsysGitExtranPath, IDC_MSYSGIT_VER, [&](UINT helpid) { HtmlHelp(0x20000 + helpid); }, &needWorkarounds);
+	CheckGitExe(GetSafeHwnd(), m_sMsysGitPath, m_sMsysGitExtranPath, IDC_MSYSGIT_VER, [&](UINT helpid) { if (!CAppUtils::StartHtmlHelp(0x20000 + helpid)) { AfxMessageBox(AFX_IDP_FAILED_TO_LAUNCH_HELP); } }, &needWorkarounds);
 	if (needWorkarounds)
 		ShowWorkarounds(true);
 }

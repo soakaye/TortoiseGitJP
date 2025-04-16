@@ -13,7 +13,7 @@
 <simplesect id="git-status(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git status</emphasis> [&lt;options&gt;&#8230;] [--] [&lt;pathspec&gt;&#8230;]</literallayout>
+<literallayout><emphasis>git status</emphasis> [&lt;options&gt;] [--] [&lt;pathspec&gt;&#8230;]</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-status(1)__description">
@@ -147,7 +147,9 @@ time in a large working tree.
 Consider enabling untracked cache and split index if supported (see
 <emphasis>git update-index --untracked-cache</emphasis> and <emphasis>git update-index
 --split-index</emphasis>), Otherwise you can use <emphasis>no</emphasis> to have <emphasis>git status</emphasis>
-return more quickly without showing untracked files.</simpara>
+return more quickly without showing untracked files.
+All usual spellings for Boolean value <emphasis>true</emphasis> are taken as <emphasis>normal</emphasis>
+and <emphasis>false</emphasis> as <emphasis>no</emphasis>.</simpara>
 <simpara>The default can be changed using the status.showUntrackedFiles
 configuration variable documented in <xref linkend="git-config(1)" />.</simpara>
 </listitem>
@@ -234,7 +236,7 @@ ignored, then the directory is not shown, but all contents are shown.</simpara>
 <listitem>
 <simpara>
         Display untracked files in columns. See configuration variable
-        column.status for option syntax.<emphasis>--column</emphasis> and <emphasis>--no-column</emphasis>
+        <emphasis>column.status</emphasis> for option syntax. <emphasis>--column</emphasis> and <emphasis>--no-column</emphasis>
         without options are equivalent to <emphasis>always</emphasis> and <emphasis>never</emphasis>
         respectively.
 </simpara>
@@ -361,6 +363,11 @@ show tracked paths:</simpara>
 </listitem>
 <listitem>
 <simpara>
+<emphasis>T</emphasis> = file type changed (regular file, symbolic link or submodule)
+</simpara>
+</listitem>
+<listitem>
+<simpara>
 <emphasis>A</emphasis> = added
 </simpara>
 </listitem>
@@ -376,7 +383,7 @@ show tracked paths:</simpara>
 </listitem>
 <listitem>
 <simpara>
-<emphasis>C</emphasis> = copied
+<emphasis>C</emphasis> = copied (if config option status.renames is set to "copies")
 </simpara>
 </listitem>
 <listitem>
@@ -388,16 +395,18 @@ show tracked paths:</simpara>
 <literallayout class="monospaced">X          Y     Meaning
 -------------------------------------------------
          [AMD]   not updated
-M        [ MD]   updated in index
-A        [ MD]   added to index
+M        [ MTD]  updated in index
+T        [ MTD]  type changed in index
+A        [ MTD]  added to index
 D                deleted from index
-R        [ MD]   renamed in index
-C        [ MD]   copied in index
-[MARC]           index and work tree matches
-[ MARC]     M    work tree changed since index
-[ MARC]     D    deleted in work tree
-[ D]        R    renamed in work tree
-[ D]        C    copied in work tree
+R        [ MTD]  renamed in index
+C        [ MTD]  copied in index
+[MTARC]          index and work tree matches
+[ MTARC]    M    work tree changed since index
+[ MTARC]    T    type changed in work tree since index
+[ MTARC]    D    deleted in work tree
+            R    renamed in work tree
+            C    copied in work tree
 -------------------------------------------------
 D           D    unmerged, both deleted
 A           U    unmerged, added by us
@@ -410,12 +419,25 @@ U           U    unmerged, both modified
 ?           ?    untracked
 !           !    ignored
 -------------------------------------------------</literallayout>
-<simpara>Submodules have more state and instead report
-                M    the submodule has a different HEAD than
-                     recorded in the index
-                m    the submodule has modified content
-                ?    the submodule has untracked files
-since modified content or untracked files in a submodule cannot be added
+<simpara>Submodules have more state and instead report</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<emphasis>M</emphasis> = the submodule has a different HEAD than recorded in the index
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>m</emphasis> = the submodule has modified content
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>?</emphasis> = the submodule has untracked files
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>This is since modified content or untracked files in a submodule cannot be added
 via <emphasis>git add</emphasis> in the superproject to prepare a commit.</simpara>
 <simpara><emphasis>m</emphasis> and <emphasis>?</emphasis> are applied recursively. For example if a nested submodule
 in a submodule contains an untracked file, this is reported as <emphasis>?</emphasis> as well.</simpara>
@@ -470,10 +492,16 @@ information about the current branch.</simpara>
 ------------------------------------------------------------
 # branch.oid &lt;commit&gt; | (initial)        Current commit.
 # branch.head &lt;branch&gt; | (detached)      Current branch.
-# branch.upstream &lt;upstream_branch&gt;      If upstream is set.
+# branch.upstream &lt;upstream-branch&gt;      If upstream is set.
 # branch.ab +&lt;ahead&gt; -&lt;behind&gt;           If upstream is set and
                                          the commit is present.
 ------------------------------------------------------------</literallayout>
+</section>
+<section id="git-status(1)__stash_information">
+<title>Stash Information</title>
+<simpara>If <emphasis>--show-stash</emphasis> is given, one line is printed showing the number of stash
+entries if non-zero:</simpara>
+<literallayout class="monospaced"># stash &lt;N&gt;</literallayout>
 </section>
 <section id="git-status(1)__changed_tracked_entries">
 <title>Changed Tracked Entries</title>
@@ -517,7 +545,7 @@ line types in any order.</simpara>
 --------------------------------------------------------</literallayout>
 <simpara>Unmerged entries have the following format; the first character is
 a "u" to distinguish from ordinary changed entries.</simpara>
-<literallayout class="monospaced">u &lt;xy&gt; &lt;sub&gt; &lt;m1&gt; &lt;m2&gt; &lt;m3&gt; &lt;mW&gt; &lt;h1&gt; &lt;h2&gt; &lt;h3&gt; &lt;path&gt;</literallayout>
+<literallayout class="monospaced">u &lt;XY&gt; &lt;sub&gt; &lt;m1&gt; &lt;m2&gt; &lt;m3&gt; &lt;mW&gt; &lt;h1&gt; &lt;h2&gt; &lt;h3&gt; &lt;path&gt;</literallayout>
 <literallayout class="monospaced">Field       Meaning
 --------------------------------------------------------
 &lt;XY&gt;        A 2 character field describing the conflict type
@@ -586,6 +614,78 @@ computation). When <emphasis>status</emphasis> is run in the background, the loc
 during the write may conflict with other simultaneous processes, causing
 them to fail. Scripts running <emphasis>status</emphasis> in the background should consider
 using <emphasis>git --no-optional-locks status</emphasis> (see <xref linkend="git(1)" /> for details).</simpara>
+</simplesect>
+<simplesect id="git-status(1)__untracked_files_and_performance">
+<title>UNTRACKED FILES AND PERFORMANCE</title>
+<simpara><emphasis>git status</emphasis> can be very slow in large worktrees if/when it
+needs to search for untracked files and directories. There are
+many configuration options available to speed this up by either
+avoiding the work or making use of cached results from previous
+Git commands. There is no single optimum set of settings right
+for everyone. We'll list a summary of the relevant options to help
+you, but before going into the list, you may want to run <emphasis>git status</emphasis>
+again, because your configuration may already be caching <emphasis>git status</emphasis>
+results, so it could be faster on subsequent runs.</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+The <emphasis>--untracked-files=no</emphasis> flag or the
+        <emphasis>status.showUntrackedFiles=no</emphasis> config (see above for both):
+        indicate that <emphasis>git status</emphasis> should not report untracked
+        files. This is the fastest option. <emphasis>git status</emphasis> will not list
+        the untracked files, so you need to be careful to remember if
+        you create any new files and manually <emphasis>git add</emphasis> them.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>advice.statusUoption=false</emphasis> (see <xref linkend="git-config(1)" />):
+        setting this variable to <emphasis>false</emphasis> disables the warning message
+        given when enumerating untracked files takes more than 2
+        seconds.  In a large project, it may take longer and the user
+        may have already accepted the trade off (e.g. using "-uno" may
+        not be an acceptable option for the user), in which case, there
+        is no point issuing the warning message, and in such a case,
+        disabling the warning may be the best.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>core.untrackedCache=true</emphasis> (see <xref linkend="git-update-index(1)" />):
+        enable the untracked cache feature and only search directories
+        that have been modified since the previous <emphasis>git status</emphasis> command.
+        Git remembers the set of untracked files within each directory
+        and assumes that if a directory has not been modified, then
+        the set of untracked files within has not changed.  This is much
+        faster than enumerating the contents of every directory, but still
+        not without cost, because Git still has to search for the set of
+        modified directories. The untracked cache is stored in the
+        <emphasis>.git/index</emphasis> file. The reduced cost of searching for untracked
+        files is offset slightly by the increased size of the index and
+        the cost of keeping it up-to-date. That reduced search time is
+        usually worth the additional size.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<emphasis>core.untrackedCache=true</emphasis> and <emphasis>core.fsmonitor=true</emphasis> or
+        <emphasis>core.fsmonitor=&lt;hook-command-pathname&gt;</emphasis> (see
+        <xref linkend="git-update-index(1)" />): enable both the untracked cache
+        and FSMonitor features and only search directories that have
+        been modified since the previous <emphasis>git status</emphasis> command.  This
+        is faster than using just the untracked cache alone because
+        Git can also avoid searching for modified directories.  Git
+        only has to enumerate the exact set of directories that have
+        changed recently. While the FSMonitor feature can be enabled
+        without the untracked cache, the benefits are greatly reduced
+        in that case.
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>Note that after you turn on the untracked cache and/or FSMonitor
+features it may take a few <emphasis>git status</emphasis> commands for the various
+caches to warm up before you see improved command times.  This is
+normal.</simpara>
 </simplesect>
 <simplesect id="git-status(1)__see_also">
 <title>SEE ALSO</title>

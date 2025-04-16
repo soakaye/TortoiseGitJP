@@ -1,6 +1,7 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2006,2009-2010, 2013 - TortoiseSVN
+// Copyright (C) 2023 - TortoiseGit
+// Copyright (C) 2006,2009-2010, 2013, 2023 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -44,8 +45,8 @@ public:
 	enum { IDD = IDD_ABOUT };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnClose();
@@ -53,6 +54,8 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
+	void LoadSVGLogoAndStartAnimation();
+
 	CWaterEffect m_waterEffect;
 	CDib m_renderSrc;
 	CDib m_renderDest;

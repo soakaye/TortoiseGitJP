@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2008,2011, 2014 - TortoiseSVN
-// Copyright (C) 2008-2017, 2019 - TortoiseGit
+// Copyright (C) 2008-2017, 2019, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -20,32 +20,19 @@
 #include "stdafx.h"
 #include "ShellCache.h"
 #include "GitFolderStatus.h"
-#include "UnicodeUtils.h"
-#include "..\TGitCache\CacheInterface.h"
 #include "Git.h"
-#include "gitindex.h"
 
 extern ShellCache g_ShellCache;
 
-GitFolderStatus::GitFolderStatus(void)
+GitFolderStatus::GitFolderStatus()
 {
-	m_TimeStamp = 0;
-	invalidstatus.askedcounter = -1;
-	invalidstatus.status = git_wc_status_none;
-	invalidstatus.assumeValid = FALSE;
-	invalidstatus.skipWorktree = FALSE;
-	dirstat.askedcounter = -1;
-	dirstat.assumeValid = dirstat.skipWorktree = false;
-	dirstat.status = git_wc_status_none;
-	dirstatus = nullptr;
-	m_mostRecentStatus = nullptr;
 	sCacheKey.reserve(MAX_PATH);
 
 	g_Git.SetCurrentDir(L"");
 	m_hInvalidationEvent = CreateEvent(nullptr, FALSE, FALSE, L"TortoiseGitCacheInvalidationEvent"); // no need to explicitly close m_hInvalidationEvent in ~GitFolderStatus as it is CAutoGeneralHandle
 }
 
-GitFolderStatus::~GitFolderStatus(void)
+GitFolderStatus::~GitFolderStatus()
 {
 }
 
@@ -112,7 +99,7 @@ const FileStatusCacheEntry * GitFolderStatus::BuildCache(const CTGitPath& filepa
 	FileStatusCacheEntry* ret = nullptr;
 
 	if (wcslen(filepath.GetWinPath()) == 3)
-		ret = &m_cache[static_cast<LPCTSTR>(filepath.GetWinPathString().Left(2))];
+		ret = &m_cache[static_cast<LPCWSTR>(filepath.GetWinPathString().Left(2))];
 	else
 		ret = &m_cache[filepath.GetWinPath()];
 

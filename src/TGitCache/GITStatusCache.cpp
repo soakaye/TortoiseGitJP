@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005-2006,2008,2010,2014 - TortoiseSVN
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2019, 2021, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -97,7 +97,7 @@ void CGitStatusCache::Create()
 					if (value)
 					{
 						CString sKey;
-						if (fread(sKey.GetBuffer(value+1), sizeof(TCHAR), value, pFile)!=value)
+						if (fread(sKey.GetBuffer(value+1), sizeof(wchar_t), value, pFile) != value)
 						{
 							sKey.ReleaseBuffer(0);
 							goto error;
@@ -178,7 +178,7 @@ bool CGitStatusCache::SaveCache()
 				WRITEVALUETOFILE(value);
 				if (value)
 				{
-					if (fwrite(static_cast<LPCTSTR>(key), sizeof(TCHAR), value, pFile)!=value)
+					if (fwrite(static_cast<LPCWSTR>(key), sizeof(wchar_t), value, pFile) != value)
 						goto error;
 					if (!I->second->SaveToDisk(pFile))
 						goto error;
@@ -186,7 +186,7 @@ bool CGitStatusCache::SaveCache()
 			}
 		}
 	}
-	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": cache saved to disk at %s\n", static_cast<LPCTSTR>(path));
+	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": cache saved to disk at %s\n", static_cast<LPCWSTR>(path));
 	return true;
 error:
 	Destroy();
@@ -218,7 +218,7 @@ void CGitStatusCache::Init()
 	m_shellUpdater.Initialise();
 }
 
-CGitStatusCache::CGitStatusCache(void)
+CGitStatusCache::CGitStatusCache()
 {
 	#define forever DWORD(-1)
 	AutoLocker lock(m_NoWatchPathCritSec);
@@ -229,11 +229,9 @@ CGitStatusCache::CGitStatusCache(void)
 		if (!path.IsEmpty())
 			m_NoWatchPaths[CTGitPath(path)] = forever;
 	}
-	m_bClearMemory = false;
-	m_mostRecentExpiresAt = 0;
 }
 
-CGitStatusCache::~CGitStatusCache(void)
+CGitStatusCache::~CGitStatusCache()
 {
 	CAutoWriteLock writeLock(m_guard);
 	ClearCache();
@@ -354,7 +352,7 @@ void CGitStatusCache::RemoveCacheForDirectoryChildren(CCachedDirectory* cdir, co
 	// we could have entries versioned and/or stored in our cache which are
 	// children of the specified directory, but not in the m_childDirectories
 	// member
-	CCachedDirectory::ItDir itMap = m_directoryCache.lower_bound(origPath);
+	auto itMap = m_directoryCache.lower_bound(origPath);
 	do
 	{
 		if (itMap != m_directoryCache.end())
@@ -403,10 +401,9 @@ void CGitStatusCache::RemoveCacheForPath(const CTGitPath& path)
 {
 	// Stop the crawler starting on a new folder
 	CCrawlInhibitor crawlInhibit(&m_folderCrawler);
-	CCachedDirectory::ItDir itMap;
 	CCachedDirectory* dirtoremove = nullptr;
 
-	itMap = m_directoryCache.find(path);
+	auto itMap = m_directoryCache.find(path);
 	if ((itMap != m_directoryCache.end())&&(itMap->second))
 		dirtoremove = itMap->second;
 	if (!dirtoremove)
@@ -420,8 +417,7 @@ CCachedDirectory * CGitStatusCache::GetDirectoryCacheEntry(const CTGitPath& path
 	ATLASSERT(path.IsDirectory() || !PathFileExists(path.GetWinPath()));
 
 	CAutoReadLock readLock(m_guardcacheddirectories);
-	CCachedDirectory::ItDir itMap;
-	itMap = m_directoryCache.find(path);
+	auto itMap = m_directoryCache.find(path);
 	if ((itMap != m_directoryCache.end())&&(itMap->second))
 	{
 		// We've found this directory in the cache
@@ -477,8 +473,7 @@ CCachedDirectory * CGitStatusCache::GetDirectoryCacheEntryNoCreate(const CTGitPa
 	ATLASSERT(path.IsDirectory() || !PathFileExists(path.GetWinPath()));
 
 	CAutoReadLock readLock(m_guardcacheddirectories);
-	CCachedDirectory::ItDir itMap;
-	itMap = m_directoryCache.find(path);
+	auto itMap = m_directoryCache.find(path);
 	if(itMap != m_directoryCache.end())
 	{
 		// We've found this directory in the cache
@@ -489,7 +484,7 @@ CCachedDirectory * CGitStatusCache::GetDirectoryCacheEntryNoCreate(const CTGitPa
 
 CStatusCacheEntry CGitStatusCache::GetStatusForPath(const CTGitPath& path, DWORD flags)
 {
-	bool bRecursive = !!(flags & TGITCACHE_FLAGS_RECUSIVE_STATUS);
+	const bool bRecursive = !!(flags & TGITCACHE_FLAGS_RECUSIVE_STATUS);
 
 	// Check a very short-lived 'mini-cache' of the last thing we were asked for.
 	LONGLONG now = static_cast<LONGLONG>(GetTickCount64());

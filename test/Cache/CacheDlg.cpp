@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012, 2014-2019 - TortoiseGit
+// Copyright (C) 2012, 2014-2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2006, 2009, 2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@
 #include "Cache.h"
 #include "DirFileEnum.h"
 #include "CacheInterface.h"
-#include <WinInet.h>
 #include "CacheDlg.h"
 #include <random>
 
@@ -32,7 +31,6 @@
 
 CCacheDlg::CCacheDlg(CWnd* pParent /*=nullptr*/)
 : CDialog(CCacheDlg::IDD, pParent)
-, m_hPipe(INVALID_HANDLE_VALUE)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -117,11 +115,12 @@ UINT CCacheDlg::TestThread()
 {
 	CDirFileEnum direnum(m_sRootPath);
 	m_filelist.RemoveAll();
-	CString filepath;
-	bool bIsDir = false;
-	while (direnum.NextFile(filepath, &bIsDir))
+	while (auto file = direnum.NextFile())
+	{
+		CString filepath = file->GetFilePath();
 		if (filepath.Find(L".git") < 0)
 			m_filelist.Add(filepath);
+	}
 
 	CTime starttime = CTime::GetCurrentTime();
 	GetDlgItem(IDC_STARTTIME)->SetWindowText(starttime.Format(L"%H:%M:%S"));
@@ -249,7 +248,7 @@ bool CCacheDlg::GetStatusFromRemoteCache(const CTGitPath& Path, bool bRecursive)
 		startup.cb = sizeof(startup);
 
 		CString sCachePath = L"TGitCache.exe";
-		if (CreateProcess(sCachePath.GetBuffer(sCachePath.GetLength() + 1), L"", nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process) == 0)
+		if (CreateProcess(sCachePath.GetBuffer(sCachePath.GetLength() + 1), nullptr, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process) == 0)
 		{
 			// It's not appropriate to do a message box here, because there may be hundreds of calls
 			sCachePath.ReleaseBuffer();
@@ -404,10 +403,8 @@ UINT CCacheDlg::WatchTestThread()
 {
 	CDirFileEnum direnum(m_sRootPath);
 	m_filelist.RemoveAll();
-	CString filepath;
-	bool bIsDir = false;
-	while (direnum.NextFile(filepath, &bIsDir))
-		m_filelist.Add(filepath);
+	while (auto file = direnum.NextFile())
+		m_filelist.Add(file->GetFilePath());
 
 	CTime starttime = CTime::GetCurrentTime();
 	GetDlgItem(IDC_STARTTIME)->SetWindowText(starttime.Format(L"%H:%M:%S"));
@@ -418,7 +415,7 @@ UINT CCacheDlg::WatchTestThread()
 	std::random_device rd;
 	std::mt19937 mt(rd());
 	std::uniform_int_distribution<INT_PTR> dist(0, max(INT_PTR(0), m_filelist.GetCount() - 1));
-	filepath = m_filelist.GetAt(dist(mt));
+	CString filepath = m_filelist.GetAt(dist(mt));
 	GetStatusFromRemoteCache(CTGitPath(m_sRootPath), false);
 	for (int i=0; i < 10000; ++i)
 	{

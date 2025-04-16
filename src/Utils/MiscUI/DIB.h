@@ -1,5 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -65,6 +66,7 @@ public:
 	 * \param iHeight the height of the resulting picture
 	 */
 	void		Create32BitFromPicture (CPictureHolder* pPicture, int iWidth, int iHeight);
+	bool		Create32BitFromSVG(const std::string_view svg, int iWidth, int iHeight);
 
 	/**
 	 * Returns a 32-bit RGB color
@@ -88,8 +90,8 @@ public:
 	BOOL		Draw(CDC* pDC, CPoint ptDest);
 
 protected:
-	HBITMAP		m_hBitmap;
-	BITMAPINFO  m_BMinfo;
-	VOID		*m_pBits;
+	HBITMAP m_hBitmap = nullptr;
+	BITMAPINFO m_BMinfo{};
+	VOID* m_pBits = nullptr;
 };
 

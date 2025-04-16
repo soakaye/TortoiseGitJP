@@ -8,7 +8,7 @@ General
 -------
 The TortoiseGit project uses the web-based Transifex platform for
 managing translations:
-https://www.transifex.com/projects/p/tortoisegit/
+https://explore.transifex.com/lznuaa/tortoisegit/
 
 This should make it easier for new translators to get started. If you
 want to help to translate TortoiseGit, please register an account a
@@ -37,7 +37,7 @@ https://github.com/gitster/git/tree/master/po
 
 When translating on transifex.com there you might see red symbols in the
 original text such as "⇥", "⏎", "↩" and "»" (you need an UTF-8 aware
-editor to see the the three different symbols here). DO NOT COPY these
+editor to see the three different symbols here). DO NOT COPY these
 into the translated text as this might break certain semantics. "»" and
 "⇥" mean that a tabulator is needed at that position. "⏎" and "↩" indicate
 that a new line should be inserted there. For "⏎" just press enter, "↩"

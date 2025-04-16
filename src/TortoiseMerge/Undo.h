@@ -1,7 +1,7 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006-2007,2009-2015 - TortoiseSVN
-// Copyright (C) 2011 Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2011, 2023 Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -32,11 +32,10 @@ class viewstate
 {
 public:
 	viewstate()
-	: modifies(false)
 	{}
 
 	std::map<int, CString>	difflines;
-	std::map<int, DWORD>	linestates;
+	std::map<int, DiffState>	linestates;
 	std::map<int, DWORD>	linelines;
 	std::map<int, EOL>		linesEOL;
 	std::map<int, bool>		markedlines;
@@ -44,7 +43,7 @@ public:
 
 	std::map<int, viewdata> removedlines;
 	std::map<int, viewdata> replacedlines;
-	bool					modifies; ///< this step modifies view (save before and after save differs)
+	bool					modifies = false; ///< this step modifies view (save before and after save differs)
 
 	void	AddViewLineFromView(CBaseView *pView, int nViewLine, bool bAddEmptyLine);
 	void	Clear();
@@ -92,13 +91,14 @@ protected:
 	viewstate Do(const viewstate& state, CBaseView * pView, const POINT& pt);
 	void UndoOne(CBaseView * pLeft, CBaseView * pRight, CBaseView * pBottom);
 	void RedoOne(CBaseView * pLeft, CBaseView * pRight, CBaseView * pBottom);
+	void updateActiveView(CBaseView* pLeft, CBaseView* pRight, CBaseView* pBottom) const;
 	std::list<allviewstate> m_viewstates;
 	std::list<POINT> m_caretpoints;
 	std::list< std::list<int>::size_type > m_groups;
-	size_t m_originalstateLeft;
-	size_t m_originalstateRight;
-	size_t m_originalstateBottom;
-	int m_groupCount;
+	__int64 m_originalstateLeft = 0;
+	__int64 m_originalstateRight = 0;
+	__int64 m_originalstateBottom = 0;
+	int m_groupCount = 0;
 
 	std::list<allviewstate> m_redoviewstates;
 	std::list<POINT> m_redocaretpoints;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2009-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2009-2013, 2015-2023, 2025 - TortoiseGit
 // Copyright (C) 2012-2013 - Sven Strickroth <email@cs-ware.de>
 // Copyright (C) 2004-2009,2011-2014 - TortoiseSVN
 
@@ -18,9 +18,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "resource.h"
-#include "UnicodeUtils.h"
 #include "DirFileEnum.h"
 #include "TortoiseMerge.h"
 #include "GitAdminDir.h"
@@ -33,15 +33,12 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-CPatch::CPatch(void)
-	: m_nStrip(0)
-	, m_UnicodeType(CFileTextLines::AUTOTYPE)
+CPatch::CPatch()
 {
 }
 
-CPatch::~CPatch(void)
+CPatch::~CPatch()
 {
-	FreeMemory();
 }
 
 void CPatch::FreeMemory()
@@ -52,7 +49,7 @@ void CPatch::FreeMemory()
 BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 {
 	CString sLine;
-	EOL ending = EOL_NOENDING;
+	EOL ending = EOL::NoEnding;
 
 	int state = 0;
 	int nIndex = 0;
@@ -66,8 +63,8 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 	{
 		sLine = PatchLines.GetAt(nIndex);
 		ending = PatchLines.GetLineEnding(nIndex);
-		if (ending != EOL_NOENDING)
-			ending = EOL_AUTOLINE;
+		if (ending != EOL::NoEnding)
+			ending = EOL::AutoLine;
 
 		switch (state)
 		{
@@ -139,7 +136,7 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 					if (chunks->sFilePath.Find('\t')>=0)
 						chunks->sFilePath = chunks->sFilePath.Left(chunks->sFilePath.Find('\t'));
 					if (CStringUtils::StartsWith(chunks->sFilePath, L"\"") && CStringUtils::EndsWith(chunks->sFilePath, L'"'))
-						chunks->sFilePath=chunks->sFilePath.Mid(1, chunks->sFilePath.GetLength() - 2);
+						chunks->sFilePath = CStringUtils::UnescapeGitQuotePath(chunks->sFilePath.Mid(1, chunks->sFilePath.GetLength() - 1));
 					if (CStringUtils::StartsWith(chunks->sFilePath, L"a/"))
 						chunks->sFilePath=chunks->sFilePath.Mid(static_cast<int>(wcslen(L"a/")));
 
@@ -195,7 +192,7 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 				if (chunks->sFilePath2.Find('\t')>=0)
 					chunks->sFilePath2 = chunks->sFilePath2.Left(chunks->sFilePath2.Find('\t'));
 				if (CStringUtils::StartsWith(chunks->sFilePath2, L"\"") && chunks->sFilePath2.ReverseFind(L'"') == chunks->sFilePath2.GetLength() - 1)
-					chunks->sFilePath2=chunks->sFilePath2.Mid(1, chunks->sFilePath2.GetLength() - 2);
+					chunks->sFilePath2 = CStringUtils::UnescapeGitQuotePath(chunks->sFilePath2.Mid(1, chunks->sFilePath2.GetLength() - 1));
 				if (CStringUtils::StartsWith(chunks->sFilePath2, L"a/"))
 					chunks->sFilePath2=chunks->sFilePath2.Mid(static_cast<int>(wcslen(L"a/")));
 
@@ -262,7 +259,7 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 				//this line is either a context line (with a ' ' in front)
 				//a line added (with a '+' in front)
 				//or a removed line (with a '-' in front)
-				TCHAR type;
+				wchar_t type;
 				if (sLine.IsEmpty())
 					type = ' ';
 				else
@@ -288,6 +285,13 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 				{
 					//a removed line
 					chunk->arLines.Add(RemoveUnicodeBOM(sLine.Mid(static_cast<int>(wcslen(L"-")))));
+					if (chunk->lRemoveStart == 1 && nRemoveLineCount == 0)
+					{
+						if (HasUnicodeBOM(sLine.Mid(static_cast<int>(wcslen(L"-")))))
+							chunks->oldHasBom = 1;
+						else
+							chunks->oldHasBom = 0;
+					}
 					chunk->arLinesStates.Add(PATCHSTATE_REMOVED);
 					chunk->arEOLs.push_back(ending);
 					++nRemoveLineCount;
@@ -296,6 +300,13 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 				{
 					//an added line
 					chunk->arLines.Add(RemoveUnicodeBOM(sLine.Mid(static_cast<int>(wcslen(L"+")))));
+					if (chunk->lAddStart == 1 && nAddLineCount == 0)
+					{
+						if (HasUnicodeBOM(sLine.Mid(static_cast<int>(wcslen(L"-")))))
+							chunks->newHasBom = 1;
+						else
+							chunks->newHasBom = 0;
+					}
 					chunk->arLinesStates.Add(PATCHSTATE_ADDED);
 					chunk->arEOLs.push_back(ending);
 					++nAddLineCount;
@@ -336,7 +347,7 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 	{
 		if (filenamesToPatch[m_arFileDiffs[i]->sFilePath] > 1 && m_arFileDiffs[i]->sFilePath != L"NUL")
 		{
-			m_sErrorMessage.Format(IDS_ERR_PATCH_FILENAMENOTUNIQUE, static_cast<LPCTSTR>(m_arFileDiffs[i]->sFilePath));
+			m_sErrorMessage.Format(IDS_ERR_PATCH_FILENAMENOTUNIQUE, static_cast<LPCWSTR>(m_arFileDiffs[i]->sFilePath));
 			FreeMemory();
 			return FALSE;
 		}
@@ -345,7 +356,7 @@ BOOL CPatch::ParsePatchFile(CFileTextLines &PatchLines)
 		{
 			if (filenamesToPatch[m_arFileDiffs[i]->sFilePath2] > 1 && m_arFileDiffs[i]->sFilePath2 != L"NUL")
 			{
-				m_sErrorMessage.Format(IDS_ERR_PATCH_FILENAMENOTUNIQUE, static_cast<LPCTSTR>(m_arFileDiffs[i]->sFilePath));
+				m_sErrorMessage.Format(IDS_ERR_PATCH_FILENAMENOTUNIQUE, static_cast<LPCWSTR>(m_arFileDiffs[i]->sFilePath));
 				FreeMemory();
 				return FALSE;
 			}
@@ -362,7 +373,7 @@ errorcleanup:
 
 BOOL CPatch::OpenUnifiedDiffFile(const CString& filename)
 {
-#ifndef GTEST_INCLUDE_GTEST_GTEST_H_
+#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 	CCrashReport::Instance().AddFile2(filename, nullptr, L"unified diff file", CR_AF_MAKE_FILE_COPY);
 #endif
 
@@ -417,12 +428,12 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 	CString sPath = GetFullPath(sPatchPath, nIndex);
 	if (PathIsDirectory(sPath))
 	{
-		m_sErrorMessage.Format(IDS_ERR_PATCH_INVALIDPATCHFILE, static_cast<LPCTSTR>(sPath));
+		m_sErrorMessage.Format(IDS_ERR_PATCH_INVALIDPATCHFILE, static_cast<LPCWSTR>(sPath));
 		return FALSE;
 	}
 	if (nIndex < 0)
 	{
-		m_sErrorMessage.Format(IDS_ERR_PATCH_FILENOTINPATCH, static_cast<LPCTSTR>(sPath));
+		m_sErrorMessage.Format(IDS_ERR_PATCH_FILENOTINPATCH, static_cast<LPCWSTR>(sPath));
 		return FALSE;
 	}
 
@@ -434,7 +445,7 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 
 	CString sLine;
 	CString sPatchFile = sBaseFile.IsEmpty() ? sPath : sBaseFile;
-#ifndef GTEST_INCLUDE_GTEST_GTEST_H_
+#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 	if (PathFileExists(sPatchFile))
 	{
 		CCrashReport::Instance().AddFile2(sPatchFile, nullptr, L"File to patch", CR_AF_MAKE_FILE_COPY);
@@ -457,14 +468,6 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 		{
 			CString sPatchLine = chunk->arLines.GetAt(j);
 			EOL ending = chunk->arEOLs[j];
-			if ((m_UnicodeType != CFileTextLines::UTF8)&&(m_UnicodeType != CFileTextLines::UTF8BOM))
-			{
-				if ((PatchLines.GetUnicodeType()==CFileTextLines::UTF8)||(m_UnicodeType == CFileTextLines::UTF8BOM))
-				{
-					// convert the UTF-8 contents in CString sPatchLine into a CStringA
-					sPatchLine = CUnicodeUtils::GetUnicode(CStringA(sPatchLine));
-				}
-			}
 			int nPatchState = static_cast<int>(chunk->arLinesStates.GetAt(j));
 			switch (nPatchState)
 			{
@@ -472,19 +475,19 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 				{
 					if ((lAddLine > PatchLines.GetCount())||(PatchLines.GetCount()==0))
 					{
-						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, L"", static_cast<LPCTSTR>(sPatchLine));
+						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, L"", static_cast<LPCWSTR>(sPatchLine));
 						return FALSE;
 					}
 					if (lAddLine == 0)
 						lAddLine = 1;
 					if ((sPatchLine.Compare(PatchLines.GetAt(lAddLine-1))!=0)&&(!HasExpandedKeyWords(sPatchLine)))
 					{
-						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCTSTR>(sPatchLine), static_cast<LPCTSTR>(PatchLines.GetAt(lAddLine-1)));
+						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCWSTR>(sPatchLine), static_cast<LPCWSTR>(PatchLines.GetAt(lAddLine-1)));
 						return FALSE;
 					}
 					if (lAddLine > PatchLines.GetCount())
 					{
-						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCTSTR>(sPatchLine), L"");
+						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCWSTR>(sPatchLine), L"");
 						return FALSE;
 					}
 					PatchLines.RemoveAt(lAddLine-1);
@@ -516,7 +519,7 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 					{
 						if (k >= chunk->arLines.GetCount())
 							k = j;
-						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCTSTR>(PatchLines.GetAt(lAddLine) - 1), static_cast<LPCTSTR>(chunk->arLines.GetAt(k)));
+						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCWSTR>(PatchLines.GetAt(lAddLine) - 1), static_cast<LPCWSTR>(chunk->arLines.GetAt(k)));
 						return FALSE;
 					}
 				}
@@ -525,7 +528,7 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 				{
 					if (lAddLine > PatchLines.GetCount())
 					{
-						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, L"", static_cast<LPCTSTR>(sPatchLine));
+						m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, L"", static_cast<LPCWSTR>(sPatchLine));
 						return FALSE;
 					}
 					if (lAddLine == 0)
@@ -545,7 +548,7 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 							++lRemoveLine;
 						else
 						{
-							m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCTSTR>(sPatchLine), static_cast<LPCTSTR>(PatchLines.GetAt(lAddLine-1)));
+							m_sErrorMessage.FormatMessage(IDS_ERR_PATCH_DOESNOTMATCH, static_cast<LPCWSTR>(sPatchLine), static_cast<LPCWSTR>(PatchLines.GetAt(lAddLine-1)));
 							return FALSE;
 						}
 					}
@@ -559,7 +562,19 @@ int CPatch::PatchFile(const int strip, int nIndex, const CString& sPatchPath, co
 			} // switch (nPatchState)
 		} // for (j=0; j<chunk->arLines.GetCount(); j++)
 	} // for (int i=0; i<chunks->chunks.GetCount(); i++)
-	if (!sSavePath.IsEmpty())
+	if ((chunks->oldHasBom == 0 || (chunks->chunks.size() == 1 && chunks->chunks.at(0).get()->lRemoveStart == 0 && chunks->chunks.at(0).get()->lRemoveLength == 0)) && chunks->newHasBom == 1 && PatchLines.GetUnicodeType() != CFileTextLines::UnicodeType::UTF8BOM)
+	{
+		auto saveParams = PatchLines.GetSaveParams();
+		saveParams.m_UnicodeType = CFileTextLines::UnicodeType::UTF8BOM;
+		PatchLines.SetSaveParams(saveParams);
+	}
+	else if (chunks->oldHasBom == 1 && chunks->newHasBom == 0 && PatchLines.GetUnicodeType() == CFileTextLines::UnicodeType::UTF8BOM)
+	{
+		auto saveParams = PatchLines.GetSaveParams();
+		saveParams.m_UnicodeType = CFileTextLines::UnicodeType::UTF8;
+		PatchLines.SetSaveParams(saveParams);
+	}
+		if (!sSavePath.IsEmpty())
 	{
 		PatchLines.Save(sSavePath, false);
 	}
@@ -603,13 +618,12 @@ CString	CPatch::CheckPatchPath(const CString& path)
 			return upperpath;
 	}
 	//still no match found. So try sub folders
-	bool isDir = false;
-	CString subpath;
 	CDirFileEnum filefinder(path);
-	while (filefinder.NextFile(subpath, &isDir))
+	while (auto file = filefinder.NextFile())
 	{
-		if (!isDir)
+		if (!file->IsDirectory())
 			continue;
+		CString subpath = file->GetFilePath();
 		if (GitAdminDir::IsAdminDirPath(subpath))
 			continue;
 		if (CountMatches(subpath) > (GetNumberOfFiles()/3))
@@ -708,6 +722,15 @@ CString CPatch::GetFullPath(const CString& sPath, int nIndex, int fileno /* = 0*
 	}
 
 	return temp;
+}
+
+bool CPatch::HasUnicodeBOM(const CString& str) const
+{
+	if (str.IsEmpty())
+		return false;
+	if (str[0] == 0xFEFF)
+		return true;
+	return false;
 }
 
 CString CPatch::RemoveUnicodeBOM(const CString& str) const

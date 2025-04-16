@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2016 - TortoiseGit
+// Copyright (C) 2012-2016, 2022-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,10 +18,9 @@
 //
 
 #pragma once
-
 #include "StandAloneDlg.h"
 #include "registry.h"
-#include "HistoryCombo.h"
+#include "gittype.h"
 
 class CSubmoduleUpdateDlg : public CResizableStandAloneDialog
 {
@@ -37,8 +36,8 @@ public:
 	static bool s_bSortLogical;
 
 protected:
-	virtual BOOL OnInitDialog() override;
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
@@ -60,6 +59,7 @@ public:
 	BOOL m_bRemote;
 	STRING_VECTOR m_PathFilterList;
 	STRING_VECTOR m_PathList;
+	bool m_bAllSubmodulesSelected;
 
 protected:
 	CRegDWORD		m_regInit;

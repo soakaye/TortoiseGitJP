@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2008, 2010-2011, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -31,12 +32,12 @@ class CToolTips : public CToolTipCtrl
 {
 // Construction
 public:
-	virtual BOOL Create(CWnd* pParentWnd, DWORD dwStyle = 0);
-	CToolTips() : CToolTipCtrl(), m_pParentWnd(nullptr), m_themeCallbackId(0) {}
+	BOOL Create(CWnd* pParentWnd, DWORD dwStyle = 0) override;
+	CToolTips() : CToolTipCtrl() {}
 	virtual ~CToolTips() {}
 
 	BOOL AddTool(CWnd* pWnd, UINT nIDText, LPCRECT lpRectTool = nullptr, UINT_PTR nIDTool = 0);
-	BOOL AddTool(CWnd* pWnd, LPCTSTR lpszText = LPSTR_TEXTCALLBACK, LPCRECT lpRectTool = nullptr, UINT_PTR nIDTool = 0);
+	BOOL AddTool(CWnd* pWnd, LPCWSTR lpszText = LPSTR_TEXTCALLBACK, LPCRECT lpRectTool = nullptr, UINT_PTR nIDTool = 0);
 	void AddTool(int nIdWnd, UINT nIdText, LPCRECT lpRectTool = nullptr, UINT_PTR nIDTool = 0);
 	void AddTool(int nIdWnd, CString sBalloonTipText, LPCRECT lpRectTool = nullptr, UINT_PTR nIDTool = 0);
 	void DelTool(CWnd* pWnd, UINT_PTR nIDTool = 0);
@@ -53,9 +54,9 @@ protected:
 private:
 	void SetTheme(bool bDark);
 
-	CWnd *	m_pParentWnd;
+	CWnd* m_pParentWnd = nullptr;
 	std::map<UINT, CString>		toolTextMap;
-	int m_themeCallbackId;
+	int m_themeCallbackId = 0;
 
 	static CString LoadTooltip( UINT nIDText );
 };

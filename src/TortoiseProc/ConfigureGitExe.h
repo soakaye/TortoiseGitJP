@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2019, 2021-2022, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -22,8 +22,9 @@
 #include "Git.h"
 #include "MessageBox.h"
 #include "AppUtils.h"
+#include "../TGitCache/CacheInterface.h"
 
-#define GIT_FOR_WINDOWS_URL L"https://git-for-windows.github.io/"
+#define GIT_FOR_WINDOWS_URL L"https://gitforwindows.org/"
 
 class CConfigureGitExe
 {
@@ -35,12 +36,12 @@ public:
 
 	static bool CheckGitVersion(HWND hwnd)
 	{
-		if (CAppUtils::IsGitVersionNewerOrEqual(hwnd, 2, 11))
+		if (CAppUtils::IsGitVersionNewerOrEqual(hwnd, 2, 24))
 			return true;
 
 		CString tmp;
-		tmp.Format(IDS_PROC_OLDMSYSGIT, L"2.11+");
-		int ret = CMessageBox::ShowCheck(hwnd, tmp, L"TortoiseGit", 1, IDI_EXCLAMATION, CString(MAKEINTRESOURCE(IDS_PROC_GOTOMSYSGITWEBSITE)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON)), CString(MAKEINTRESOURCE(IDS_IGNOREBUTTON)), L"OldMsysgitVersionWarning", CString(MAKEINTRESOURCE(IDS_PROC_NOTSHOWAGAINIGNORE)));
+		tmp.Format(IDS_PROC_OLDMSYSGIT, L"2.24+");
+		const auto ret = CMessageBox::ShowCheck(hwnd, tmp, IDS_APPNAME, 1, IDI_EXCLAMATION, IDS_PROC_GOTOMSYSGITWEBSITE, IDS_ABORTBUTTON, IDS_IGNOREBUTTON, L"OldMsysgitVersionWarning", IDS_PROC_NOTSHOWAGAINIGNORE);
 		if (ret == 3)
 			return true;
 
@@ -143,7 +144,11 @@ protected:
 
 		StoreSetting(hwnd, gitpath, m_regMsysGitPath);
 		StoreSetting(hwnd, pathaddition, m_regMsysGitExtranPath);
-		SCOPE_EXIT{
+		bool undoOnError = true;
+		SCOPE_EXIT
+		{
+			if (!undoOnError)
+				return;
 			StoreSetting(hwnd, oldpath, m_regMsysGitPath);
 			StoreSetting(hwnd, oldextranpath, m_regMsysGitExtranPath);
 		};
@@ -171,18 +176,18 @@ protected:
 				tmp.AppendChar(L'\n');
 				tmp.AppendChar(L'\n');
 				tmp.Append(checkhelpHint);
-				if (CMessageBox::Show(hwnd, tmp, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_MSGBOX_OK)), CString(MAKEINTRESOURCE(IDS_MSGBOX_HELP))) == 2)
+				if (CMessageBox::Show(hwnd, tmp, IDS_APPNAME, 1, IDI_ERROR, IDS_MSGBOX_OK, IDS_MSGBOX_HELP) == 2)
 					callHelp(IDD_SETTINGSMAIN);
 				return false;
 			}
 			else if (!CStringUtils::StartsWith(out.Trim(), L"git version "))
 			{
 				CString tmp;
-				tmp.Format(IDS_ERR_GITNOVALIDOUTPUT, static_cast<LPCTSTR>(out.Trim()));
+				tmp.Format(IDS_ERR_GITNOVALIDOUTPUT, static_cast<LPCWSTR>(out.Trim()));
 				tmp.AppendChar(L'\n');
 				tmp.AppendChar(L'\n');
 				tmp.Append(checkhelpHint);
-				if (CMessageBox::Show(hwnd, tmp, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_MSGBOX_OK)), CString(MAKEINTRESOURCE(IDS_MSGBOX_HELP))) == 2)
+				if (CMessageBox::Show(hwnd, tmp, IDS_APPNAME, 1, IDI_ERROR, IDS_MSGBOX_OK, IDS_MSGBOX_HELP) == 2)
 					callHelp(IDD_SETTINGSMAIN);
 				return false;
 			}
@@ -212,7 +217,7 @@ protected:
 			tmp.AppendChar(L'\n');
 			tmp.AppendChar(L'\n');
 			tmp.Append(checkhelpHint);
-			if (CMessageBox::Show(hwnd, tmp, L"TortoiseGit", 1, IDI_ERROR, CString(MAKEINTRESOURCE(IDS_MSGBOX_OK)), CString(MAKEINTRESOURCE(IDS_MSGBOX_HELP))) == 2)
+			if (CMessageBox::Show(hwnd, tmp, IDS_APPNAME, 1, IDI_ERROR, IDS_MSGBOX_OK, IDS_MSGBOX_HELP) == 2)
 				callHelp(IDD_SETTINGSMAIN);
 			return false;
 		}
@@ -222,6 +227,12 @@ protected:
 		CRegDWORD(L"Software\\TortoiseGit\\git_file_time").removeValue();
 		if (!CheckGitVersion(hwnd))
 			return false;
+
+		// tell the cache to refresh everything and restart
+		SendCacheCommand(TGITCACHECOMMAND_REFRESHALL);
+		SendCacheCommand(TGITCACHECOMMAND_END);
+
+		undoOnError = false;
 		return true;
 	}
 

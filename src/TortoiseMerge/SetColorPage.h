@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006-2008, 2013-2014, 2017, 2020 - TortoiseSVN
-// Copyright (C) 2016 - TortoiseGit
+// Copyright (C) 2016, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -41,17 +41,17 @@ public:
 	 */
 	void SaveData();
 
-	BOOL	m_bReloadNeeded;
+	BOOL	m_bReloadNeeded = FALSE;
 	bool	m_IsDarkMode;
 
 	// Dialog Data
 	enum { IDD = IDD_SETCOLORPAGE };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 	void SetupColorButtons();
-	virtual BOOL OnApply();
+	BOOL OnApply() override;
 
 	afx_msg void OnBnClickedColor();
 	afx_msg void OnBnClickedRestore();
@@ -60,7 +60,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 protected:
-	BOOL m_bInit;
+	BOOL m_bInit = FALSE;
 	CRegDWORD		m_regInlineAdded;
 	CRegDWORD		m_regInlineRemoved;
 	CRegDWORD		m_regModifiedBackground;
@@ -86,5 +86,5 @@ protected:
 	CMFCColorButton m_cFgWhitespaces;
 	CMFCColorButton m_cBkFiltered;
 	CButton m_chkUseDarkMode;
-	int m_themeCallbackId;
+	int m_themeCallbackId = 0;
 };

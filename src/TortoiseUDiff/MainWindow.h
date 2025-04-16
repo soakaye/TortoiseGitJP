@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016, 2019-2021 - TortoiseGit
+// Copyright (C) 2016, 2019-2021, 2023, 2025 - TortoiseGit
 // Copyright (C) 2007, 2009-2013, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,15 +17,11 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "BaseWindow.h"
-#include "SciLexer.h"
-#include "Scintilla.h"
-#include "registry.h"
-#include "resource.h"
 #include "FindBar.h"
 #include <string>
-#include <stdio.h>
 
 /**
  * \ingroup TortoiseUDiff
@@ -36,7 +32,7 @@ class CMainWindow : public CWindow
 {
 public:
 	CMainWindow(HINSTANCE hInst, const WNDCLASSEX* wcx = nullptr);
-	~CMainWindow(void);
+	~CMainWindow();
 
 	/**
 	* Registers the window class and creates the window.
@@ -45,10 +41,10 @@ public:
 
 	LRESULT             SendEditor(UINT Msg, WPARAM wParam = 0, LPARAM lParam = 0);
 	HWND                GetHWNDEdit() const { return m_hWndEdit; }
-	bool                LoadFile(LPCTSTR filename);
-	bool                LoadFile(HANDLE hFile);
-	bool                SaveFile(LPCTSTR filename);
-	void                SetTitle(LPCTSTR title);
+	bool                LoadFile(LPCWSTR filename);
+	bool                LoadFile(HANDLE hFile, bool wantStdIn);
+	bool                SaveFile(LPCWSTR filename);
+	void                SetTitle(LPCWSTR title);
 	std::wstring        GetAppDirectory();
 	void                RunCommand(const std::wstring& command);
 
@@ -69,16 +65,16 @@ private:
 	void                UpdateLineCount();
 
 private:
-	LRESULT             m_directFunction;
-	LRESULT             m_directPointer;
+	LRESULT             m_directFunction = 0;
+	LRESULT             m_directPointer = 0;
 
-	HWND                m_hWndEdit;
-	int                 m_themeCallbackId;
+	HWND                m_hWndEdit = nullptr;
+	int                 m_themeCallbackId = 0;
 
 	void                DoSearch(bool reverse);
 	CFindBar            m_FindBar;
-	bool                m_bShowFindBar;
-	bool                m_bMatchCase;
+	bool                m_bShowFindBar = false;
+	bool                m_bMatchCase = false;
 	std::wstring             m_findtext;
 	std::wstring             m_filename;
 

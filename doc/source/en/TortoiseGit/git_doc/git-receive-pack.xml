@@ -13,7 +13,7 @@
 <simplesect id="git-receive-pack(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git-receive-pack</emphasis> &lt;directory&gt;</literallayout>
+<literallayout><emphasis>git receive-pack</emphasis> &lt;git-dir&gt;</literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-receive-pack(1)__description">
@@ -22,9 +22,9 @@
 information fed from the remote end.</simpara>
 <simpara>This command is usually not invoked directly by the end user.
 The UI for the protocol is on the <emphasis>git send-pack</emphasis> side, and the
-program pair is meant to be used to push updates to remote
+program pair is meant to be used to push updates to a remote
 repository.  For pull operations, see <xref linkend="git-fetch-pack(1)" />.</simpara>
-<simpara>The command allows for creation and fast-forwarding of sha1 refs
+<simpara>The command allows for the creation and fast-forwarding of sha1 refs
 (heads/tags) on the remote end (strictly speaking, it is the
 local end <emphasis>git-receive-pack</emphasis> runs, but to the user who is sitting at
 the send-pack end, it is updating the remote.  Confused?)</simpara>
@@ -41,11 +41,23 @@ its behavior, see <xref linkend="git-config(1)" />.</simpara>
 <variablelist>
 <varlistentry>
 <term>
-&lt;directory&gt;
+&lt;git-dir&gt;
 </term>
 <listitem>
 <simpara>
         The repository to sync into.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--http-backend-info-refs
+</term>
+<listitem>
+<simpara>
+        Used by <xref linkend="git-http-backend(1)" /> to serve up
+        <emphasis>$GIT_URL/info/refs?service=git-receive-pack</emphasis> requests. See
+        <emphasis>--http-backend-info-refs</emphasis> in <xref linkend="git-upload-pack(1)" />.
 </simpara>
 </listitem>
 </varlistentry>

@@ -227,6 +227,16 @@ Other frontends may have some other order of preference.</simpara>
 </simpara>
 </listitem>
 </varlistentry>
+<varlistentry>
+<term>
+<emphasis>get</emphasis>
+</term>
+<listitem>
+<simpara>
+        Can use the <emphasis>get</emphasis> command to download a file from a given URI.
+</simpara>
+</listitem>
+</varlistentry>
 </variablelist>
 <simpara>If a helper advertises <emphasis>connect</emphasis>, Git will use it if possible and
 fall back to another capability if the helper requests so when
@@ -572,6 +582,19 @@ operations.</simpara>
 <simpara>Supported if the helper has the "stateless-connect" capability.</simpara>
 </listitem>
 </varlistentry>
+<varlistentry>
+<term>
+<emphasis>get</emphasis> &lt;uri&gt; &lt;path&gt;
+</term>
+<listitem>
+<simpara>
+        Downloads the file from the given <emphasis>&lt;uri&gt;</emphasis> to the given <emphasis>&lt;path&gt;</emphasis>. If
+        <emphasis>&lt;path&gt;.temp</emphasis> exists, then Git assumes that the <emphasis>.temp</emphasis> file is a
+        partial download from a previous attempt and will resume the
+        download from that position.
+</simpara>
+</listitem>
+</varlistentry>
 </variablelist>
 <simpara>If a fatal error occurs, the program writes the error message to
 stderr and exits. The caller should expect that a suitable error
@@ -661,7 +684,7 @@ set by Git if the remote helper has the <emphasis>option</emphasis> capability.<
 </varlistentry>
 <varlistentry>
 <term>
-'option deepen-since &lt;timestamp&gt;
+<emphasis>option deepen-since</emphasis> &lt;timestamp&gt;
 </term>
 <listitem>
 <simpara>
@@ -671,7 +694,7 @@ set by Git if the remote helper has the <emphasis>option</emphasis> capability.<
 </varlistentry>
 <varlistentry>
 <term>
-'option deepen-not &lt;ref&gt;
+<emphasis>option deepen-not</emphasis> &lt;ref&gt;
 </term>
 <listitem>
 <simpara>
@@ -682,7 +705,7 @@ set by Git if the remote helper has the <emphasis>option</emphasis> capability.<
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>option deepen-relative {'true</emphasis>|<emphasis>false</emphasis>}
+<emphasis>option deepen-relative</emphasis> {<emphasis>true</emphasis>|<emphasis>false</emphasis>}
 </term>
 <listitem>
 <simpara>
@@ -779,7 +802,7 @@ set by Git if the remote helper has the <emphasis>option</emphasis> capability.<
 </varlistentry>
 <varlistentry>
 <term>
-'option push-option &lt;string&gt;
+<emphasis>option push-option</emphasis> &lt;string&gt;
 </term>
 <listitem>
 <simpara>
@@ -823,16 +846,14 @@ set by Git if the remote helper has the <emphasis>option</emphasis> capability.<
 </varlistentry>
 <varlistentry>
 <term>
-<emphasis>option object-format</emphasis> {<emphasis>true</emphasis>|algorithm}
+<emphasis>option object-format true</emphasis>
 </term>
 <listitem>
 <simpara>
-        If <emphasis>true</emphasis>, indicate that the caller wants hash algorithm information
+        Indicate that the caller wants hash algorithm information
         to be passed back from the remote.  This mode is used when fetching
         refs.
 </simpara>
-<simpara>If set to an algorithm, indicate that the caller wants to interact with
-the remote side using that algorithm.</simpara>
 </listitem>
 </varlistentry>
 </variablelist>

@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2011-2013 - Sven Strickroth <email@cs-ware.de>
-// Copyright (C) 2013-2017, 2020 - TortoiseGit
+// Copyright (C) 2013-2017, 2020, 2022-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,13 +26,14 @@ class CMassiveGitTaskBase
 {
 public:
 	CMassiveGitTaskBase(CString params, BOOL isPath = TRUE, bool ignoreErrors = false);
-	~CMassiveGitTaskBase(void);
+	~CMassiveGitTaskBase();
 
 	void					AddFile(const CString& filename);
 	void					AddFile(const CTGitPath& filename);
-	bool					Execute(BOOL& cancel);
+	bool					Execute(volatile BOOL& cancel);
 	int						GetListCount() const;
 	bool					IsListEmpty() const;
+	static void				ConvertToCmdList(CString params, const STRING_VECTOR& pathList, STRING_VECTOR& cmdList);
 protected:
 	void					SetPaths(const CTGitPathList* pathList);
 	bool					ExecuteCommands(volatile BOOL& cancel);
@@ -42,9 +43,9 @@ protected:
 	CString					GetParams() const { return m_sParams; }
 private:
 	CString					GetListItem(int index) const;
-	bool					m_bUnused;
-	BOOL					m_bIsPath;
-	bool					m_bIgnoreErrors;
+	bool					m_bUnused = true;
+	BOOL					m_bIsPath = TRUE;
+	bool					m_bIgnoreErrors = false;
 	CString					m_sParams;
 	CTGitPathList			m_pathList;
 	STRING_VECTOR			m_itemList;

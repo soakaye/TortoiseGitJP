@@ -65,9 +65,9 @@ submodule.&lt;name&gt;.update
         command in the superproject. This is only used by <emphasis>git
         submodule init</emphasis> to initialize the configuration variable of
         the same name. Allowed values here are <emphasis>checkout</emphasis>, <emphasis>rebase</emphasis>,
-        <emphasis>merge</emphasis> or <emphasis>none</emphasis>. See description of <emphasis>update</emphasis> command in
-        <xref linkend="git-submodule(1)" /> for their meaning. For security
-        reasons, the <emphasis>!command</emphasis> form is not accepted here.
+        <emphasis>merge</emphasis> or <emphasis>none</emphasis>, but not <emphasis>!command</emphasis> (for security reasons).
+        See the description of the <emphasis>update</emphasis> command in
+        <xref linkend="git-submodule(1)" /> for more details.
 </simpara>
 </listitem>
 </varlistentry>
@@ -181,6 +181,14 @@ submodule.&lt;name&gt;.shallow
 </listitem>
 </varlistentry>
 </variablelist>
+</simplesect>
+<simplesect id="gitmodules(5)__notes">
+<title>NOTES</title>
+<simpara>Git does not allow the <emphasis>.gitmodules</emphasis> file within a working tree to be a
+symbolic link, and will refuse to check out such a tree entry. This
+keeps behavior consistent when the file is accessed from the index or a
+tree versus from the filesystem, and helps Git reliably enforce security
+checks of the file contents.</simpara>
 </simplesect>
 <simplesect id="gitmodules(5)__examples">
 <title>EXAMPLES</title>

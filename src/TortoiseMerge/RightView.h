@@ -1,4 +1,4 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006-2008, 2011, 2013-2014 - TortoiseSVN
 
@@ -28,8 +28,8 @@ class CRightView : public CBaseView
 {
 	DECLARE_DYNCREATE(CRightView)
 public:
-	CRightView(void);
-	~CRightView(void);
+	CRightView();
+	~CRightView();
 
 	void	UseBothLeftFirst() override;
 	void	UseBothRightFirst() override;
@@ -41,5 +41,5 @@ public:
 	void	UseViewFileExceptEdited() override;
 
 protected:
-	void	AddContextItems(CIconMenu& popup, DiffStates state) override;
+	void	AddContextItems(CIconMenu& popup, DiffState state) override;
 };

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2024 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -137,7 +137,7 @@ MenuInfo menuInfo[] =
 		{ITEMIS_INGIT|ITEMIS_MERGEACTIVE, 0}, {ITEMIS_FOLDERINGIT|ITEMIS_MERGEACTIVE, 0}, {0, 0}, {0, 0} },
 
 	{ ShellMenuRename,						MENURENAME,			IDI_RENAME,				IDS_MENURENAME,				IDS_MENUDESCRENAME,
-		{ITEMIS_INGIT|ITEMIS_ONLYONE|ITEMIS_INVERSIONEDFOLDER, ITEMIS_WCROOT}, {0, 0}, {0, 0}, {0, 0} },
+		{ITEMIS_INGIT|ITEMIS_ONLYONE|ITEMIS_INVERSIONEDFOLDER, ITEMIS_WCROOT}, {ITEMIS_WCROOT|ITEMIS_SUBMODULE, 0}, {0, 0}, {0, 0} },
 
 	{ ShellMenuRemove,						MENUREMOVE,			IDI_DELETE,				IDS_MENUREMOVE,				IDS_MENUDESCREMOVE,
 		{ITEMIS_INGIT|ITEMIS_INVERSIONEDFOLDER, ITEMIS_ADDED|ITEMIS_WCROOT}, {ITEMIS_FOLDERINGIT|ITEMIS_WCROOT|ITEMIS_SUBMODULE, 0}, {0, 0}, {0, 0} },
@@ -198,6 +198,9 @@ MenuInfo menuInfo[] =
 
 	{ ShellSeparator, 0, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
 
+	{ ShellMenuWorktree,					MENUWORKTREE,		IDI_COPY,				IDS_MENUWORKTREE,			IDS_MENUDESCWORKTREE,
+		{ITEMIS_FOLDERINGIT|ITEMIS_ONLYONE, 0 }, {ITEMIS_BAREREPO, 0}, {0, 0}, {0, 0} },
+
 	{ ShellMenuSubAdd,						MENUSUBADD,			IDI_ADD,				IDS_MENUSUBADD,				IDS_MENUSUBADD,
 		{ITEMIS_FOLDERINGIT|ITEMIS_ONLYONE, 0}, {0, 0}, {0, 0}, {0, 0} },
 
@@ -237,7 +240,7 @@ MenuInfo menuInfo[] =
 	{ ShellMenuAbout,						MENUABOUT,			IDI_ABOUT,				IDS_MENUABOUT,				IDS_MENUDESCABOUT,
 		{ITEMIS_FOLDER, 0}, {0, ITEMIS_FOLDER}, {0, 0}, {0, 0} },
 
-	// the sub menus - they're not added like the the commands, therefore the menu ID is zero
+	// the sub menus - they're not added like the commands, therefore the menu ID is zero
 	// but they still need to be in here, because we use the icon and string information anyway.
 	{ ShellSubMenu,							NULL,				IDI_APP,				IDS_MENUSUBMENU,			0,
 		{0, 0}, {0, 0}, {0, 0}, {0, 0} },

@@ -2,8 +2,6 @@
 
 // heavily based on the code of afxpane.cpp of the Microsoft MFC Framework
 
-#pragma once
-
 #include "stdafx.h"
 #include "DockablePaneUnscaledStoredState.h"
 #include "afxregpath.h"
@@ -13,7 +11,7 @@
 #define AFX_REG_SECTION_FMT _T("%TsPane-%d")
 #define AFX_REG_SECTION_FMT_EX _T("%TsPane-%d%x")
 
-BOOL CDockablePaneUnscaledStoredState::LoadState(LPCTSTR lpszProfileName, int nIndex, UINT uiID)
+BOOL CDockablePaneUnscaledStoredState::LoadState(LPCWSTR lpszProfileName, int nIndex, UINT uiID)
 {
 	CString strProfileName = ::AFXGetRegPath(AFX_CONTROL_BAR_PROFILE, lpszProfileName);
 
@@ -22,9 +20,9 @@ BOOL CDockablePaneUnscaledStoredState::LoadState(LPCTSTR lpszProfileName, int nI
 
 	CString strSection;
 	if (uiID == (UINT)-1)
-		strSection.Format(AFX_REG_SECTION_FMT, (LPCTSTR)strProfileName, nIndex);
+		strSection.Format(AFX_REG_SECTION_FMT, (LPCWSTR)strProfileName, nIndex);
 	else
-		strSection.Format(AFX_REG_SECTION_FMT_EX, (LPCTSTR)strProfileName, nIndex, uiID);
+		strSection.Format(AFX_REG_SECTION_FMT_EX, (LPCWSTR)strProfileName, nIndex, uiID);
 
 	CSettingsStoreSP regSP;
 	CSettingsStore& reg = regSP.Create(FALSE, TRUE);
@@ -37,8 +35,8 @@ BOOL CDockablePaneUnscaledStoredState::LoadState(LPCTSTR lpszProfileName, int nI
 	reg.Read(_T("RectRecentFloat"), m_recentDockInfo.m_rectRecentFloatingRect);
 	reg.Read(_T("RectRecentDocked"), m_rectSavedDockedRect);
 
-	CDPIAware::Instance().ScaleRect(&m_recentDockInfo.m_rectRecentFloatingRect);
-	CDPIAware::Instance().ScaleRect(&m_rectSavedDockedRect);
+	CDPIAware::Instance().ScaleRect(GetSafeHwnd(), &m_recentDockInfo.m_rectRecentFloatingRect);
+	CDPIAware::Instance().ScaleRect(GetSafeHwnd(), &m_rectSavedDockedRect);
 
 	m_recentDockInfo.m_recentSliderInfo.m_rectDockedRect = m_rectSavedDockedRect;
 
@@ -51,7 +49,7 @@ BOOL CDockablePaneUnscaledStoredState::LoadState(LPCTSTR lpszProfileName, int nI
 	return CBasePane::LoadState(lpszProfileName, nIndex, uiID); // skip CDockablePane!
 }
 
-BOOL CDockablePaneUnscaledStoredState::SaveState(LPCTSTR lpszProfileName, int nIndex, UINT uiID)
+BOOL CDockablePaneUnscaledStoredState::SaveState(LPCWSTR lpszProfileName, int nIndex, UINT uiID)
 {
 	CString strProfileName = ::AFXGetRegPath(AFX_CONTROL_BAR_PROFILE, lpszProfileName);
 
@@ -60,9 +58,9 @@ BOOL CDockablePaneUnscaledStoredState::SaveState(LPCTSTR lpszProfileName, int nI
 
 	CString strSection;
 	if (uiID == (UINT)-1)
-		strSection.Format(AFX_REG_SECTION_FMT, (LPCTSTR)strProfileName, nIndex);
+		strSection.Format(AFX_REG_SECTION_FMT, (LPCWSTR)strProfileName, nIndex);
 	else
-		strSection.Format(AFX_REG_SECTION_FMT_EX, (LPCTSTR)strProfileName, nIndex, uiID);
+		strSection.Format(AFX_REG_SECTION_FMT_EX, (LPCWSTR)strProfileName, nIndex, uiID);
 
 	CSettingsStoreSP regSP;
 	CSettingsStore& reg = regSP.Create(FALSE, FALSE);
@@ -91,8 +89,8 @@ BOOL CDockablePaneUnscaledStoredState::SaveState(LPCTSTR lpszProfileName, int nI
 
 		CRect floatingRect = m_recentDockInfo.m_rectRecentFloatingRect;
 		CRect dockedRect = m_recentDockInfo.m_recentSliderInfo.m_rectDockedRect;
-		CDPIAware::Instance().UnscaleRect(&floatingRect);
-		CDPIAware::Instance().UnscaleRect(&dockedRect);
+		CDPIAware::Instance().UnscaleRect(GetSafeHwnd(), & floatingRect);
+		CDPIAware::Instance().UnscaleRect(GetSafeHwnd(), &dockedRect);
 
 		reg.Write(_T("RectRecentFloat"), floatingRect);
 		reg.Write(_T("RectRecentDocked"), dockedRect);

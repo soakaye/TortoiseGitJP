@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014, 2016-2020 TortoiseGit
+// Copyright (C) 2014, 2016-2021, 2023 TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,15 +26,15 @@
 #include "futils.h"
 #include "hash.h"
 #include "filter.h"
-#include "buf_text.h"
 #include "repository.h"
+#include "win32/utf-conv.h"
 
 #include "system-call.h"
 #include "filter-filter.h"
 
 struct filter_filter {
 	git_filter	f;
-	LPWSTR*		pEnv;
+	const LPWSTR	*pEnv;
 	LPWSTR		shexepath;
 };
 
@@ -69,28 +69,28 @@ static int filter_check(
 	return 0;
 }
 
-static int expandPerCentF(git_buf *buf, const char *replaceWith)
+static int expandPerCentF(git_str *buf, const char *replaceWith)
 {
-	ssize_t foundPercentage = git_buf_find(buf, '%');
-	if (foundPercentage) {
-		git_buf expanded = GIT_BUF_INIT;
+	ssize_t foundPercentage = git_str_find(buf, '%');
+	if (foundPercentage >= 0) {
+		git_str expanded = GIT_STR_INIT;
 		const char *end = buf->ptr + buf->size;
 		const char *lastPercentage = buf->ptr;
 		const char *idx = buf->ptr + foundPercentage;
 		while (idx < end) {
 			if (*idx == '%') {
 				if (idx + 1 == end || (idx + 1 < end && *(idx + 1) == '%')) { // one '%' is at the end of the string OR "%%" is in the string
-					git_buf_putc(&expanded, '%');
+					git_str_putc(&expanded, '%');
 					++idx;
 					++idx;
 					lastPercentage = idx;
 					continue;
 				}
 				// now we know, that we're not at the end of the string and that the next char is not '%'
-				git_buf_put(&expanded, lastPercentage, idx - lastPercentage);
+				git_str_put(&expanded, lastPercentage, idx - lastPercentage);
 				++idx;
 				if (*idx == 'f')
-					git_buf_printf(&expanded, "\"%s\"", replaceWith);
+					git_str_printf(&expanded, "\"%s\"", replaceWith);
 
 				++idx;
 				lastPercentage = idx;
@@ -99,21 +99,21 @@ static int expandPerCentF(git_buf *buf, const char *replaceWith)
 			++idx;
 		}
 		if (lastPercentage)
-			git_buf_put(&expanded, lastPercentage, idx - lastPercentage);
-		if (git_buf_oom(&expanded))
+			git_str_put(&expanded, lastPercentage, idx - lastPercentage);
+		if (git_str_oom(&expanded))
 		{
 			git_error_set_oom();
 			return -1;
 		}
-		git_buf_swap(buf, &expanded);
-		git_buf_dispose(&expanded);
+		git_str_swap(buf, &expanded);
+		git_str_dispose(&expanded);
 	}
 	return 0;
 }
 
-static void setProcessError(DWORD exitCode, git_buf *errBuf)
+static void setProcessError(DWORD exitCode, git_str *errBuf)
 {
-	if (!git_buf_oom(errBuf) && git_buf_len(errBuf))
+	if (!git_str_oom(errBuf) && git_str_len(errBuf))
 		git_error_set(GIT_ERROR_FILTER, "External filter application exited non-zero (%ld) and reported:\n%s", exitCode, errBuf->ptr);
 	else
 		git_error_set(GIT_ERROR_FILTER, "External filter application exited non-zero: %ld", exitCode);
@@ -122,19 +122,19 @@ static void setProcessError(DWORD exitCode, git_buf *errBuf)
 static int filter_apply(
 	git_filter				*self,
 	void					**payload, /* may be read and/or set */
-	git_buf					*to,
-	const git_buf			*from,
+	git_str					*to,
+	const git_str			*from,
 	const git_filter_source	*src)
 {
 	struct filter_filter *ffs = (struct filter_filter *)self;
 	git_config *config;
-	git_buf configKey = GIT_BUF_INIT;
+	git_str configKey = GIT_STR_INIT;
 	int isRequired = FALSE;
 	int error;
-	git_buf cmd = GIT_BUF_INIT;
+	git_str cmd = GIT_STR_INIT;
 	wchar_t *wide_cmd;
 	COMMAND_HANDLE commandHandle;
-	git_buf errBuf = GIT_BUF_INIT;
+	git_str errBuf = GIT_STR_INIT;
 	DWORD exitCode;
 
 	if (!*payload)
@@ -143,30 +143,30 @@ static int filter_apply(
 	if (git_repository_config__weakptr(&config, git_filter_source_repo(src)))
 		return -1;
 
-	git_buf_join3(&configKey, '.', "filter", *payload, "required");
-	if (git_buf_oom(&configKey)) {
+	git_str_join3(&configKey, '.', "filter", *payload, "required");
+	if (git_str_oom(&configKey)) {
 		git_error_set_oom();
 		return -1;
 	}
 
 	error = git_config_get_bool(&isRequired, config, configKey.ptr);
-	git_buf_dispose(&configKey);
+	git_str_dispose(&configKey);
 	if (error && error != GIT_ENOTFOUND)
 		return -1;
 
-	git_buf_join(&configKey, '.', "filter", *payload);
+	git_str_join(&configKey, '.', "filter", *payload);
 	if (git_filter_source_mode(src) == GIT_FILTER_SMUDGE) {
-		git_buf_puts(&configKey, ".smudge");
+		git_str_puts(&configKey, ".smudge");
 	} else {
-		git_buf_puts(&configKey, ".clean");
+		git_str_puts(&configKey, ".clean");
 	}
-	if (git_buf_oom(&configKey)) {
+	if (git_str_oom(&configKey)) {
 		git_error_set_oom();
 		return -1;
 	}
-
-	error = git_config_get_string_buf(&cmd, config, configKey.ptr);
-	git_buf_dispose(&configKey);
+	git_buf cmdBuf = GIT_BUF_INIT;
+	error = git_config_get_string_buf(&cmdBuf, config, configKey.ptr);
+	git_str_dispose(&configKey);
 	if (error && error != GIT_ENOTFOUND)
 		return -1;
 
@@ -176,31 +176,33 @@ static int filter_apply(
 		return GIT_PASSTHROUGH;
 	}
 
-	if (expandPerCentF(&cmd, git_filter_source_path(src)))
+	error = git_str_set(&cmd, cmdBuf.ptr, cmdBuf.size);
+	git_buf_dispose(&cmdBuf);
+	if (error || expandPerCentF(&cmd, git_filter_source_path(src)))
 		return -1;
 
 	if (ffs->shexepath) {
 		// build params for sh.exe
-		git_buf shParams = GIT_BUF_INIT;
-		git_buf_puts(&shParams, " -c \"");
-		git_buf_text_puts_escaped(&shParams, cmd.ptr, "\"\\", "\\");
-		git_buf_puts(&shParams, "\"");
-		if (git_buf_oom(&shParams)) {
-			git_buf_dispose(&cmd);
+		git_str shParams = GIT_STR_INIT;
+		git_str_puts(&shParams, " -c \"");
+		git_str_puts_escaped(&shParams, cmd.ptr, "\"\\", "\\");
+		git_str_puts(&shParams, "\"");
+		if (git_str_oom(&shParams)) {
+			git_str_dispose(&cmd);
 			git_error_set_oom();
 			return -1;
 		}
-		git_buf_swap(&shParams, &cmd);
-		git_buf_dispose(&shParams);
+		git_str_swap(&shParams, &cmd);
+		git_str_dispose(&shParams);
 	}
 
-	if (git__utf8_to_16_alloc(&wide_cmd, cmd.ptr) < 0)
+	if (git_utf8_to_16_alloc(&wide_cmd, cmd.ptr) < 0)
 	{
-		git_buf_dispose(&cmd);
+		git_str_dispose(&cmd);
 		git_error_set_oom();
 		return -1;
 	}
-	git_buf_dispose(&cmd);
+	git_str_dispose(&cmd);
 
 	if (ffs->shexepath) {
 		// build cmd, i.e. shexepath + params
@@ -236,7 +238,7 @@ static int filter_apply(
 		exitCode = command_close(&commandHandle);
 		if (exitCode)
 			setProcessError(exitCode, &errBuf);
-		git_buf_dispose(&errBuf);
+		git_str_dispose(&errBuf);
 		if (isRequired)
 			return -1;
 		return GIT_PASSTHROUGH;
@@ -247,7 +249,7 @@ static int filter_apply(
 		exitCode = command_close(&commandHandle);
 		if (exitCode)
 			setProcessError(exitCode, &errBuf);
-		git_buf_dispose(&errBuf);
+		git_str_dispose(&errBuf);
 		if (isRequired)
 			return -1;
 		return GIT_PASSTHROUGH;
@@ -257,14 +259,14 @@ static int filter_apply(
 	if (exitCode) {
 		if (isRequired) {
 			setProcessError(exitCode, &errBuf);
-			git_buf_dispose(&errBuf);
+			git_str_dispose(&errBuf);
 			return -1;
 		}
-		git_buf_dispose(&errBuf);
+		git_str_dispose(&errBuf);
 		return GIT_PASSTHROUGH;
 	}
 
-	git_buf_dispose(&errBuf);
+	git_str_dispose(&errBuf);
 
 	return 0;
 }
@@ -286,7 +288,17 @@ static void filter_free(git_filter *self)
 	git__free(self);
 }
 
-git_filter *git_filter_filter_new(LPCWSTR shexepath, LPWSTR* pEnv)
+static int filter_stream(
+	git_writestream			**out,
+	git_filter				*self,
+	void					**payload,
+	const git_filter_source	*src,
+	git_writestream			*next)
+{
+	return git_filter_buffered_stream_new(out, self, filter_apply, NULL, payload, src, next);
+}
+
+git_filter *git_filter_filter_new(LPCWSTR shexepath, const LPWSTR *pEnv)
 {
 	struct filter_filter *f = git__calloc(1, sizeof(struct filter_filter));
 	if (!f)
@@ -297,7 +309,7 @@ git_filter *git_filter_filter_new(LPCWSTR shexepath, LPWSTR* pEnv)
 	f->f.initialize	= NULL;
 	f->f.shutdown	= filter_free;
 	f->f.check		= filter_check;
-	f->f.apply		= filter_apply;
+	f->f.stream		= filter_stream;
 	f->f.cleanup	= filter_cleanup;
 	f->shexepath	= NULL;
 	if (shexepath && shexepath[0])

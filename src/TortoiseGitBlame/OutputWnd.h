@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2012, 2016, 2020 - TortoiseGit
+// Copyright (C) 2008-2012, 2016, 2020, 2022, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,11 +17,8 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-
 #pragma once
-
 #include "GitBlameLogList.h"
-#include "ProjectProperties.h"
 #include "GravatarPictureBox.h"
 #include <unordered_set>
 #include "DockablePaneUnscaledStoredState.h"
@@ -66,6 +63,7 @@ public:
 	afx_msg void OnLvnItemchangedLoglist(NMHDR *pNMHDR, LRESULT *pResult);
 	int	LoadHistory(CString filename, CString revision, bool follow);
 	int	LoadHistory(std::unordered_set<CGitHash>& hashes);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);

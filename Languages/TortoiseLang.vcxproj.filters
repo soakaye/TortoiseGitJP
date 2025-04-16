@@ -115,5 +115,11 @@
     <None Include="Tortoise_he.po">
       <Filter>Translation Files</Filter>
     </None>
+    <None Include="Tortoise_ta_IN.po">
+      <Filter>Translation Files</Filter>
+    </None>
+    <None Include="Tortoise_th.po">
+      <Filter>Translation Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

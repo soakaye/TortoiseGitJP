@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
-// Copyright (C) 2003-2008 - TortoiseSVN
+// Copyright (C) 2008-2023, 2025 - TortoiseGit
+// Copyright (C) 2003-2008, 2025 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -37,31 +37,11 @@ using json = nlohmann::json;
 
 extern CGit g_Git;
 
-CTGitPath::CTGitPath(void)
-	: m_bDirectoryKnown(false)
-	, m_bIsDirectory(false)
-	, m_bHasAdminDirKnown(false)
-	, m_bHasAdminDir(false)
-	, m_bIsValidOnWindowsKnown(false)
-	, m_bIsValidOnWindows(false)
-	, m_bIsReadOnly(false)
-	, m_bIsAdminDirKnown(false)
-	, m_bIsAdminDir(false)
-	, m_bExists(false)
-	, m_bExistsKnown(false)
-	, m_bLastWriteTimeKnown(0)
-	, m_lastWriteTime(0)
-	, m_bIsWCRootKnown(false)
-	, m_bIsWCRoot(false)
-	, m_fileSize(0)
-	, m_Checked(false)
-	, m_Action(0)
-	, m_ParentNo(0)
-	, m_Stage(0)
+CTGitPath::CTGitPath()
 {
 }
 
-CTGitPath::~CTGitPath(void)
+CTGitPath::~CTGitPath()
 {
 }
 // Create a TGitPath object from an unknown path type (same as using SetFromUnknown)
@@ -76,45 +56,46 @@ CTGitPath::CTGitPath(const CString& sUnknownPath, bool bIsDirectory) : CTGitPath
 	m_bIsDirectory = bIsDirectory;
 }
 
-unsigned int CTGitPath::ParserAction(BYTE action)
+unsigned int CTGitPath::ParseStatus(const char status)
 {
-	//action=action.TrimLeft();
-	//TCHAR c=action.GetAt(0);
-	if(action == 'M')
-		m_Action|= LOGACTIONS_MODIFIED;
-	if(action == 'R')
-		m_Action|= LOGACTIONS_REPLACED;
-	if(action == 'A')
-		m_Action|= LOGACTIONS_ADDED;
-	if(action == 'D')
-		m_Action|= LOGACTIONS_DELETED;
-	if(action == 'U')
-		m_Action|= LOGACTIONS_UNMERGED;
-	if(action == 'K')
-		m_Action|= LOGACTIONS_DELETED;
-	if(action == 'C' )
-		m_Action|= LOGACTIONS_COPY;
-	if(action == 'T')
-		m_Action|= LOGACTIONS_MODIFIED;
-
-	return m_Action;
+	switch (status)
+	{
+	case 'M':
+		return LOGACTIONS_MODIFIED;
+	case 'R':
+		return LOGACTIONS_REPLACED;
+	case 'A':
+		return LOGACTIONS_ADDED;
+	case 'D':
+		return LOGACTIONS_DELETED;
+	case 'U':
+		return LOGACTIONS_UNMERGED;
+	case 'K':
+		return LOGACTIONS_DELETED;
+	case 'C':
+		return LOGACTIONS_COPY;
+	case 'T':
+		return LOGACTIONS_MODIFIED;
+	default:
+		return 0;
+	}
 }
 
-unsigned int CTGitPath::ParserAction(git_delta_t action)
+unsigned int CTGitPath::ParseAndUpdateStatus(git_delta_t status)
 {
-	if (action == GIT_DELTA_MODIFIED)
+	if (status == GIT_DELTA_MODIFIED)
 		m_Action |= LOGACTIONS_MODIFIED;
-	if (action == GIT_DELTA_RENAMED)
+	if (status == GIT_DELTA_RENAMED)
 		m_Action |= LOGACTIONS_REPLACED;
-	if (action == GIT_DELTA_ADDED)
+	if (status == GIT_DELTA_ADDED)
 		m_Action |= LOGACTIONS_ADDED;
-	if (action == GIT_DELTA_DELETED)
+	if (status == GIT_DELTA_DELETED)
 		m_Action |= LOGACTIONS_DELETED;
-	if (action == GIT_DELTA_UNMODIFIED)
+	if (status == GIT_DELTA_UNMODIFIED)
 		m_Action |= LOGACTIONS_UNMERGED;
-	if (action == GIT_DELTA_COPIED)
+	if (status == GIT_DELTA_COPIED)
 		m_Action |= LOGACTIONS_COPY;
-	if (action == GIT_DELTA_TYPECHANGE)
+	if (status == GIT_DELTA_TYPECHANGE)
 		m_Action |= LOGACTIONS_MODIFIED;
 
 	return m_Action;
@@ -137,7 +118,7 @@ void CTGitPath::SetFromGit(const char* pPath, bool bIsDirectory)
 	m_bIsDirectory = bIsDirectory;
 }
 
-void CTGitPath::SetFromGit(const TCHAR* pPath, bool bIsDirectory)
+void CTGitPath::SetFromGit(const wchar_t* pPath, bool bIsDirectory)
 {
 	Reset();
 	if (pPath)
@@ -163,7 +144,7 @@ void CTGitPath::SetFromGit(const CString& sPath, CString* oldpath, int* bIsDirec
 		m_sOldFwdslashPath = *oldpath;
 }
 
-void CTGitPath::SetFromWin(LPCTSTR pPath)
+void CTGitPath::SetFromWin(LPCWSTR pPath)
 {
 	Reset();
 	m_sBackslashPath = pPath;
@@ -178,7 +159,7 @@ void CTGitPath::SetFromWin(const CString& sPath)
 	m_sBackslashPath.Replace(L"\\\\?\\", L"");
 	SanitizeRootPath(m_sBackslashPath, false);
 }
-void CTGitPath::SetFromWin(LPCTSTR pPath, bool bIsDirectory)
+void CTGitPath::SetFromWin(LPCWSTR pPath, bool bIsDirectory)
 {
 	Reset();
 	m_sBackslashPath = pPath;
@@ -214,7 +195,7 @@ void CTGitPath::UpdateCase()
 	SetFwdslashPath(m_sBackslashPath);
 }
 
-LPCTSTR CTGitPath::GetWinPath() const
+LPCWSTR CTGitPath::GetWinPath() const
 {
 	if(IsEmpty())
 		return L"";
@@ -304,7 +285,7 @@ bool CTGitPath::Delete(bool bTrash, bool bShowErrorUI) const
 	{
 		if ((bTrash)||(IsDirectory()))
 		{
-			auto buf = std::make_unique<TCHAR[]>(m_sBackslashPath.GetLength() + 2);
+			auto buf = std::make_unique<wchar_t[]>(m_sBackslashPath.GetLength() + 2);
 			wcscpy_s(buf.get(), m_sBackslashPath.GetLength() + 2, m_sBackslashPath);
 			buf[m_sBackslashPath.GetLength()] = L'\0';
 			buf[m_sBackslashPath.GetLength() + 1] = L'\0';
@@ -437,6 +418,7 @@ void CTGitPath::Reset()
 	this->m_StatAdd.Empty();
 	this->m_StatDel.Empty();
 	m_ParentNo=0;
+	m_stagingStatus = CTGitPath::StagingStatus::DontCare;
 	ATLASSERT(IsEmpty());
 }
 
@@ -455,7 +437,7 @@ CTGitPath CTGitPath::GetContainingDirectory() const
 	if(sDirName.GetLength() == 2 && sDirName[1] == ':')
 	{
 		// This is a root directory, which needs a trailing slash
-		sDirName += '\\';
+		sDirName += L'\\';
 		if(sDirName == m_sBackslashPath)
 		{
 			// We were clearly provided with a root path to start with - we should return nothing now
@@ -504,8 +486,8 @@ CString CTGitPath::GetFileExtension() const
 	if(!IsDirectory())
 	{
 		EnsureBackslashPathSet();
-		int dotPos = m_sBackslashPath.ReverseFind('.');
-		int slashPos = m_sBackslashPath.ReverseFind('\\');
+		const int dotPos = m_sBackslashPath.ReverseFind('.');
+		const int slashPos = m_sBackslashPath.ReverseFind('\\');
 		if (dotPos > slashPos)
 			return m_sBackslashPath.Mid(dotPos);
 	}
@@ -514,7 +496,7 @@ CString CTGitPath::GetFileExtension() const
 CString CTGitPath::GetBaseFilename() const
 {
 	CString filename=GetFilename();
-	int dot = filename.ReverseFind(L'.');
+	const int dot = filename.ReverseFind(L'.');
 	if(dot>0)
 		filename.Truncate(dot);
 	return filename;
@@ -758,7 +740,7 @@ bool CTGitPath::IsRegisteredSubmoduleOfParentProject(CString* parentProjectRoot 
 	relativePath.Replace(L'\\', L'/');
 	relativePath.Trim(L'/');
 	CStringA submodulePath = CUnicodeUtils::GetUTF8(relativePath);
-	if (git_config_foreach_match(config, "submodule\\..*\\.path", [](const git_config_entry* entry, void* data) { return entry->value == *static_cast<CStringA*>(data) ? GIT_EUSER : 0; }, &submodulePath) == GIT_EUSER)
+	if (git_config_foreach_match(config, "submodule\\..*\\.path", [](const git_config_entry* entry, void* data) { return static_cast<CStringA*>(data)->Compare(entry->value) == 0 ? GIT_EUSER : 0; }, &submodulePath) == GIT_EUSER)
 		return true;
 	return false;
 }
@@ -772,58 +754,61 @@ bool CTGitPath::HasStashDir(const CString& dotGitPath) const
 	if (!hfile)
 		return false;
 
-	DWORD filesize = ::GetFileSize(hfile, nullptr);
-	if (filesize == 0 || filesize == INVALID_FILE_SIZE)
+	LARGE_INTEGER fileSize;
+	if (!::GetFileSizeEx(hfile, &fileSize) || fileSize.QuadPart == 0 || fileSize.QuadPart >= INT_MAX)
 		return false;
 
+	auto buff = std::unique_ptr<char[]>(new (std::nothrow) char[fileSize.LowPart + 1]); // prevent default initialization and throwing on allocation error
+	if (!buff)
+		return false;
 	DWORD size = 0;
-	auto buff = std::make_unique<char[]>(filesize + 1);
-	ReadFile(hfile, buff.get(), filesize, &size, nullptr);
-	buff[filesize] = '\0';
+	if (!ReadFile(hfile, buff.get(), fileSize.LowPart, &size, nullptr))
+		return false;
+	buff[fileSize.LowPart] = '\0';
 
-	if (size != filesize)
+	if (size != fileSize.LowPart)
 		return false;
 
-	for (DWORD i = 0; i < filesize;)
+	for (DWORD i = 0; i < fileSize.LowPart;)
 	{
 		if (buff[i] == '#' || buff[i] == '^')
 		{
 			while (buff[i] != '\n')
 			{
 				++i;
-				if (i == filesize)
+				if (i == fileSize.LowPart)
 					break;
 			}
 			++i;
 		}
 
-		if (i >= filesize)
+		if (i >= fileSize.LowPart)
 			break;
 
 		while (buff[i] != ' ')
 		{
 			++i;
-			if (i == filesize)
+			if (i == fileSize.LowPart)
 				break;
 		}
 
 		++i;
-		if (i >= filesize)
+		if (i >= fileSize.LowPart)
 			break;
 
-		if (i <= filesize - 10 && (buff[i + 10] == '\n' || buff[i + 10] == '\0') && !strncmp("refs/stash", buff.get() + i, 10))
+		if (i <= fileSize.LowPart - strlen("refs/stash") && (buff[i + strlen("refs/stash")] == '\n' || buff[i + strlen("refs/stash")] == '\0') && !strncmp("refs/stash", buff.get() + i, strlen("refs/stash")))
 			return true;
 		while (buff[i] != '\n')
 		{
 			++i;
-			if (i == filesize)
+			if (i == fileSize.LowPart)
 				break;
 		}
 
 		while (buff[i] == '\n')
 		{
 			++i;
-			if (i == filesize)
+			if (i == fileSize.LowPart)
 				break;
 		}
 	}
@@ -861,6 +846,26 @@ bool CTGitPath::IsBisectActive() const
 
 	return !!PathFileExists(dotGitPath + L"BISECT_START");
 }
+bool CTGitPath::IsRebaseActive() const
+{
+	if (!HasAdminDir())
+		return false;
+
+	CString dotGitPath;
+	GitAdminDir::GetWorktreeAdminDirPath(m_sProjectRoot, dotGitPath);
+
+	return PathIsDirectory(dotGitPath + L"rebase-apply") || PathIsDirectory(dotGitPath + L"tgitrebase.active");
+}
+bool CTGitPath::IsCherryPickActive() const
+{
+	if (!HasAdminDir())
+		return false;
+
+	CString dotGitPath;
+	GitAdminDir::GetWorktreeAdminDirPath(m_sProjectRoot, dotGitPath);
+
+	return !!PathFileExists(dotGitPath + L"CHERRY_PICK_HEAD");
+}
 bool CTGitPath::IsMergeActive() const
 {
 	if (!HasAdminDir())
@@ -880,6 +885,16 @@ bool CTGitPath::HasRebaseApply() const
 	GitAdminDir::GetWorktreeAdminDirPath(m_sProjectRoot, dotGitPath);
 
 	return !!PathFileExists(dotGitPath + L"rebase-apply");
+}
+bool CTGitPath::HasLFS() const
+{
+	if (!HasAdminDir())
+		return false;
+
+	CString dotGitPath;
+	GitAdminDir::GetAdminDirPath(m_sProjectRoot, dotGitPath);
+
+	return PathFileExists(dotGitPath + L"lfs") == TRUE;
 }
 
 bool CTGitPath::HasAdminDir(CString* ProjectTopDir /* = nullptr */, bool force /* = false */) const
@@ -945,7 +960,7 @@ bool CTGitPath::IsValidOnWindows() const
 		std::wregex rx(sPattern, std::regex_constants::icase | std::regex_constants::ECMAScript);
 		std::wsmatch match;
 
-		std::wstring rmatch = std::wstring(static_cast<LPCTSTR>(sMatch));
+		std::wstring rmatch = std::wstring(static_cast<LPCWSTR>(sMatch));
 		if (std::regex_match(rmatch, match, rx))
 		{
 			if (std::wstring(match[0]).compare(sMatch)==0)
@@ -970,25 +985,58 @@ bool CTGitPath::IsValidOnWindows() const
 
 CTGitPathList::CTGitPathList()
 {
-	m_Action = 0;
 }
 
 // A constructor which allows a path list to be easily built which one initial entry in
 CTGitPathList::CTGitPathList(const CTGitPath& firstEntry)
 {
-	m_Action = 0;
 	AddPath(firstEntry);
 }
-int CTGitPathList::ParserFromLsFile(BYTE_VECTOR &out,bool /*staged*/)
+
+int CTGitPathList::ParserFromLsFileSimple(const BYTE_VECTOR& out, unsigned int action, bool clear /*= true*/)
 {
 	size_t pos = 0;
+	const size_t end = out.size();
+	CTGitPath path;
+	CString pathstring;
+	if (clear)
+		Clear();
+	while (pos < end)
+	{
+		const size_t endOfLine = out.find('\0', pos);
+		if (endOfLine == CGitByteArray::npos || endOfLine == pos || endOfLine - pos >= INT_MAX)
+			return -1;
+
+		pathstring.Empty();
+		CGit::StringAppend(pathstring, &out[pos], CP_UTF8, static_cast<int>(endOfLine - pos));
+		// SetFromGit resets the path
+		if (CStringUtils::EndsWith(pathstring, L'/'))
+		{
+			pathstring.Truncate(pathstring.GetLength() - 1);
+			path.SetFromGit(pathstring, true);
+		}
+		else
+			path.SetFromGit(pathstring);
+
+		path.m_Action = action;
+		AddPath(path);
+
+		pos = out.findNextString(endOfLine);
+	}
+	return 0;
+}
+
+// similar code in CGit::ParseConflictHashesFromLsFile
+int CTGitPathList::ParserFromLsFile(const BYTE_VECTOR& out)
+{
+	size_t pos = 0;
+	const size_t end = out.size();
 	CTGitPath path;
 	CString pathstring;
 	this->Clear();
-	while (pos < out.size())
+	while (pos < end)
 	{
-		path.Reset();
-		pathstring.Empty();
+		const size_t lineStart = pos;
 
 		// m_Action is never used and propably never worked (needs to be set after path.SetFromGit)
 		// also dropped LOGACTIONS_CACHE for 'H'
@@ -997,7 +1045,7 @@ int CTGitPathList::ParserFromLsFile(BYTE_VECTOR &out,bool /*staged*/)
 		if (pos == CGitByteArray::npos)
 			return -1;
 
-		size_t modestart = pos + 1;
+		const size_t modestart = pos + 1;
 
 		pos = out.find(' ', pos + 1); // advance to hash
 		if (pos == CGitByteArray::npos)
@@ -1007,15 +1055,29 @@ int CTGitPathList::ParserFromLsFile(BYTE_VECTOR &out,bool /*staged*/)
 		if (pos == CGitByteArray::npos)
 			return -1;
 
-		size_t stagestart = pos + 1;
+		const size_t stagestart = pos + 1;
 
 		pos = out.find('\t', pos + 1); // advance to filename
 		if (pos == CGitByteArray::npos)
 			return -1;
 
-		CGit::StringAppend(&pathstring, &out[pos + 1]);
-		path.SetFromGit(pathstring, (strtol(reinterpret_cast<const char*>(&out[modestart]), nullptr, 8) & S_IFDIR) == S_IFDIR);
-		path.m_Stage = strtol(reinterpret_cast<const char*>(&out[stagestart]), nullptr, 10);
+		++pos;
+		const size_t fileNameEnd = out.find(0, pos);
+		if (fileNameEnd == CGitByteArray::npos || fileNameEnd == pos || pos - lineStart != strlen("H 100644 ") + 2 * GIT_HASH_SIZE + strlen(" 0\t")) // <tag> <mode> <object> <stage>\t<file>
+			return -1;
+		pathstring.Empty();
+		CGit::StringAppend(pathstring, &out[pos], CP_UTF8, static_cast<int>(fileNameEnd - pos));
+		// SetFromGit resets the path
+		path.SetFromGit(pathstring, (strtol(&out[modestart], nullptr, 8) & S_IFDIR) == S_IFDIR);
+		if (strtol(&out[stagestart], nullptr, 10) != 0)
+		{
+			if (!IsEmpty() && path == m_paths[m_paths.size() - 1])
+			{
+				pos = out.findNextString(pos);
+				continue;
+			}
+			path.m_Action = CTGitPath::LOGACTIONS_UNMERGED;
+		}
 
 		this->AddPath(path);
 
@@ -1024,17 +1086,29 @@ int CTGitPathList::ParserFromLsFile(BYTE_VECTOR &out,bool /*staged*/)
 	return 0;
 }
 
+void CTGitPathList::UpdateStagingStatusFromPath(const CString& path, CTGitPath::StagingStatus status)
+{
+	for (int i = 0; i < this->GetCount(); ++i)
+	{
+		if (CPathUtils::ArePathStringsEqualWithCase((*this)[i].GetGitPathString(), path))
+		{
+			m_paths[i].m_stagingStatus = status;
+			break;
+		}
+	}
+}
+
 int CTGitPathList::FillUnRev(unsigned int action, const CTGitPathList* list, CString* err)
 {
 	this->Clear();
 	CTGitPath path;
 
-	int count;
-	if (!list)
-		count=1;
-	else
-		count=list->GetCount();
-	ATLASSERT(count > 0);
+	const int count = [list]() {
+		if (!list)
+			return 1;
+		else
+			return list->GetCount();
+	}();
 	for (int i = 0; i < count; ++i)
 	{
 		CString cmd;
@@ -1052,41 +1126,20 @@ int CTGitPathList::FillUnRev(unsigned int action, const CTGitPathList* list, CSt
 		{
 			ATLASSERT(!(*list)[i].GetWinPathString().IsEmpty());
 			cmd.Format(L"git.exe ls-files --exclude-standard --full-name --others -z%s -- \"%s\"",
-					static_cast<LPCTSTR>(ignored),
+					static_cast<LPCWSTR>(ignored),
 					(*list)[i].GetWinPath());
 		}
 
 		BYTE_VECTOR out, errb;
-		out.clear();
 		if (g_Git.Run(cmd, &out, &errb))
 		{
-			if (err != nullptr)
-				CGit::StringAppend(err, errb.data(), CP_UTF8, static_cast<int>(errb.size()));
+			if (err)
+				*err = errb;
 			return -1;
 		}
 
-		size_t pos = 0;
-		CString one;
-		while (pos < out.size())
-		{
-			one.Empty();
-			CGit::StringAppend(&one, &out[pos], CP_UTF8);
-			if(!one.IsEmpty())
-			{
-				//SetFromGit will clear all status
-				if (CStringUtils::EndsWith(one, L'/'))
-				{
-					one.Truncate(one.GetLength() - 1);
-					path.SetFromGit(one, true);
-				}
-				else
-					path.SetFromGit(one);
-				path.m_Action=action;
-				AddPath(path);
-			}
-			pos=out.findNextString(pos);
-		}
-
+		if (ParserFromLsFileSimple(out, action, false) < 0)
+			return -1;
 	}
 	return 0;
 }
@@ -1100,7 +1153,7 @@ int CTGitPathList::FillLFSLocks(unsigned int action, CString* err)
 	CString errCmd;
 	if (g_Git.Run(L"git.exe lfs locks --json", &output, &errCmd, CP_UTF8) != 0)
 	{
-		if (err != nullptr)
+		if (err)
 			err->Append(errCmd);
 		return -1;
 	}
@@ -1120,10 +1173,12 @@ int CTGitPathList::ParserFromLFSLocks(unsigned int action, const CString& output
 		auto result = json::parse(CUnicodeUtils::GetUTF8(output).GetString());
 		for (auto& r : result)
 		{
+			if (r["id"].get<std::string>().empty())
+				continue;
 			CTGitPath gitPath;
-			gitPath.SetFromGit(CUnicodeUtils::GetUnicode(r["path"].get<std::string>().c_str()));
+			gitPath.SetFromGit(CUnicodeUtils::GetUnicode(r["path"].get<std::string>()));
 			gitPath.m_Action = action;
-			gitPath.m_LFSLockOwner = CUnicodeUtils::GetUnicode(r["owner"]["name"].get<std::string>().c_str());
+			gitPath.m_LFSLockOwner = CUnicodeUtils::GetUnicode(r["owner"]["name"].get<std::string>());
 			AddPath(gitPath);
 		}
 	}
@@ -1150,11 +1205,12 @@ int CTGitPathList::FillBasedOnIndexFlags(unsigned short flag, unsigned short fla
 	if (git_repository_index(index.GetPointer(), repository))
 		return -1;
 
-	int count;
-	if (list == nullptr)
-		count = 1;
-	else
-		count = list->GetCount();
+	const int count = [list]() {
+		if (!list)
+			return 1;
+		else
+			return list->GetCount();
+	}();
 	for (int j = 0; j < count; ++j)
 	{
 		for (size_t i = 0, ecount = git_index_entrycount(index); i < ecount; ++i)
@@ -1181,8 +1237,9 @@ int CTGitPathList::FillBasedOnIndexFlags(unsigned short flag, unsigned short fla
 	RemoveDuplicates();
 	return 0;
 }
-int CTGitPathList::ParserFromLog(BYTE_VECTOR &log, bool parseDeletes /*false*/)
+int CTGitPathList::ParserFromLog(const BYTE_VECTOR& log)
 {
+	static bool mergeReplacedStatus = CRegDWORD(L"Software\\TortoiseGit\\MergeReplacedStatusKS", TRUE, false, HKEY_LOCAL_MACHINE) == TRUE; // TODO: remove kill-switch
 	this->Clear();
 	std::map<CString, size_t> duplicateMap;
 	size_t pos = 0;
@@ -1193,16 +1250,9 @@ int CTGitPathList::ParserFromLog(BYTE_VECTOR &log, bool parseDeletes /*false*/)
 	CString pathname1;
 	CString pathname2;
 
-	size_t logend = log.size();
+	const size_t logend = log.size();
 	while (pos < logend)
 	{
-		path.Reset();
-		if(log[pos]=='\n')
-			++pos;
-
-		if (pos >= logend)
-			return -1;
-
 		if(log[pos]==':')
 		{
 			bool merged=false;
@@ -1214,62 +1264,55 @@ int CTGitPathList::ParserFromLog(BYTE_VECTOR &log, bool parseDeletes /*false*/)
 				++pos;
 			}
 
-			int modenew = 0;
-			int modeold = 0;
-			size_t end = log.find(0, pos);
-			size_t actionstart = BYTE_VECTOR::npos;
-			size_t file1 = BYTE_VECTOR::npos, file2 = BYTE_VECTOR::npos;
-			if (end != BYTE_VECTOR::npos && end > 7)
-			{
-				modeold = strtol(reinterpret_cast<const char*>(&log[pos + 1]), nullptr, 8);
-				modenew = strtol(reinterpret_cast<const char*>(&log[pos + 7]), nullptr, 8);
-				actionstart=log.find(' ',end-6);
-				pos=actionstart;
-			}
-			if (actionstart != BYTE_VECTOR::npos && actionstart > 0)
-			{
-				++actionstart;
-				if (actionstart >= logend)
-					return -1;
-
-				file1 = log.find(0,actionstart);
-				if (file1 != BYTE_VECTOR::npos)
-				{
-					++file1;
-					pos=file1;
-				}
-				if( log[actionstart] == 'C' || log[actionstart] == 'R' )
-				{
-					file2=file1;
-					file1 = log.find(0,file1);
-					if (file1 != BYTE_VECTOR::npos)
-					{
-						++file1;
-						pos=file1;
-					}
-				}
-			}
-
-			pathname1.Empty();
-			pathname2.Empty();
-
-			if (file1 != BYTE_VECTOR::npos)
-				CGit::StringAppend(&pathname1, &log[file1], CP_UTF8);
-			if (file2 != BYTE_VECTOR::npos)
-				CGit::StringAppend(&pathname2, &log[file2], CP_UTF8);
-
-			if (actionstart == BYTE_VECTOR::npos)
+			const size_t statusEnd = log.find('\0', pos);
+			/*
+			 * There are at least two modes (each 6 characters) and two hashes (variable length [4, 40], cf. https://github.com/git/git/blob/master/environment.c#L18)
+			 * and the status (a char + optional score), each separated by space
+			 */
+			if (statusEnd == BYTE_VECTOR::npos || statusEnd - pos < ((6 + 1) + (6 + 1) + (4 + 1) + (4 + 1) + 1))
 				return -1;
 
-			auto existing = duplicateMap.find(pathname1);
-			if (existing != duplicateMap.end())
+			const int modeOld = strtol(&log[pos + 1], nullptr, 8);
+			const int modeNew = strtol(&log[pos + 7], nullptr, 8);
+			// find start of status character
+			size_t statusStart = log.find(' ', statusEnd - 6); // status: "A", "D", "U" or "C100" etc., 6 is chosen to find its start without interferring with the dst hash, see comment above
+			if (statusStart == BYTE_VECTOR::npos)
+				return -1;
+
+			++statusStart;
+			pos = log.find('\0', statusStart); // advance to filename
+			if (pos == BYTE_VECTOR::npos || statusStart == pos)
+				return -1;
+			++pos;
+
+			pathname2.Empty();
+			if (log[statusStart] == 'C' || log[statusStart] == 'R')
+			{
+				const size_t filenameEnd = log.find('\0', pos);
+				if (filenameEnd == BYTE_VECTOR::npos || pos == filenameEnd || filenameEnd - pos >= INT_MAX)
+					return -1;
+				// old filename before rename
+				CGit::StringAppend(pathname2, &log[pos], CP_UTF8, static_cast<int>(filenameEnd - pos));
+				pos = filenameEnd + 1;
+			}
+			const size_t filenameEnd = log.find('\0', pos);
+			if (filenameEnd == BYTE_VECTOR::npos || pos == filenameEnd || filenameEnd - pos >= INT_MAX)
+				return -1;
+			pathname1.Empty();
+			CGit::StringAppend(pathname1, &log[pos], CP_UTF8, static_cast<int>(filenameEnd - pos));
+			pos = filenameEnd + 1;
+
+			if (const auto existing = duplicateMap.find(pathname1); existing != duplicateMap.end())
 			{
 				CTGitPath& p = m_paths[existing->second];
-				p.ParserAction(log[actionstart]);
+				if (!(mergeReplacedStatus && p.m_Action == CTGitPath::LOGACTIONS_REPLACED && (log[statusStart] == 'A' || log[statusStart] == 'D')))
+					p.ParseAndUpdateStatus(log[statusStart]);
 
 				// reset submodule/folder status if a staged entry is not a folder
-				if (p.IsDirectory() && ((modeold && !(modeold & S_IFDIR)) || (modenew && !(modenew & S_IFDIR))))
+				if (p.IsDirectory() && ((modeOld && !(modeOld & S_IFDIR)) || (modeNew && !(modeNew & S_IFDIR))))
 					p.UnsetDirectoryStatus();
+				else if (!p.IsDirectory() && (modeNew && (modeNew & S_IFDIR)))
+					p.SetDirectoryStatus();
 
 				if(merged)
 					p.m_Action |= CTGitPath::LOGACTIONS_MERGED;
@@ -1277,67 +1320,66 @@ int CTGitPathList::ParserFromLog(BYTE_VECTOR &log, bool parseDeletes /*false*/)
 			}
 			else
 			{
-				int ac=path.ParserAction(log[actionstart] );
+				unsigned int ac = CTGitPath::ParseStatus(log[statusStart]);
 				ac |= merged?CTGitPath::LOGACTIONS_MERGED:0;
 
 				int isSubmodule = FALSE;
 				if (ac & (CTGitPath::LOGACTIONS_DELETED | CTGitPath::LOGACTIONS_UNMERGED))
-					isSubmodule = (modeold & S_IFDIR) == S_IFDIR;
+					isSubmodule = (modeOld & S_IFDIR) == S_IFDIR;
 				else
-					isSubmodule = (modenew & S_IFDIR) == S_IFDIR;
+					isSubmodule = (modeNew & S_IFDIR) == S_IFDIR;
 
+				// SetFromGit resets the path, hence action must be set afterwards
 				path.SetFromGit(pathname1, &pathname2, &isSubmodule);
 				path.m_Action=ac;
-					//action must be set after setfromgit. SetFromGit will clear all status.
 				this->m_Action|=ac;
 
 				AddPath(path);
 				duplicateMap.insert(std::pair<CString, size_t>(path.GetGitPathString(), m_paths.size() - 1));
+				if (mergeReplacedStatus && !pathname2.IsEmpty())
+					duplicateMap.insert(std::pair<CString, size_t>(path.GetGitOldPathString(), m_paths.size() - 1));
 			}
 		}
-		else
+		else // numstat output
 		{
-			path.Reset();
+			size_t tabstart = log.find('\t', pos); // find end of first number (added lines)
+			if (tabstart == BYTE_VECTOR::npos || tabstart - pos >= INT_MAX)
+				return -1;
+
 			StatAdd.Empty();
+			CGit::StringAppend(StatAdd, &log[pos], CP_UTF8, static_cast<int>(tabstart - pos));
+			pos = tabstart + 1;
+
+			tabstart = log.find('\t', pos); // find end of second number (removed lines)
+			if (tabstart == BYTE_VECTOR::npos || tabstart - pos >= INT_MAX)
+				return -1;
+
 			StatDel.Empty();
-			pathname1.Empty();
+			CGit::StringAppend(StatDel, &log[pos], CP_UTF8, static_cast<int>(tabstart - pos));
+			pos = tabstart + 1;
+
+			if (pos >= logend)
+				return -1;
+
 			pathname2.Empty();
-			int isSubmodule = FALSE;
-			size_t tabstart = log.find('\t', pos);
-			if (tabstart != BYTE_VECTOR::npos)
-			{
-				int modenew = strtol(reinterpret_cast<const char*>(&log[pos + 2]), nullptr, 8);
-				isSubmodule = (modenew & S_IFDIR) == S_IFDIR;
-				log[tabstart]=0;
-				CGit::StringAppend(&StatAdd, &log[pos], CP_UTF8);
-				pos=tabstart+1;
-			}
-
-			tabstart=log.find('\t',pos);
-			if (tabstart != BYTE_VECTOR::npos)
-			{
-				log[tabstart]=0;
-
-				CGit::StringAppend(&StatDel, &log[pos], CP_UTF8);
-				pos=tabstart+1;
-			}
-
-			if(log[pos] == 0) //rename
+			if (log[pos] == '\0') // rename which holds an "old" pathname
 			{
 				++pos;
-				CGit::StringAppend(&pathname2, &log[pos], CP_UTF8);
-				size_t sec = log.find(0, pos);
-				if (sec != BYTE_VECTOR::npos)
-				{
-					++sec;
-					CGit::StringAppend(&pathname1, &log[sec], CP_UTF8);
-				}
-				pos=sec;
+				const size_t endPathname = log.find('\0', pos);
+				if (endPathname == BYTE_VECTOR::npos || pos == endPathname || endPathname - pos >= INT_MAX)
+					return -1;
+				CGit::StringAppend(pathname2, &log[pos], CP_UTF8, static_cast<int>(endPathname - pos));
+				pos = endPathname + 1;
 			}
-			else
-			{
-				CGit::StringAppend(&pathname1, &log[pos], CP_UTF8);
-			}
+			const size_t endPathname = log.find('\0', pos);
+			if (endPathname == BYTE_VECTOR::npos || pos == endPathname || endPathname - pos >= INT_MAX)
+				return -1;
+			pathname1.Empty();
+			CGit::StringAppend(pathname1, &log[pos], CP_UTF8, static_cast<int>(endPathname - pos));
+			pos = endPathname + 1;
+
+			// SetFromGit resets the path
+			int isSubmodule = FALSE;
 			path.SetFromGit(pathname1, &pathname2, &isSubmodule);
 
 			auto existing = duplicateMap.find(path.GetGitPathString());
@@ -1349,23 +1391,12 @@ int CTGitPathList::ParserFromLog(BYTE_VECTOR &log, bool parseDeletes /*false*/)
 			}
 			else
 			{
-				//path.SetFromGit(pathname);
-				if (parseDeletes)
-				{
-					path.m_StatAdd = L"0";
-					path.m_StatDel = L"0";
-					path.m_Action |= CTGitPath::LOGACTIONS_DELETED | CTGitPath::LOGACTIONS_MISSING;
-				}
-				else
-				{
-					path.m_StatAdd=StatAdd;
-					path.m_StatDel=StatDel;
-				}
+				path.m_StatAdd = StatAdd;
+				path.m_StatDel = StatDel;
 				AddPath(path);
 				duplicateMap.insert(std::pair<CString, size_t>(path.GetGitPathString(), m_paths.size() - 1));
 			}
 		}
-		pos=log.findNextString(pos);
 	}
 	return 0;
 }
@@ -1427,6 +1458,8 @@ bool CTGitPathList::LoadFromFile(const CTGitPath& filename)
 		CTGitPath path;
 		while (file.ReadString(strLine))
 		{
+			if (strLine.IsEmpty())
+				continue;
 			path.SetFromUnknown(strLine);
 			AddPath(path);
 		}
@@ -1435,9 +1468,9 @@ bool CTGitPathList::LoadFromFile(const CTGitPath& filename)
 	catch (CFileException* pE)
 	{
 		CTraceToOutputDebugString::Instance()(__FUNCTION__ ": CFileException loading target file list\n");
-		TCHAR error[10000] = {0};
-		pE->GetErrorMessage(error, 10000);
-//		CMessageBox::Show(nullptr, error, L"TortoiseGit", MB_ICONERROR);
+		//CString error;
+		//pE->GetErrorMessage(CStrBuf(error, 8192), 8192);
+		//MessageBox(nullptr, error, L"TortoiseGit", MB_ICONERROR);
 		pE->Delete();
 		return false;
 	}
@@ -1500,6 +1533,25 @@ CString CTGitPathList::CreateAsteriskSeparatedString() const
 	return sRet;
 }
 #endif // _MFC_VER
+
+bool CTGitPathList::WriteToPathSpecFile(const CString& sFilename) const
+{
+	CAutoFile hFile = ::CreateFile(sFilename, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr);
+	if (!hFile)
+		return false;
+
+	constexpr char nullBuf[] = { '\0' };
+	DWORD dwWritten = 0;
+	for (const auto& path : m_paths)
+	{
+		CStringA line = CUnicodeUtils::GetUTF8(path.GetGitPathString());
+		if (!WriteFile(hFile, line.GetString(), static_cast<DWORD>(line.GetLength()), &dwWritten, nullptr))
+			return false;
+		if (!WriteFile(hFile, nullBuf, static_cast<DWORD>(sizeof(nullBuf)), &dwWritten, nullptr))
+			return false;
+	}
+	return true;
+}
 
 bool
 CTGitPathList::AreAllPathsFilesInOneDirectory() const
@@ -1604,18 +1656,18 @@ void CTGitPathList::DeleteAllFiles(bool bTrash, bool bFilesOnly, bool bShowError
 				::SetFileAttributes(it->GetWinPath(), FILE_ATTRIBUTE_NORMAL);
 
 			sPaths += it->GetWinPath();
-			sPaths += '\0';
+			sPaths += L'\0';
 		}
 	}
 	if (sPaths.IsEmpty())
 		return;
-	sPaths += '\0';
-	sPaths += '\0';
-	DeleteViaShell(static_cast<LPCTSTR>(sPaths), bTrash, bShowErrorUI);
+	sPaths += L'\0';
+	sPaths += L'\0';
+	DeleteViaShell(static_cast<LPCWSTR>(sPaths), bTrash, bShowErrorUI);
 	Clear();
 }
 
-bool CTGitPathList::DeleteViaShell(LPCTSTR path, bool bTrash, bool bShowErrorUI)
+bool CTGitPathList::DeleteViaShell(LPCWSTR path, bool bTrash, bool bShowErrorUI)
 {
 	SHFILEOPSTRUCT shop = {0};
 	shop.wFunc = FO_DELETE;
@@ -1679,7 +1731,14 @@ void CTGitPathList::RemoveItem(const CTGitPath& path)
 }
 void CTGitPathList::RemoveChildren()
 {
-	SortByPathname();
+	// Sort paths using a custom comparator that sorts directories before files and parent directories before their children
+	std::sort(m_paths.begin(), m_paths.end(), [](const CTGitPath& left, const CTGitPath& right) {
+		CString leftPath = left.GetWinPathString();
+		CString rightPath = right.GetWinPathString();
+		leftPath.Replace(L"\\", L"\1");
+		rightPath.Replace(L"\\", L"\1");
+		return leftPath.CompareNoCase(rightPath) < 0;
+	});
 	m_paths.erase(std::unique(m_paths.begin(), m_paths.end(), &CTGitPath::CheckChild), m_paths.end());
 }
 
@@ -1697,8 +1756,7 @@ bool CTGitPathList::IsEqual(const CTGitPathList& list)
 
 const CTGitPath* CTGitPathList::LookForGitPath(const CString& path) const
 {
-	int i=0;
-	for (i = 0; i < this->GetCount(); ++i)
+	for (int i = 0; i < this->GetCount(); ++i)
 	{
 		if (CPathUtils::ArePathStringsEqualWithCase((*this)[i].GetGitPathString(), path))
 			return &(*this)[i];
@@ -1762,17 +1820,17 @@ CString CTGitPath::GetAbbreviatedRename() const
 			prefix_length = i + 1;
 	}
 
-	LPCTSTR oldName = static_cast<LPCTSTR>(m_sOldFwdslashPath) + m_sOldFwdslashPath.GetLength();
-	LPCTSTR newName = static_cast<LPCTSTR>(m_sFwdslashPath) + m_sFwdslashPath.GetLength();
+	LPCWSTR oldName = static_cast<LPCWSTR>(m_sOldFwdslashPath) + m_sOldFwdslashPath.GetLength();
+	LPCWSTR newName = static_cast<LPCWSTR>(m_sFwdslashPath) + m_sFwdslashPath.GetLength();
 
 	int suffix_length = 0;
 	int prefix_adjust_for_slash = (prefix_length ? 1 : 0);
-	while (static_cast<LPCTSTR>(m_sOldFwdslashPath) + prefix_length - prefix_adjust_for_slash <= oldName &&
-		   static_cast<LPCTSTR>(m_sFwdslashPath) + prefix_length - prefix_adjust_for_slash <= newName &&
+	while (static_cast<LPCWSTR>(m_sOldFwdslashPath) + prefix_length - prefix_adjust_for_slash <= oldName &&
+		   static_cast<LPCWSTR>(m_sFwdslashPath) + prefix_length - prefix_adjust_for_slash <= newName &&
 		   *oldName == *newName)
 	{
 		if (*oldName == L'/')
-			suffix_length = m_sOldFwdslashPath.GetLength() - static_cast<int>(oldName - static_cast<LPCTSTR>(m_sOldFwdslashPath));
+			suffix_length = m_sOldFwdslashPath.GetLength() - static_cast<int>(oldName - static_cast<LPCWSTR>(m_sOldFwdslashPath));
 		--oldName;
 		--newName;
 	}

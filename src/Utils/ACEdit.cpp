@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (c) 2003 by Andreas Kapust <info@akinstaller.de>; <http://www.codeproject.com/Articles/2607/AutoComplete-without-IAutoComplete>
-// Copyright (C) 2009, 2012-2013, 2015-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2009, 2012-2013, 2015-2016, 2018-2019, 2023, 2025 - TortoiseGit
 
 // Licensed under: The Code Project Open License (CPOL); <http://www.codeproject.com/info/cpol10.aspx>
 
@@ -10,7 +10,6 @@
 
 #include "stdafx.h"
 #include "ACEdit.h"
-#include  <io.h>
 #include "StringUtils.h"
 
 #ifdef _DEBUG
@@ -27,11 +26,6 @@ static char THIS_FILE[] = __FILE__;
 
 CACEdit::CACEdit()
 {
-	m_iMode = _MODE_STANDARD_;
-	m_iType = -1;
-	m_pEdit = nullptr;
-	m_CursorMode = false;
-	m_PrefixChar = L'\0';
 	m_szDrive[0] = L'\0';
 	m_szDir[0] = L'\0';
 	m_szFname[0] = L'\0';
@@ -131,10 +125,10 @@ void CACEdit::Init()
 
 /*********************************************************************/
 
-void CACEdit::AddSearchStrings(LPCTSTR Strings[])
+void CACEdit::AddSearchStrings(LPCWSTR Strings[])
 {
 	int i = 0;
-	LPCTSTR str;
+	LPCWSTR str;
 	if(m_iType == -1) {ASSERT(0); return;}
 
 	m_Liste.RemoveAll();
@@ -156,7 +150,7 @@ void CACEdit::AddSearchStrings(LPCTSTR Strings[])
 
 /*********************************************************************/
 
-void CACEdit::AddSearchString(LPCTSTR lpszString)
+void CACEdit::AddSearchString(LPCWSTR lpszString)
 {
 	if(m_iType == -1) {ASSERT(0); return;}
 
@@ -174,7 +168,7 @@ void CACEdit::RemoveSearchAll()
 
 /*********************************************************************/
 
-void CACEdit::SetWindowText(LPCTSTR text)
+void CACEdit::SetWindowText(LPCWSTR text)
 {
 	__super::SetWindowText(text);
 	if (m_Liste.GetSafeHwnd())
@@ -417,7 +411,7 @@ void CACEdit::OnChange()
 int CACEdit::FindSepLeftPos(int pos,bool m_bIncludePrefix)
 {
 	int len = m_EditText.GetLength();
-	TCHAR ch;
+	wchar_t ch;
 	int i;
 
 	if(pos >= len && len != 1)
@@ -440,7 +434,7 @@ int CACEdit::FindSepLeftPos(int pos,bool m_bIncludePrefix)
 int CACEdit::FindSepLeftPos2(int pos)
 {
 	int len = m_EditText.GetLength();
-	TCHAR ch;
+	wchar_t ch;
 
 	if(pos >= len && len != 1)
 		pos =  len -1;
@@ -463,7 +457,7 @@ int CACEdit::FindSepLeftPos2(int pos)
 int CACEdit::FindSepRightPos(int pos)
 {
 	int len = m_EditText.GetLength();
-	TCHAR ch;
+	wchar_t ch;
 	int i;
 
 	for(i = pos; i < len ; i++)
@@ -521,7 +515,7 @@ BOOL CACEdit::PreTranslateMessage(MSG* pMsg)
 void CACEdit::ReadDirectory(CString m_Dir)
 {
 	CFileFind FoundFiles;
-	TCHAR ch;
+	wchar_t ch;
 	CWaitCursor hg;
 
 	// Wenn mittem im Pfad,
@@ -533,7 +527,7 @@ void CACEdit::ReadDirectory(CString m_Dir)
 	}
 
 	//ist hübscher
-	ch = static_cast<TCHAR>(towupper(m_Dir.GetAt(0)));
+	ch = static_cast<wchar_t>(towupper(m_Dir.GetAt(0)));
 	m_Dir.SetAt(0,ch);
 
 	CString m_Name,m_File,m_Dir1 = m_Dir;
@@ -593,7 +587,7 @@ void CACEdit::ReadDirectory(CString m_Dir)
 
 /*********************************************************************/
 
-void CACEdit::SetStartDirectory(LPCTSTR lpszString)
+void CACEdit::SetStartDirectory(LPCWSTR lpszString)
 {
 	if(m_iType == -1) {ASSERT(0); return;}
 
@@ -606,7 +600,7 @@ void CACEdit::SetStartDirectory(LPCTSTR lpszString)
 ** NEW:V1.1
 *********************************************************************/
 
-int CACEdit::AddString( LPCTSTR lpszString )
+int CACEdit::AddString(LPCWSTR lpszString)
 {
 	if(m_iType == _COMBOBOX_)
 	{
@@ -628,7 +622,7 @@ int CACEdit::SetDroppedWidth( UINT nWidth )
 
 /*********************************************************************/
 
-int CACEdit::FindString( int nStartAfter, LPCTSTR lpszString )
+int CACEdit::FindString(int nStartAfter, LPCWSTR lpszString)
 {
 	if(m_iType == _COMBOBOX_)
 	{
@@ -639,7 +633,7 @@ int CACEdit::FindString( int nStartAfter, LPCTSTR lpszString )
 
 /*********************************************************************/
 
-int CACEdit::SelectString( int nStartAfter, LPCTSTR lpszString )
+int CACEdit::SelectString(int nStartAfter, LPCWSTR lpszString)
 {
 	if(m_iType == _COMBOBOX_)
 	{
@@ -681,7 +675,7 @@ int CACEdit::GetCurSel()
 
 /*********************************************************************/
 
-int CACEdit::GetLBText( int nIndex, LPTSTR lpszText )
+int CACEdit::GetLBText(int nIndex, LPWSTR lpszText)
 {
 	if(m_iType == _COMBOBOX_)
 	{

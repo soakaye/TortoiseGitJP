@@ -1,5 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2006, 2011-2014, 2016, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -28,19 +29,16 @@ IMPLEMENT_DYNAMIC(CFindDlg, CStandAloneDialog)
 CFindDlg::CFindDlg(CWnd* pParent /*=nullptr*/)
 	: CStandAloneDialog(CFindDlg::IDD, pParent)
 	, m_pParent(pParent)
-	, m_bTerminating(false)
 	, m_bFindNext(false)
 	, m_bMatchCase(FALSE)
 	, m_bLimitToDiffs(FALSE)
 	, m_bWholeWord(FALSE)
 	, m_bSearchUp(FALSE)
-	, m_FindMsg(0)
 	, m_clrFindStatus(RGB(0, 0, 255))
 	, m_bReadonly(false)
 	, m_regMatchCase(L"Software\\TortoiseGitMerge\\FindMatchCase", FALSE)
 	, m_regLimitToDiffs(L"Software\\TortoiseGitMerge\\FindLimitToDiffs", FALSE)
 	, m_regWholeWord(L"Software\\TortoiseGitMerge\\FindWholeWord", FALSE)
-	, m_id(0)
 {
 }
 
@@ -57,9 +55,9 @@ void CFindDlg::Create(CWnd* pParent, int id /* = 0 */)
 		POINT pt = { 0 };
 		CString sRegPath;
 		sRegPath.Format(L"Software\\TortoiseGitMerge\\FindDlgPosX%d", id);
-		pt.x = CDPIAware::Instance().ScaleX(static_cast<int>(CRegDWORD(sRegPath, 0)));
+		pt.x = CDPIAware::Instance().ScaleX(GetSafeHwnd(), static_cast<int>(CRegDWORD(sRegPath, 0)));
 		sRegPath.Format(L"Software\\TortoiseGitMerge\\FindDlgPosY%d", id);
-		pt.y = CDPIAware::Instance().ScaleY(static_cast<int>(CRegDWORD(sRegPath, 0)));
+		pt.y = CDPIAware::Instance().ScaleY(GetSafeHwnd(), static_cast<int>(CRegDWORD(sRegPath, 0)));
 		pParent->ClientToScreen(&pt);
 		if (MonitorFromPoint(pt, MONITOR_DEFAULTTONULL))
 			SetWindowPos(nullptr, pt.x, pt.y, 0, 0, SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOSIZE);
@@ -266,9 +264,9 @@ void CFindDlg::SaveWindowPos(CWnd* pParent)
 		CString sRegPath;
 		sRegPath.Format(L"Software\\TortoiseGitMerge\\FindDlgPosX%d", m_id);
 		CRegDWORD regX(sRegPath);
-		regX = CDPIAware::Instance().UnscaleX(rc.left);
+		regX = CDPIAware::Instance().UnscaleX(GetSafeHwnd(), rc.left);
 		sRegPath.Format(L"Software\\TortoiseGitMerge\\FindDlgPosY%d", m_id);
 		CRegDWORD regY(sRegPath);
-		regY = regX = CDPIAware::Instance().UnscaleY(rc.top);
+		regY = regX = CDPIAware::Instance().UnscaleY(GetSafeHwnd(), rc.top);
 	}
 }

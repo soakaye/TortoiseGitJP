@@ -49,22 +49,22 @@ Subversion updated from Git by the <emphasis>dcommit</emphasis> command.</simpar
 <variablelist>
 <varlistentry>
 <term>
--T&lt;trunk_subdir&gt;
+-T&lt;trunk-subdir&gt;
 </term>
 <term>
---trunk=&lt;trunk_subdir&gt;
+--trunk=&lt;trunk-subdir&gt;
 </term>
 <term>
--t&lt;tags_subdir&gt;
+-t&lt;tags-subdir&gt;
 </term>
 <term>
---tags=&lt;tags_subdir&gt;
+--tags=&lt;tags-subdir&gt;
 </term>
 <term>
--b&lt;branches_subdir&gt;
+-b&lt;branches-subdir&gt;
 </term>
 <term>
---branches=&lt;branches_subdir&gt;
+--branches=&lt;branches-subdir&gt;
 </term>
 <term>
 -s
@@ -837,10 +837,10 @@ environment). This command has the same behaviour.</simpara></note>
 </term>
 <listitem>
 <simpara>
-        Recursively finds the svn:ignore property on directories and
-        creates matching .gitignore files. The resulting files are staged to
-        be committed, but are not committed. Use -r/--revision to refer to a
-        specific revision.
+        Recursively finds the svn:ignore and svn:global-ignores properties
+        on directories and creates matching .gitignore files. The resulting
+        files are staged to be committed, but are not committed. Use
+        -r/--revision to refer to a specific revision.
 </simpara>
 </listitem>
 </varlistentry>
@@ -850,8 +850,8 @@ environment). This command has the same behaviour.</simpara></note>
 </term>
 <listitem>
 <simpara>
-        Recursively finds and lists the svn:ignore property on
-        directories.  The output is suitable for appending to
+        Recursively finds and lists the svn:ignore and svn:global-ignores
+        properties on directories. The output is suitable for appending to
         the $GIT_DIR/info/exclude file.
 </simpara>
 </listitem>
@@ -1090,7 +1090,7 @@ future <emphasis>dcommit</emphasis>!</simpara>
 --shared[=(false|true|umask|group|all|world|everybody)]
 </term>
 <term>
---template=&lt;template_directory&gt;
+--template=&lt;template-directory&gt;
 </term>
 <listitem>
 <simpara>
@@ -1268,9 +1268,6 @@ not found, it is searched like any other command in <emphasis>$PATH</emphasis>.<
 <term>
 --rebase-merges
 </term>
-<term>
---preserve-merges (DEPRECATED)
-</term>
 <listitem>
 <simpara>
         These are only used with the <emphasis>dcommit</emphasis> and <emphasis>rebase</emphasis> commands.
@@ -1355,14 +1352,14 @@ creating the branch or tag.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
--R&lt;remote name&gt;
+-R&lt;remote-name&gt;
 </term>
 <term>
---svn-remote &lt;remote name&gt;
+--svn-remote &lt;remote-name&gt;
 </term>
 <listitem>
 <simpara>
-        Specify the [svn-remote "&lt;remote name&gt;"] section to use,
+        Specify the [svn-remote "&lt;remote-name&gt;"] section to use,
         this allows SVN multiple repositories to be tracked.
         Default: "svn"
 </simpara>
@@ -1576,7 +1573,7 @@ for rewriteRoot and rewriteUUID which can be used together.</simpara>
 # Now commit your changes (that were committed previously using Git) to SVN,
 # as well as automatically updating your working HEAD:
         git svn dcommit
-# Append svn:ignore settings to the default Git exclude file:
+# Append svn:ignore and svn:global-ignores settings to the default Git exclude file:
         git svn show-ignore &gt;&gt; .git/info/exclude</screen>
 <simpara>Tracking and contributing to an entire Subversion-managed project
 (complete with a trunk, tags and branches):</simpara>
@@ -1740,22 +1737,6 @@ with different name spaces.  For example:</simpara>
 <literallayout class="monospaced">branches = stable/*:refs/remotes/svn/stable/*
 branches = debug/*:refs/remotes/svn/debug/*</literallayout>
 </simplesect>
-<simplesect id="git-svn(1)__bugs">
-<title>BUGS</title>
-<simpara>We ignore all SVN properties except svn:executable.  Any unhandled
-properties are logged to $GIT_DIR/svn/&lt;refname&gt;/unhandled.log</simpara>
-<simpara>Renamed and copied directories are not detected by Git and hence not
-tracked when committing to SVN.  I do not plan on adding support for
-this as it's quite difficult and time-consuming to get working for all
-the possible corner cases (Git doesn't do it, either).  Committing
-renamed and copied files is fully supported if they're similar enough
-for Git to detect them.</simpara>
-<simpara>In SVN, it is possible (though discouraged) to commit changes to a tag
-(because a tag is just a directory copy, thus technically the same as a
-branch). When cloning an SVN repository, <emphasis>git svn</emphasis> cannot know if such a
-commit to a tag will happen in the future. Thus it acts conservatively
-and imports all SVN tags as branches, prefixing the tag name with <emphasis>tags/</emphasis>.</simpara>
-</simplesect>
 <simplesect id="git-svn(1)__configuration">
 <title>CONFIGURATION</title>
 <simpara><emphasis>git svn</emphasis> stores [svn-remote] configuration information in the
@@ -1827,6 +1808,22 @@ rewinds it.</simpara>
 </listitem>
 </varlistentry>
 </variablelist>
+</simplesect>
+<simplesect id="git-svn(1)__bugs">
+<title>BUGS</title>
+<simpara>We ignore all SVN properties except svn:executable.  Any unhandled
+properties are logged to $GIT_DIR/svn/&lt;refname&gt;/unhandled.log</simpara>
+<simpara>Renamed and copied directories are not detected by Git and hence not
+tracked when committing to SVN.  I do not plan on adding support for
+this as it's quite difficult and time-consuming to get working for all
+the possible corner cases (Git doesn't do it, either).  Committing
+renamed and copied files is fully supported if they're similar enough
+for Git to detect them.</simpara>
+<simpara>In SVN, it is possible (though discouraged) to commit changes to a tag
+(because a tag is just a directory copy, thus technically the same as a
+branch). When cloning an SVN repository, <emphasis>git svn</emphasis> cannot know if such a
+commit to a tag will happen in the future. Thus it acts conservatively
+and imports all SVN tags as branches, prefixing the tag name with <emphasis>tags/</emphasis>.</simpara>
 </simplesect>
 <simplesect id="git-svn(1)__see_also">
 <title>SEE ALSO</title>

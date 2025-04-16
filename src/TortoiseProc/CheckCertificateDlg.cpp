@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014-2016, 2019 - TortoiseGit
+// Copyright (C) 2014-2016, 2019, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
 //
 
 #include "stdafx.h"
+#include "TortoiseProc.h"
 #include "CheckCertificateDlg.h"
 #include "AppUtils.h"
 #include "TempFile.h"
@@ -26,7 +27,6 @@
 IMPLEMENT_DYNAMIC(CCheckCertificateDlg, CStandAloneDialog)
 CCheckCertificateDlg::CCheckCertificateDlg(CWnd* pParent /*=nullptr*/)
 : CStandAloneDialog(CCheckCertificateDlg::IDD, pParent)
-, cert(nullptr)
 {
 }
 
@@ -62,8 +62,14 @@ static CString getCertificateHash(HCRYPTPROV hCryptProv, ALG_ID algId, BYTE* cer
 		return readable;
 	SCOPE_EXIT { CryptDestroyHash(hHash); };
 
-	if (!CryptHashData(hHash, certificate, static_cast<DWORD>(len), 0))
-		return readable;
+	size_t offset = 0;
+	do
+	{
+		DWORD buffLength = static_cast<DWORD>(min(static_cast<size_t>(DWORD_MAX), len - offset));
+		if (!CryptHashData(hHash, certificate + offset, buffLength, 0))
+			return readable;
+		offset += buffLength;
+	} while (offset < len);
 
 	DWORD hashLen;
 	DWORD hashLenLen = sizeof(DWORD);
@@ -100,10 +106,12 @@ BOOL CCheckCertificateDlg::OnInitDialog()
 		m_sSHA256 = m_sSHA256.Left(57) + L"\r\n" + m_sSHA256.Mid(57);
 
 	CString error;
-	error.Format(IDS_ERR_SSL_VALIDATE, static_cast<LPCTSTR>(m_sHostname));
+	error.Format(IDS_ERR_SSL_VALIDATE, static_cast<LPCWSTR>(m_sHostname));
 	SetDlgItemText(IDC_ERRORDESC, error);
 
 	UpdateData(FALSE);
+
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	GetDlgItem(IDCANCEL)->SetFocus();
 
@@ -117,12 +125,22 @@ void CCheckCertificateDlg::OnBnClickedOpencert()
 	try
 	{
 		CFile file(tempFile.GetWinPathString(), CFile::modeReadWrite);
-		file.Write(cert->data, static_cast<UINT>(cert->len));
+
+		size_t offset = 0;
+		do
+		{
+			UINT buffLength = static_cast<UINT>(min(static_cast<size_t>(UINT_MAX), cert->len - offset));
+			file.Write(static_cast<BYTE*>(cert->data) + offset, buffLength);
+			offset += buffLength;
+		} while (offset < cert->len);
+
 		file.Close();
 	}
 	catch (CFileException* e)
 	{
-		MessageBox(L"Could not write to file.", L"TortoiseGit", MB_ICONERROR);
+		CString error;
+		e->GetErrorMessage(CStrBuf(error, 1024), 1024);
+		MessageBox(L"Could not write to file:\n" + error, L"TortoiseGit", MB_ICONERROR);
 		e->Delete();
 		return;
 	}

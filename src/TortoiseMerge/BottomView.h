@@ -1,4 +1,4 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006-2007, 2011, 2014 - TortoiseSVN
 
@@ -27,14 +27,14 @@ class CBottomView : public CBaseView
 {
 	DECLARE_DYNCREATE(CBottomView)
 public:
-	CBottomView(void);
-	~CBottomView(void);
+	CBottomView();
+	~CBottomView();
 
 	void	UseMyTextBlock() { UseRightBlock(); };
 	void	UseTheirTextBlock() { UseLeftBlock(); };
 
 protected:
-	void	AddContextItems(CIconMenu& popup, DiffStates state) override;
+	void	AddContextItems(CIconMenu& popup, DiffState state) override;
 
 	void	UseBlock(CBaseView * pwndView, int nFirstViewLine, int nLastViewLine);
 	void	UseBothBlocks(CBaseView * pwndFirst, CBaseView * pwndLast) override;

@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2011, 2015 - TortoiseSVN
-// Copyright (C) 2012-2013, 2015-2020 - TortoiseGit
+// Copyright (C) 2012-2013, 2015-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,18 +17,17 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "MyMemDC.h"
-#include "RevisionGraphDlg.h"
 #include "Git.h"
 #include "UnicodeUtils.h"
-#include "TGitPath.h"
 #include "RevisionGraphWnd.h"
 #include "registry.h"
-#include "UnicodeUtils.h"
 #include "DPIAware.h"
 #include "Theme.h"
+#include "AppUtils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -62,7 +61,9 @@ void CRevisionGraphWnd::OnPaint()
 	{
 		CString fetch = CString(MAKEINTRESOURCE(IDS_PROC_LOADING));
 		dc.FillSolidRect(rect, CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_APPWORKSPACE)));
-		dc.ExtTextOut(20, 20, ETO_CLIPPED, nullptr, fetch, nullptr);
+		COLORREF oldColor = dc.SetTextColor(CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_WINDOWTEXT)));
+		dc.ExtTextOut(CDPIAware::Instance().ScaleX(GetSafeHwnd(), 20), CDPIAware::Instance().ScaleY(GetSafeHwnd(), 20), ETO_CLIPPED, nullptr, fetch, nullptr);
+		dc.SetTextColor(oldColor);
 		CWnd::OnPaint();
 		return;
 
@@ -71,7 +72,9 @@ void CRevisionGraphWnd::OnPaint()
 		CString sNoGraphText;
 		sNoGraphText.LoadString(IDS_REVGRAPH_ERR_NOGRAPH);
 		dc.FillSolidRect(rect, CTheme::Instance().GetThemeColor(RGB(255, 255, 255), true));
-		dc.ExtTextOut(20, 20, ETO_CLIPPED, nullptr, sNoGraphText, nullptr);
+		COLORREF oldColor = dc.SetTextColor(CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_WINDOWTEXT)));
+		dc.ExtTextOut(CDPIAware::Instance().ScaleX(GetSafeHwnd(), 20), CDPIAware::Instance().ScaleY(GetSafeHwnd(), 20), ETO_CLIPPED, nullptr, sNoGraphText, nullptr);
+		dc.SetTextColor(oldColor);
 		return;
 	}
 
@@ -94,7 +97,7 @@ void CRevisionGraphWnd::CutawayPoints(const RectF& rect, float cutLen, TCutRecta
 
 void CRevisionGraphWnd::DrawRoundedRect(GraphicsDevice& graphics, const Color& penColor, int penWidth, const Pen* pen, const Color& fillColor, const Brush* brush, const RectF& rect, int mask) const
 {
-	enum {POINT_COUNT = 8};
+	constexpr int POINT_COUNT = 8;
 
 	float radius = CORNER_SIZE * m_fZoomFactor;
 	PointF points[POINT_COUNT];
@@ -294,8 +297,7 @@ void CRevisionGraphWnd::DrawConnections(GraphicsDevice& graphics, const CRect& /
 	Gdiplus::Pen pen(CTheme::Instance().GetThemeColor(GetColorFromSysColor(COLOR_WINDOWTEXT)), penwidth);
 
 	// iterate over all visible lines
-	ogdf::edge e;
-	forall_edges(e, m_Graph)
+	for (auto e : m_Graph.edges)
 	{
 		// get connection and point position
 		const auto& dpl = this->m_GraphAttr.bends(e);
@@ -396,17 +398,17 @@ void CRevisionGraphWnd::DrawConnections(GraphicsDevice& graphics, const CRect& /
 	}
 }
 
-typedef struct ColorsAndBrushes
+struct ColorsAndBrushes
 {
 	Gdiplus::Color background;
 	Gdiplus::Color brightColor;
 	Gdiplus::Pen pen;
 	Gdiplus::SolidBrush brush;
-} ColorsAndBrushes;
+	Gdiplus::SolidBrush textBrush;
+};
 
-typedef struct AllColorsAndBrushes
+struct AllColorsAndBrushes
 {
-	SolidBrush blackbrush;
 	ColorsAndBrushes Commits;
 	ColorsAndBrushes CurrentBranch;
 	ColorsAndBrushes LocalBranch;
@@ -419,14 +421,35 @@ typedef struct AllColorsAndBrushes
 	ColorsAndBrushes Notes;
 	ColorsAndBrushes SuperProjectPointer;
 	ColorsAndBrushes Other;
-} AllColorsAndBrushes;
+};
 
 inline static Gdiplus::Color GetColorRefColor(COLORREF colRef)
 {
 	return { GetRValue(colRef), GetGValue(colRef), GetBValue(colRef) };
 }
 
-#define COLORLINE(colRef) { GetColorRefColor(colRef), GetColorRefColor(colRef), { GetColorRefColor(colRef) }, { GetColorRefColor(colRef) } }
+static double GetLuminance(COLORREF color)
+{
+	// Extract RGB components
+	double r = GetRValue(color) / 255.0;
+	double g = GetGValue(color) / 255.0;
+	double b = GetBValue(color) / 255.0;
+
+	// Apply sRGB luminance formula
+	r = (r <= 0.03928) ? r / 12.92 : pow((r + 0.055) / 1.055, 2.4);
+	g = (g <= 0.03928) ? g / 12.92 : pow((g + 0.055) / 1.055, 2.4);
+	b = (b <= 0.03928) ? b / 12.92 : pow((b + 0.055) / 1.055, 2.4);
+
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// Choose black or white based on luminance
+inline static Gdiplus::Color GetBestContrastColor(COLORREF backgroundColor)
+{
+	return (GetLuminance(backgroundColor) > 0.5) ? Gdiplus::Color::Black : Gdiplus::Color::White;
+}
+
+#define COLORLINE(colRef) { GetColorRefColor(colRef), GetColorRefColor(colRef), { GetColorRefColor(colRef) }, { GetColorRefColor(colRef) }, { GetBestContrastColor(colRef) } }
 
 static AllColorsAndBrushes SetupColorsAndBrushes(CColors& colors)
 {
@@ -437,8 +460,7 @@ static AllColorsAndBrushes SetupColorsAndBrushes(CColors& colors)
 	Color brightColor = LimitedScaleColor(background, RGB(255, 0, 0), 0.9f);
 
 	return {
-		{ static_cast<ARGB>(Color::Black) },
-		{ background, brightColor, { background, 1.0F }, { brightColor } },
+		{ background, brightColor, { background, 1.0F }, { brightColor }, { GetBestContrastColor(GetSysColor(COLOR_WINDOW)) } },
 		COLORLINE(CTheme::Instance().GetThemeColor(colors.GetColor(revGraphUseLocalForCur ? colors.LocalBranch : colors.CurrentBranch), true)),
 		COLORLINE(CTheme::Instance().GetThemeColor(colors.GetColor(colors.LocalBranch), true)),
 		COLORLINE(CTheme::Instance().GetThemeColor(colors.GetColor(colors.RemoteBranch), true)),
@@ -471,7 +493,7 @@ void CRevisionGraphWnd::DrawNode(GraphicsDevice& graphics, AllColorsAndBrushes& 
 									  &font,
 									  Gdiplus::PointF(static_cast<REAL>(noderect.X + this->GetLeftRightMargin() * m_fZoomFactor),
 													  static_cast<REAL>(noderect.Y + this->GetTopBottomMargin() * m_fZoomFactor + height * line)),
-									  &colorsAndBrushes.blackbrush);
+									  &colors->textBrush);
 	}
 	else if (graphics.pSVG)
 		graphics.pSVG->Text(static_cast<int>(noderect.X + this->GetLeftRightMargin() * m_fZoomFactor),
@@ -502,8 +524,7 @@ void CRevisionGraphWnd::DrawTexts (GraphicsDevice& graphics, const CRect& /*logR
 	Gdiplus::Font font(fontname, static_cast<REAL>(m_nFontSize), FontStyleRegular);
 	auto colorsAndBrushes = SetupColorsAndBrushes(m_Colors);
 
-	ogdf::node v;
-	forall_nodes(v,m_Graph)
+	for (auto v : m_Graph.nodes)
 	{
 		// get node and position
 		RectF noderect (GetNodeRect (v, offset));
@@ -515,7 +536,7 @@ void CRevisionGraphWnd::DrawTexts (GraphicsDevice& graphics, const CRect& /*logR
 		bool hasRefs = refsIt != m_HashMap.end();
 
 		size_t lines = (hasRefs ? refsIt->second.size() : 1);
-		if (hash == m_superProjectHash)
+		if (m_submoduleInfo.AnyMatches(hash))
 			++lines;
 		double height = noderect.Height / lines;
 		size_t line = 0;
@@ -526,11 +547,16 @@ void CRevisionGraphWnd::DrawTexts (GraphicsDevice& graphics, const CRect& /*logR
 			graphics.pGraphviz->BeginDrawTableNode(id, fontname, m_nFontSize, static_cast<int>(noderect.Height));
 		}
 
-		if (hash == m_superProjectHash)
-		{
-			DrawNode(graphics, colorsAndBrushes, &colorsAndBrushes.SuperProjectPointer, font, fontname, height, noderect, L"super-project-pointer", line, lines);
+		const auto fnDrawSuperRepoHash = [&](const CGitHash& superRepoHash, const CString& label) {
+			if (hash != superRepoHash)
+				return;
+
+			DrawNode(graphics, colorsAndBrushes, &colorsAndBrushes.SuperProjectPointer, font, fontname, height, noderect, label, line, lines);
 			++line;
-		}
+		};
+		fnDrawSuperRepoHash(m_submoduleInfo.superProjectHash, L"super-project-pointer");
+		fnDrawSuperRepoHash(m_submoduleInfo.mergeconflictMineHash, m_submoduleInfo.mineLabel);
+		fnDrawSuperRepoHash(m_submoduleInfo.mergeconflictTheirsHash, m_submoduleInfo.theirsLabel);
 
 		if (!hasRefs)
 		{
@@ -701,12 +727,17 @@ void CRevisionGraphWnd::SetNodeRect(GraphicsDevice& graphics, Gdiplus::Font& fon
 		if (graphics.graphics)
 			std::for_each((*it).second.cbegin(), (*it).second.cend(), [&](const auto& refName) { MeasureTextLength(graphics, font, CGit::GetShortName(refName, nullptr), xmax, ymax); });
 	}
-	if (rev == m_superProjectHash)
-	{
+	const auto fnMeasureSuperRepoText = [&](const CGitHash& superRepoHash, const CString& label) {
+		if (rev != superRepoHash)
+			return;
+
 		if (graphics.graphics)
-			MeasureTextLength(graphics, font, L"super-project-pointer", xmax, ymax);
+			MeasureTextLength(graphics, font, label, xmax, ymax);
 		++lines;
-	}
+	};
+	fnMeasureSuperRepoText(m_submoduleInfo.superProjectHash, L"super-project-pointer");
+	fnMeasureSuperRepoText(m_submoduleInfo.mergeconflictMineHash, m_submoduleInfo.mineLabel);
+	fnMeasureSuperRepoText(m_submoduleInfo.mergeconflictTheirsHash, m_submoduleInfo.theirsLabel);
 	m_GraphAttr.width(*pnode) = GetLeftRightMargin() * 2 + xmax;
 	m_GraphAttr.height(*pnode) = (GetTopBottomMargin() * 2 + ymax) * lines;
 }

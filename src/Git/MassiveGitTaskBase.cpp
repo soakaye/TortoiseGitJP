@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2016, 2019-2020 - TortoiseGit
+// Copyright (C) 2011-2016, 2019-2020, 2022-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -23,14 +23,13 @@
 #include <assert.h>
 
 CMassiveGitTaskBase::CMassiveGitTaskBase(CString gitParameters, BOOL isPath, bool ignoreErrors)
-	: m_bUnused(true)
-	, m_bIsPath(isPath)
+	: m_bIsPath(isPath)
 	, m_bIgnoreErrors(ignoreErrors)
 	, m_sParams(gitParameters)
 {
 }
 
-CMassiveGitTaskBase::~CMassiveGitTaskBase(void)
+CMassiveGitTaskBase::~CMassiveGitTaskBase()
 {
 }
 
@@ -60,16 +59,73 @@ void CMassiveGitTaskBase::SetPaths(const CTGitPathList* pathList)
 	m_pathList = *pathList;
 }
 
-bool CMassiveGitTaskBase::Execute(BOOL& cancel)
+bool CMassiveGitTaskBase::Execute(volatile BOOL& cancel)
 {
 	assert(m_bUnused);
 	m_pathList.RemoveDuplicates();
 	return ExecuteCommands(cancel);
 }
 
+template <typename... T>
+bool startsWithOrIsParam(const CString& parameters, const CString& supportedParameter, T... tail)
+{
+	return startsWithOrIsParam(parameters, supportedParameter) || startsWithOrIsParam(parameters, tail...);
+}
+template<>
+bool startsWithOrIsParam(const CString& parameters, const CString& supportedParameter)
+{
+	return parameters == supportedParameter || CStringUtils::StartsWith(parameters, supportedParameter + L' ');
+}
+
 bool CMassiveGitTaskBase::ExecuteCommands(volatile BOOL& cancel)
 {
 	m_bUnused = false;
+
+	if (IsListEmpty())
+		return true;
+
+	if (m_bIsPath && CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 26, 0) && startsWithOrIsParam(m_sParams, L"add", L"rm", L"reset", L"checkout", L"restore", L"stash"))
+	{
+		CString tempFilename = GetTempFile();
+		if (tempFilename.IsEmpty())
+		{
+			ReportError(L"Error creating temp file", -1);
+			return false;
+		}
+		SCOPE_EXIT { ::DeleteFile(tempFilename); };
+
+		if (!m_pathList.WriteToPathSpecFile(tempFilename))
+		{
+			ReportError(L"Error writing to temp file", -1);
+			return false;
+		}
+
+		CString pathSpecFileParam;
+		pathSpecFileParam.Format(L" --pathspec-from-file=\"%s\" --pathspec-file-nul", static_cast<LPCWSTR>(tempFilename));
+		CString params;
+		if (int endOfParamsPosition = m_sParams.Find(L" --end-of-options", 0); endOfParamsPosition == -1)
+			params = m_sParams + pathSpecFileParam;
+		else
+			params = m_sParams.Mid(0, endOfParamsPosition) + pathSpecFileParam + m_sParams.Mid(endOfParamsPosition);
+		CString cmd, out;
+		cmd.Format(L"git.exe %s", static_cast<LPCWSTR>(params));
+		const int exitCode = g_Git.Run(cmd, &out, CP_UTF8);
+		if (exitCode && !m_bIgnoreErrors)
+		{
+			ReportError(out, exitCode);
+			return false;
+		}
+
+		for (int i = 0; i < GetListCount(); ++i)
+			ReportProgress(m_pathList[i], i);
+
+		if (cancel)
+		{
+			ReportUserCanceled();
+			return false;
+		}
+		return true;
+	}
 
 	int max_command_line_length = 30000;
 	int quotes_length = 2;
@@ -94,7 +150,7 @@ bool CMassiveGitTaskBase::ExecuteCommands(volatile BOOL& cancel)
 			}
 
 			CString cmd, out;
-			cmd.Format(L"git.exe %s %s%s", static_cast<LPCTSTR>(m_sParams), m_bIsPath ? L"--" : L"", static_cast<LPCTSTR>(add));
+			cmd.Format(L"git.exe %s %s%s", static_cast<LPCWSTR>(m_sParams), m_bIsPath ? L"--" : L"", static_cast<LPCWSTR>(add));
 			int exitCode = g_Git.Run(cmd, &out, CP_UTF8);
 			if (exitCode && !m_bIgnoreErrors)
 			{
@@ -141,4 +197,31 @@ bool CMassiveGitTaskBase::IsListEmpty() const
 CString CMassiveGitTaskBase::GetListItem(int index) const
 {
 	return m_bIsPath ? m_pathList[index].GetGitPathString() : m_itemList[index];
+}
+
+void CMassiveGitTaskBase::ConvertToCmdList(CString params, const STRING_VECTOR& pathList, STRING_VECTOR& cmdList)
+{
+	if (pathList.empty())
+		return;
+
+	// see issue https://tortoisegit.org/issue/3542
+	const int max_command_line_length{ (CGit::ms_bCygwinGit || CGit::ms_bMsys2Git) ? 3500 : 30000 };
+	const int quotes_length{ (CGit::ms_bCygwinGit || CGit::ms_bMsys2Git) ? 4 : 2 };
+
+	CString cmd;
+	cmd.Format(L"git.exe %s --", static_cast<LPCWSTR>(params));
+
+	bool noCmdYet{ true };
+	for (const auto& filename : pathList)
+	{
+		// add new command if no command yet or last command will exceed max length
+		if (noCmdYet || (cmdList.back().GetLength() + 1 + quotes_length + filename.GetLength()) > max_command_line_length)
+		{
+			noCmdYet = false;
+			cmdList.push_back(cmd);
+		}
+
+		// update last commmand of list
+		cmdList.back().AppendFormat(L" \"%s\"", static_cast<LPCWSTR>(filename));
+	}
 }

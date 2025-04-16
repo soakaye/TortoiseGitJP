@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2017, 2019 - TortoiseGit
+// Copyright (C) 2012-2017, 2019, 2023-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@ CSubmoduleDiffDlg::CSubmoduleDiffDlg(CWnd* pParent /*=nullptr*/)
 	, m_bFromOK(false)
 	, m_bToOK(false)
 	, m_bDirty(false)
-	, m_nChangeType(CGitDiff::Unknown)
+	, m_nChangeType(CGitDiff::ChangeType::Unknown)
 	, m_bRefresh(false)
 {
 }
@@ -64,9 +64,7 @@ BOOL CSubmoduleDiffDlg::OnInitDialog()
 {
 	CHorizontalResizableStandAloneDialog::OnInitDialog();
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	AddAnchor(IDC_SUBMODULEDIFFTITLE, TOP_LEFT, TOP_RIGHT);
 	AddAnchor(IDC_STATIC_REVISION, TOP_LEFT);
@@ -90,6 +88,7 @@ BOOL CSubmoduleDiffDlg::OnInitDialog()
 	AddAnchor(IDC_TOSUBJECT, TOP_LEFT, TOP_RIGHT);
 
 	EnableSaveRestore(L"SubmoduleDiffDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	if (m_bToIsWorkingCopy)
 	{
@@ -106,7 +105,7 @@ BOOL CSubmoduleDiffDlg::OnInitDialog()
 
 	UpdateData(FALSE);
 
-	CString changeTypeTable[] =
+	const CString changeTypeTable[] =
 	{
 		CString(MAKEINTRESOURCE(IDS_SUBMODULEDIFF_UNKNOWN)),
 		CString(MAKEINTRESOURCE(IDS_SUBMODULEDIFF_IDENTICAL)),
@@ -118,16 +117,19 @@ BOOL CSubmoduleDiffDlg::OnInitDialog()
 		CString(MAKEINTRESOURCE(IDS_SUBMODULEDIFF_OLDERTIME)),
 		CString(MAKEINTRESOURCE(IDS_SUBMODULEDIFF_SAMETIME))
 	};
-	GetDlgItem(IDC_CHANGETYPE)->SetWindowText(changeTypeTable[m_nChangeType]);
+	GetDlgItem(IDC_CHANGETYPE)->SetWindowText(changeTypeTable[static_cast<int>(m_nChangeType)]);
 
 	DialogEnableWindow(IDC_SHOW_DIFF, m_bFromOK && m_bToOK);
-	if (m_bDirty && m_nChangeType != CGitDiff::Unknown)
+	if (m_nChangeType == CGitDiff::ChangeType::Identical)
+		m_ctrlShowDiffBtn.AddEntry(MAKEINTRESOURCE(IDS_LOG_POPUP_COMPARE));
+	else if (m_bDirty && m_nChangeType != CGitDiff::ChangeType::Unknown)
 	{
 		m_ctrlShowDiffBtn.AddEntry(MAKEINTRESOURCE(IDS_PROC_SHOWDIFF));
 		m_ctrlShowDiffBtn.AddEntry(MAKEINTRESOURCE(IDS_LOG_POPUP_COMPARE));
 	}
 
 	GetDlgItem(IDC_BUTTON_UPDATE)->ShowWindow(!m_bFromOK || !m_bToOK || m_bToIsWorkingCopy ? SW_SHOW : SW_HIDE);
+	DialogEnableWindow(IDC_BUTTON_UPDATE, !m_bFromOK || !m_bToOK || m_bToIsWorkingCopy);
 
 	return FALSE;
 }
@@ -142,28 +144,28 @@ HBRUSH CSubmoduleDiffDlg::GetInvalidBrush(CDC* pDC)
 
 HBRUSH CSubmoduleDiffDlg::GetChangeTypeBrush(CDC* pDC, const CGitDiff::ChangeType& changeType)
 {
-	if (changeType == CGitDiff::FastForward)
+	if (changeType == CGitDiff::ChangeType::FastForward)
 	{
 		// light green
 		pDC->SetBkColor(RGB(211, 249, 154));
 		pDC->SetTextColor(RGB(0, 0, 0));
 		return CreateSolidBrush(RGB(211, 249, 154));
 	}
-	if (changeType == CGitDiff::Rewind)
+	if (changeType == CGitDiff::ChangeType::Rewind)
 	{
 		// pink
 		pDC->SetBkColor(RGB(249, 199, 229));
 		pDC->SetTextColor(RGB(0, 0, 0));
 		return CreateSolidBrush(RGB(249, 199, 229));
 	}
-	if (changeType == CGitDiff::NewerTime)
+	if (changeType == CGitDiff::ChangeType::NewerTime)
 	{
 		// light blue
 		pDC->SetBkColor(RGB(176, 223, 244));
 		pDC->SetTextColor(RGB(0, 0, 0));
 		return CreateSolidBrush(RGB(176, 223, 244));
 	}
-	if (changeType == CGitDiff::OlderTime)
+	if (changeType == CGitDiff::ChangeType::OlderTime)
 	{
 		// light orange
 		pDC->SetBkColor(RGB(244, 207, 159));
@@ -194,7 +196,7 @@ HBRUSH CSubmoduleDiffDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 			return CreateSolidBrush(RGB(255, 255, 0));
 		}
 
-		if (pWnd->GetDlgCtrlID() == IDC_CHANGETYPE && m_nChangeType != CGitDiff::Identical)
+		if (pWnd->GetDlgCtrlID() == IDC_CHANGETYPE && m_nChangeType != CGitDiff::ChangeType::Identical)
 			return GetChangeTypeBrush(pDC, m_nChangeType);
 	}
 
@@ -231,7 +233,7 @@ void CSubmoduleDiffDlg::SetDiff(CString path, bool toIsWorkingCopy, const CGitHa
 void CSubmoduleDiffDlg::ShowLog(CString hash)
 {
 	CString sCmd;
-	sCmd.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCTSTR>(g_Git.CombinePath(m_sPath)), static_cast<LPCTSTR>(hash));
+	sCmd.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCWSTR>(g_Git.CombinePath(m_sPath)), static_cast<LPCWSTR>(hash));
 	CAppUtils::RunTortoiseGitProc(sCmd, false, false);
 }
 
@@ -248,10 +250,15 @@ void CSubmoduleDiffDlg::OnBnClickedLog2()
 void CSubmoduleDiffDlg::OnBnClickedShowDiff()
 {
 	CString sCmd;
-	sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCTSTR>(g_Git.CombinePath(m_sPath)), static_cast<LPCTSTR>(m_sFromHash.ToString()), ((m_bDirty && m_nChangeType == CGitDiff::Unknown) || m_ctrlShowDiffBtn.GetCurrentEntry() == 1) ? GIT_REV_ZERO : static_cast<LPCTSTR>(m_sToHash.ToString()));
+	if (m_nChangeType == CGitDiff::ChangeType::Identical)
+		sCmd.Format(L"/command:repostatus /path:\"%s\"", static_cast<LPCWSTR>(g_Git.CombinePath(m_sPath)));
+	else
+	{
+		sCmd.Format(L"/command:showcompare /path:\"%s\" /revision1:%s /revision2:%s", static_cast<LPCWSTR>(g_Git.CombinePath(m_sPath)), static_cast<LPCWSTR>(m_sFromHash.ToString()), ((m_bDirty && m_nChangeType == CGitDiff::ChangeType::Unknown) || m_ctrlShowDiffBtn.GetCurrentEntry() == 1) ? GitRev::GetWorkingCopyRef() : static_cast<LPCWSTR>(m_sToHash.ToString()));
 
-	if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
-		sCmd += L" /alternative";
+		if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
+			sCmd += L" /alternative";
+	}
 
 	CAppUtils::RunTortoiseGitProc(sCmd, false, false);
 }
@@ -259,6 +266,6 @@ void CSubmoduleDiffDlg::OnBnClickedShowDiff()
 void CSubmoduleDiffDlg::OnBnClickedButtonUpdate()
 {
 	CString sCmd;
-	sCmd.Format(L"/command:subupdate /bkpath:\"%s\" /selectedpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(m_sPath));
+	sCmd.Format(L"/command:subupdate /bkpath:\"%s\" /selectedpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(m_sPath));
 	CAppUtils::RunTortoiseGitProc(sCmd);
 }

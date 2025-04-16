@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2003-2010, 2012 - TortoiseSVN
+// Copyright (C) 2003-2010, 2012, 2021-2023 - TortoiseSVN
 // Copyright (C) 2008-2012, 2014, 2016-2017 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ bool				g_ignoredovlloaded = false;
 bool				g_unversionedovlloaded = false;
 CComCriticalSection	g_csGlobalCOMGuard;
 
-LPCTSTR				g_MenuIDString = L"TortoiseGit";
+LPCWSTR				g_MenuIDString = L"TortoiseGit";
 
 ShellObjects		g_shellObjects;
 
@@ -60,8 +60,8 @@ DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID /* lpReserved */)
 	// it.
 
 	bool bInShellTest = false;
-	TCHAR buf[MAX_PATH + 1] = {0};		// MAX_PATH ok, the test really is for debugging anyway.
-	DWORD pathLength = GetModuleFileName(nullptr, buf, _countof(buf) - 1);
+	wchar_t buf[MAX_PATH + 1] = { 0 };		// MAX_PATH ok, the test really is for debugging anyway.
+	const DWORD pathLength = GetModuleFileName(nullptr, buf, _countof(buf) - 1);
 	if(pathLength >= 14)
 	{
 		if (pathLength >= 24 && _wcsicmp(&buf[pathLength - 24], L"\\TortoiseGitExplorer.exe") == 0)
@@ -85,6 +85,7 @@ DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID /* lpReserved */)
 	// behavior and even may create dependency loops in the dll load order.
 	if (dwReason == DLL_PROCESS_ATTACH)
 	{
+		DisableThreadLibraryCalls(hInstance);
 		if (!g_hmodThisDll)
 			g_csGlobalCOMGuard.Init();
 
@@ -106,7 +107,7 @@ DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID /* lpReserved */)
 	return 1;	// ok
 }
 
-STDAPI DllCanUnloadNow(void)
+STDAPI DllCanUnloadNow()
 {
 	return (g_cRefThisDll == 0 ? S_OK : S_FALSE);
 }
@@ -140,6 +141,8 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppvOut)
 		state = FileStateIgnoredOverlay;
 	else if (IsEqualIID(rclsid, CLSID_Tortoisegit_UNVERSIONED))
 		state = FileStateUnversionedOverlay;
+	else if (IsEqualIID(rclsid, CLSID_Tortoisegit_EXPLORERCOMMAND))
+		state = FileStateVersioned;
 
 	if (state != FileStateInvalid)
 	{

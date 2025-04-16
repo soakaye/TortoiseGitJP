@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -31,13 +31,13 @@
 #define MSG_PROGRESSDLG_END   110
 #define MSG_PROGRESSDLG_FAILED 111
 
-typedef enum {
+enum class GitProgressAutoClose{
 	AUTOCLOSE_NO,
 	AUTOCLOSE_IF_NO_OPTIONS,
 	AUTOCLOSE_IF_NO_ERRORS,
-} GitProgressAutoClose;
+};
 
-typedef std::function<void()> PostCmdAction;
+using PostCmdAction = std::function<void()>;
 
 class PostCmd
 {
@@ -71,9 +71,9 @@ public:
 	PostCmdAction	action;
 };
 
-typedef std::vector<PostCmd> PostCmdList;
-typedef std::function<void(DWORD status, PostCmdList&)> PostCmdCallback;
-typedef std::function<void(DWORD& exitCode, CString& extraMsg)> PostExecCallback;
+using PostCmdList = std::vector<PostCmd>;
+using PostCmdCallback = std::function<void(DWORD status, PostCmdList&)>;
+using PostExecCallback = std::function<void(HWND hWnd, DWORD& exitCode, CString& extraMsg)>;
 
 class CProgressDlg : public CResizableStandAloneDialog
 {
@@ -83,7 +83,7 @@ public:
 	virtual ~CProgressDlg();
 
 private:
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 
 	// Dialog Data
 	enum { IDD = IDD_GITPROGRESS };
@@ -124,7 +124,7 @@ private:
 	bool					m_bDone;
 	ULONGLONG				m_startTick;
 
-	virtual void			DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	void					DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 	static UINT				ProgressThreadEntry(LPVOID pVoid);
 	UINT					ProgressThread();
 
@@ -138,7 +138,7 @@ private:
 	afx_msg LRESULT			OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam);
 	CComPtr<ITaskbarList3>	m_pTaskbarList;
 
-	void					OnCancel();
+	void					OnCancel() override;
 	afx_msg void			OnClose();
 
 	void					SetupLogMessageViewControl();
@@ -146,7 +146,7 @@ private:
 	afx_msg void			OnEnLinkLog(NMHDR* pNMHDR, LRESULT* pResult);
 
 	CGitGuardedByteArray	m_Databuf;
-	virtual CString Convert2UnionCode(char* buff)
+	virtual CString Convert2UnionCode(const char* buff)
 	{
 		return CUnicodeUtils::GetUnicode(buff);
 	}
@@ -177,16 +177,16 @@ private:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedButton1();
 
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 
-	typedef struct {
+	struct ACCELLERATOR {
 		int id;
 		int cnt;
 		int wmid;
-	} ACCELLERATOR;
-	std::map<TCHAR, ACCELLERATOR>	m_accellerators;
+	};
+	std::map<wchar_t, ACCELLERATOR>	m_accellerators;
 	HACCEL							m_hAccel;
-	virtual LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 };
 
 class CCommitProgressDlg:public CProgressDlg
@@ -196,5 +196,5 @@ public:
 	{
 	}
 
-	virtual CString Convert2UnionCode(char* buff) override;
+	CString Convert2UnionCode(const char* buff) override;
 };

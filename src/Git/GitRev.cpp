@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2021, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,17 +18,16 @@
 //
 
 #include "stdafx.h"
-#include <ATLComTime.h>
 #include "GitRev.h"
 #include "Git.h"
 #include "gitdll.h"
 #include "UnicodeUtils.h"
 
-GitRev::GitRev(void)
+GitRev::GitRev()
 {
 }
 
-GitRev::~GitRev(void)
+GitRev::~GitRev()
 {
 }
 
@@ -45,8 +44,9 @@ void GitRev::Clear()
 	m_sErr.Empty();
 }
 
-int GitRev::ParserParentFromCommit(GIT_COMMIT *commit)
+int GitRev::ParserParentFromCommit(const GIT_COMMIT* commit)
 {
+	ATLASSERT(commit);
 	this->m_ParentHash.clear();
 	GIT_COMMIT_LIST list;
 	GIT_HASH   parent;
@@ -57,8 +57,9 @@ int GitRev::ParserParentFromCommit(GIT_COMMIT *commit)
 	return 0;
 }
 
-int GitRev::ParserFromCommit(GIT_COMMIT *commit)
+int GitRev::ParserFromCommit(const GIT_COMMIT *commit)
 {
+	ATLASSERT(commit);
 	int encode =CP_UTF8;
 	if(commit->m_Encode != 0 && commit->m_EncodeSize != 0)
 		encode = CUnicodeUtils::GetCPCode(CUnicodeUtils::GetUnicodeLength(commit->m_Encode, commit->m_EncodeSize));
@@ -82,8 +83,9 @@ int GitRev::ParserFromCommit(GIT_COMMIT *commit)
 
 int GitRev::ParserParentFromCommit(const git_commit* commit)
 {
+	ATLASSERT(commit);
 	m_ParentHash.clear();
-	unsigned int parentCount = git_commit_parentcount(commit);
+	const unsigned int parentCount = git_commit_parentcount(commit);
 	for (unsigned int i = 0; i < parentCount; ++i)
 		m_ParentHash.emplace_back(git_commit_parent_id(commit, i));
 
@@ -92,6 +94,7 @@ int GitRev::ParserParentFromCommit(const git_commit* commit)
 
 int GitRev::ParserFromCommit(const git_commit* commit)
 {
+	ATLASSERT(commit);
 	Clear();
 
 	int encode = CP_UTF8;
@@ -118,7 +121,7 @@ int GitRev::ParserFromCommit(const git_commit* commit)
 		m_Subject = CUnicodeUtils::GetUnicode(msg, encode);
 	else
 	{
-		m_Subject = CUnicodeUtils::GetUnicodeLength(msg, static_cast<int>(body - msg), encode);
+		m_Subject = CUnicodeUtils::GetUnicodeLengthSizeT(msg, body - msg, encode);
 		m_Body = CUnicodeUtils::GetUnicode(body + 1, encode);
 	}
 
@@ -127,6 +130,7 @@ int GitRev::ParserFromCommit(const git_commit* commit)
 
 int GitRev::GetCommitFromHash(git_repository* repo, const CGitHash& hash)
 {
+	ATLASSERT(repo);
 	CAutoCommit commit;
 	if (git_commit_lookup(commit.GetPointer(), repo, hash) < 0)
 	{
@@ -139,7 +143,8 @@ int GitRev::GetCommitFromHash(git_repository* repo, const CGitHash& hash)
 
 int GitRev::GetCommit(git_repository* repo, const CString& refname)
 {
-	if (refname.GetLength() >= 8 && wcsncmp(refname, GitRev::GetWorkingCopy(), refname.GetLength()) == 0)
+	ATLASSERT(repo);
+	if (refname.GetLength() >= 8 && wcsncmp(refname, GitRev::GetWorkingCopyRef(), refname.GetLength()) == 0)
 	{
 		Clear();
 		m_Subject = L"Working Tree";
@@ -159,10 +164,10 @@ int GitRev::GetCommit(git_repository* repo, const CString& refname)
 #if DEBUG
 void GitRev::DbgPrint()
 {
-	ATLTRACE(L"Commit %s\r\n", static_cast<LPCTSTR>(this->m_CommitHash.ToString()));
+	ATLTRACE(L"Commit %s\r\n", static_cast<LPCWSTR>(this->m_CommitHash.ToString()));
 	for (unsigned int i = 0; i < this->m_ParentHash.size(); ++i)
 	{
-		ATLTRACE(L"Parent %i %s\r\n", i, static_cast<LPCTSTR>(m_ParentHash[i].ToString()));
+		ATLTRACE(L"Parent %i %s\r\n", i, static_cast<LPCWSTR>(m_ParentHash[i].ToString()));
 	}
 	ATLTRACE(L"\r\n\r\n");
 }
@@ -183,9 +188,9 @@ int GitRev::GetParentFromHash(const CGitHash& hash)
 			return -1;
 		}
 	}
-	catch (char* msg)
+	catch (const char* msg)
 	{
-		m_sErr = L"Could not get parents of commit \"" + hash.ToString() + L"\".\nlibgit reports:\n" + CString(msg);
+		m_sErr = L"Could not get parents of commit \"" + hash.ToString() + L"\".\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg);
 		return -1;
 	}
 
@@ -217,9 +222,9 @@ int GitRev::GetCommitFromHash_withoutLock(const CGitHash& hash)
 			return -1;
 		}
 	}
-	catch (char * msg)
+	catch (const char * msg)
 	{
-		m_sErr = L"Could not get commit \"" + hash.ToString() + L"\".\nlibgit reports:\n" + CString(msg);
+		m_sErr = L"Could not get commit \"" + hash.ToString() + L"\".\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg);
 		return -1;
 	}
 
@@ -250,14 +255,14 @@ int GitRev::GetCommit(const CString& refname)
 	{
 		g_Git.CheckAndInitDll();
 	}
-	catch (char* msg)
+	catch (const char* msg)
 	{
-		m_sErr = L"Could not initiate libgit.\nlibgit reports:\n" + CString(msg);
+		m_sErr = L"Could not initiate libgit.\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg);
 		return -1;
 	}
 
 	if(refname.GetLength() >= 8)
-		if (refname.GetLength() >= 8 && wcsncmp(refname, GitRev::GetWorkingCopy(), refname.GetLength()) == 0)
+		if (refname.GetLength() >= 8 && wcsncmp(refname, GitRev::GetWorkingCopyRef(), refname.GetLength()) == 0)
 		{
 			this->m_CommitHash.Empty();
 			this->m_Subject = L"Working Tree";
@@ -275,9 +280,9 @@ int GitRev::GetCommit(const CString& refname)
 			return -1;
 		}
 	}
-	catch (char * msg)
+	catch (const char* msg)
 	{
-		m_sErr = L"Could not get SHA-1 of ref \"" + g_Git.FixBranchName(refname) + L"\".\nlibgit reports:\n" + CString(msg);
+		m_sErr = L"Could not get SHA-1 of ref \"" + g_Git.FixBranchName(refname) + L"\".\nlibgit reports:\n" + CUnicodeUtils::GetUnicode(msg);
 		return -1;
 	}
 

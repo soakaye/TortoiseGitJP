@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2009 - TortoiseSVN
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-#pragma once
 
+#pragma once
 #include "resource.h"
 #include "StandAloneDlg.h"
 #include "TGitPath.h"
@@ -26,9 +26,7 @@
 #include "RegHistory.h"
 #include "SplitterControl.h"
 #include "Colors.h"
-#include "LogDlgHelper.h"
 #include "FilterEdit.h"
-#include <regex>
 #include "GitLogList.h"
 #include "GitStatusListCtrl.h"
 #include "HyperLink.h"
@@ -43,9 +41,9 @@
 #define LOG_HEADER_ORDER_TIMER 104
 #define FILEFILTER_TIMER	105
 
-typedef int (__cdecl *GENERICCOMPAREFN)(const void * elem1, const void * elem2);
+using GENERICCOMPAREFN = int(__cdecl *)(const void* elem1, const void* elem2);
 
-enum AllBranchType
+enum class AllBranchType
 {
 	None = 0,
 	AllBranches = 1,
@@ -95,9 +93,9 @@ public:
 	}
 protected:
 	//implement the virtual methods from Git base class
-	virtual bool Validate(LPCTSTR string) override;
+	bool Validate(LPCWSTR string) override;
 
-	virtual void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
 
 	afx_msg LRESULT	OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam);
 	CComPtr<ITaskbarList3>	m_pTaskbarList;
@@ -152,10 +150,10 @@ protected:
 	afx_msg void OnEnscrollMsgview();
 	afx_msg LRESULT OnResetWcRev(WPARAM, LPARAM);
 
-	virtual void OnCancel() override;
-	virtual void OnOK() override;
-	virtual BOOL OnInitDialog() override;
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	void OnCancel() override;
+	void OnOK() override;
+	BOOL OnInitDialog() override;
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnPaint();
 	afx_msg void OnSysColorChange();
@@ -208,19 +206,15 @@ private:
 	afx_msg void OnMoving(UINT fwSide, LPRECT pRect);
 	afx_msg void OnSizing(UINT fwSide, LPRECT pRect);
 
-	virtual LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	LRESULT DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 
-public:
-	CWnd *				m_pNotifyWindow;
-	WORD				m_wParam;
-private:
 	CString				m_sRelativeRoot;
 	CString				m_sRepositoryRoot;
 	CGitLogList			m_LogList;
 	CGitStatusListCtrl  m_ChangedFileListCtrl;
 	CFilterEdit			m_cFilter;
 	CString				m_sFilterText;
-	DWORD				m_SelectedFilters;
+	DWORD				m_SelectedFilters = LOGFILTER_ALL;
 	CGestureEnabledControlTmpl<CHyperLink> m_staticRef;
 	CProgressCtrl		m_LogProgress;
 	CTGitPath			m_path;
@@ -231,33 +225,34 @@ private:
 	CMenuButton			m_ctrlWalkBehavior;
 
 	std::vector<CGitHash>	m_sSelectedHash;	// set to selected commit hash on OK if appropriate
-	bool				m_bSelectionMustBeContinuous;
-	bool				m_bSelectionMustBeSingle;
-	bool				m_bShowWC;
+	bool				m_bSelectionMustBeContinuous = false;
+	bool				m_bSelectionMustBeSingle = true;
+	bool				m_bShowWC = true;
 
 	CFilterEdit			m_cFileFilter;
 
-	BOOL				m_iHidePaths;
-	bool				m_bFirstParent;
-	BOOL				m_bAllBranch;		// variable for checkbox only
+	int					m_iHidePaths = 0;
+	bool				m_bFirstParent = false;
+	bool				m_bFullHistory = false;
+	BOOL				m_bAllBranch = FALSE;		// variable for checkbox only
 	AllBranchType		m_AllBranchType;	// variable for actual branch type
-	BOOL				m_bWholeProject;
-	bool				m_bFollowRenames;
+	BOOL				m_bWholeProject = FALSE;
+	bool				m_bFollowRenames = false;
 	BOOL				m_bShowUnversioned;
-	bool				m_bShowTags;
-	bool				m_bShowLocalBranches;
-	bool				m_bShowRemoteBranches;
-	bool				m_bShowOtherRefs;
-	bool				m_bShowGravatar;
-	bool				m_bShowDescribe;
-	bool				m_bShowBranchRevNo;
-	bool				m_bNoMerges;
-	int					m_iCompressedGraph;
-	bool				m_bNavigatingWithSelect;
-	bool				m_bAsteriskLogPrefix;
+	bool				m_bShowTags = true;
+	bool				m_bShowLocalBranches = true;
+	bool				m_bShowRemoteBranches = true;
+	bool				m_bShowOtherRefs = true;
+	bool				m_bShowGravatar = false;
+	bool				m_bShowDescribe = false;
+	bool				m_bShowBranchRevNo = false;
+	bool				m_bNoMerges = false;
+	int					m_iCompressedGraph = 0;
+	bool				m_bNavigatingWithSelect = false;
+	bool				m_bAsteriskLogPrefix = true;
 
-	bool				m_bFilterWithRegex;
-	bool				m_bFilterCaseSensitively;
+	bool				m_bFilterWithRegex = false;
+	bool				m_bFilterCaseSensitively = false;
 
 	CFont				m_logFont;
 	CSplitterControl	m_wndSplitter1;
@@ -274,18 +269,18 @@ private:
 	CComboBox			m_JumpType;
 	CButton				m_JumpUp;
 	CButton				m_JumpDown;
-	int					m_nSortColumn;
-	bool				m_bAscending;
+	int					m_nSortColumn = 0;
+	bool				m_bAscending = false;
 	static int			m_nSortColumnPathList;
 	static bool			m_bAscendingPathList;
 	CString				m_sTitle;
-	bool				m_bSelect;
+	bool				m_bSelect = false;
 	CString				m_sLogInfo;
 
 	CColors				m_Colors;
 	CImageList			m_imgList;
 
-	HACCEL				m_hAccel;
+	HACCEL				m_hAccel = nullptr;
 
 	CRegHistory			m_History;
 

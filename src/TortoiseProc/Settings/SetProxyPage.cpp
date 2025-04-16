@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2010-2017, 2019 - TortoiseGit
+// Copyright (C) 2010-2017, 2019, 2025 - TortoiseGit
 // Copyright (C) 2003-2007 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,13 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "SetProxyPage.h"
 #include "AppUtils.h"
-#include "StringUtils.h"
 #include "Git.h"
-#include "SetProxyPage.h"
 
 IMPLEMENT_DYNAMIC(CSetProxyPage, ISettingsPropPage)
 CSetProxyPage::CSetProxyPage()
@@ -104,9 +103,9 @@ BOOL CSetProxyPage::OnInitDialog()
 		m_SSHClient = CRegString(L"Software\\TortoiseGit\\SSH", L"", FALSE, HKEY_LOCAL_MACHINE);
 	if (m_SSHClient.IsEmpty())
 	{
-		TCHAR sPlink[MAX_PATH] = {0};
+		wchar_t sPlink[MAX_PATH] = { 0 };
 		GetModuleFileName(nullptr, sPlink, _countof(sPlink));
-		LPTSTR ptr = wcsrchr(sPlink, L'\\');
+		LPWSTR ptr = wcsrchr(sPlink, L'\\');
 		if (ptr)
 		{
 			wcscpy_s(ptr + 1, _countof(sPlink) - (ptr - sPlink + 1), L"TortoiseGitPlink.exe");
@@ -114,7 +113,7 @@ BOOL CSetProxyPage::OnInitDialog()
 		}
 	}
 	m_serveraddress = m_regServeraddress;
-	m_serverport = _wtoi(static_cast<LPCTSTR>(static_cast<CString>(m_regServerport)));
+	m_serverport = _wtoi(static_cast<LPCWSTR>(static_cast<CString>(m_regServerport)));
 	m_username = m_regUsername;
 	m_password = m_regPassword;
 

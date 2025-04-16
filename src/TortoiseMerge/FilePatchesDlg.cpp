@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006, 2008, 2010-2012, 2015, 2020 - TortoiseSVN
-// Copyright (C) 2012, 2016-2017, 2019-2020 - Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2012, 2016-2017, 2019-2020-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,11 +17,11 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseMerge.h"
 #include "FilePatchesDlg.h"
 #include "GitPatch.h"
-#include "AppUtils.h"
 #include "PathUtils.h"
 #include "SysProgressDlg.h"
 #include "SysImageList.h"
@@ -30,20 +30,11 @@
 IMPLEMENT_DYNAMIC(CFilePatchesDlg, CResizableStandAloneDialog)
 CFilePatchesDlg::CFilePatchesDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CFilePatchesDlg::IDD, pParent)
-	, m_ShownIndex(-1)
-	, m_bMinimized(FALSE)
-	, m_pPatch(nullptr)
-	, m_pCallBack(nullptr)
-	, m_nWindowHeight(-1)
-	, m_pMainFrame(nullptr)
-	, m_boldFont(nullptr)
 {
 }
 
 CFilePatchesDlg::~CFilePatchesDlg()
 {
-	if (m_boldFont)
-		DeleteObject(m_boldFont);
 }
 
 void CFilePatchesDlg::DoDataExchange(CDataExchange* pDX)
@@ -90,7 +81,7 @@ BOOL CFilePatchesDlg::OnInitDialog()
 	LOGFONT lf = {0};
 	GetObject(hFont, sizeof(LOGFONT), &lf);
 	lf.lfWeight = FW_BOLD;
-	m_boldFont = CreateFontIndirect(&lf);
+	m_boldFont.CreateFontIndirect(&lf);
 
 	AddAnchor(IDC_FILELIST, TOP_LEFT, BOTTOM_RIGHT);
 	AddAnchor(IDC_PATCHSELECTEDBUTTON, BOTTOM_LEFT, BOTTOM_RIGHT);
@@ -124,7 +115,6 @@ BOOL CFilePatchesDlg::Init(GitPatch * pPatch, CPatchFilesDlgCallBack * pCallBack
 		m_sPath += L'\\';
 	}
 
-	SetWindowTheme(m_cFileList.GetSafeHwnd(), L"Explorer", nullptr);
 	m_cFileList.SetExtendedStyle(LVS_EX_INFOTIP | LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
 	m_cFileList.DeleteAllItems();
 	int c = m_cFileList.GetHeaderCtrl()->GetItemCount() - 1;
@@ -217,7 +207,7 @@ void CFilePatchesDlg::OnLvnGetInfoTipFilelist(NMHDR *pNMHDR, LRESULT *pResult)
 		if (m_arFileStates.GetAt(pGetInfoTip->iItem) == 0)
 			temp = GetFullPath(pGetInfoTip->iItem);
 		else
-			temp.Format(IDS_PATCH_ITEMTT, static_cast<LPCTSTR>(GetFullPath(pGetInfoTip->iItem)));
+			temp.Format(IDS_PATCH_ITEMTT, static_cast<LPCWSTR>(GetFullPath(pGetInfoTip->iItem)));
 		wcsncpy_s(pGetInfoTip->pszText, pGetInfoTip->cchTextMax, temp, pGetInfoTip->cchTextMax - 1);
 	}
 	else
@@ -399,18 +389,50 @@ void CFilePatchesDlg::OnNcLButtonDblClk(UINT nHitTest, CPoint point)
 	CResizableStandAloneDialog::OnNcLButtonDblClk(nHitTest, point);
 }
 
+static int GetBorderAjustment(HWND parentHWND, const RECT& parentRect)
+{
+	CRect recta{ 0, 0, 0, 0 };
+	if (SUCCEEDED(::DwmGetWindowAttribute(parentHWND, DWMWA_EXTENDED_FRAME_BOUNDS, &recta, sizeof(recta))))
+		return 2 * (recta.left - parentRect.left) + 1;
+
+	return 0;
+}
+
 void CFilePatchesDlg::OnMoving(UINT fwSide, LPRECT pRect)
 {
 	RECT parentRect;
 	m_pMainFrame->GetWindowRect(&parentRect);
 	const int stickySize = 5;
-	if (abs(parentRect.left - pRect->right) < stickySize)
+	int adjust = GetBorderAjustment(m_pMainFrame->GetSafeHwnd(), parentRect);
+	if (abs(parentRect.left - pRect->right + adjust) < stickySize)
 	{
 		int width = pRect->right - pRect->left;
-		pRect->right = parentRect.left;
+		pRect->right = parentRect.left + adjust;
 		pRect->left = pRect->right - width;
 	}
 	CResizableStandAloneDialog::OnMoving(fwSide, pRect);
+}
+
+void CFilePatchesDlg::ParentOnMoving(HWND parentHWND, LPRECT pRect)
+{
+	if (!::IsWindow(m_hWnd))
+		return;
+
+	if (!::IsWindow(parentHWND))
+		return;
+
+	RECT patchrect;
+	GetWindowRect(&patchrect);
+
+	RECT parentRect;
+	::GetWindowRect(parentHWND, &parentRect);
+
+	if (patchrect.left - (parentRect.left - pRect->left) <= 0)
+		return;
+
+	int adjust = GetBorderAjustment(parentHWND, parentRect);
+	if (patchrect.right == parentRect.left + adjust)
+		SetWindowPos(nullptr, patchrect.left - (parentRect.left - pRect->left), patchrect.top - (parentRect.top - pRect->top), 0, 0, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
 }
 
 void CFilePatchesDlg::OnOK()
@@ -427,9 +449,8 @@ void CFilePatchesDlg::SetTitleWithPath(int width)
 	CDC * pDC = GetDC();
 	if (pDC)
 	{
-		PathCompactPath(pDC->GetSafeHdc(), title.GetBuffer(), width);
+		PathCompactPath(pDC->GetSafeHdc(), CStrBuf(title), width);
 		ReleaseDC(pDC);
-		title.ReleaseBuffer();
 	}
 	SetWindowText(title);
 }

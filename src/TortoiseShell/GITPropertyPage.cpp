@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,18 +17,16 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-#include "stdafx.h"
 
+#include "stdafx.h"
 #include "ShellExt.h"
 #include "gitpropertypage.h"
 #include "UnicodeUtils.h"
 #include "PathUtils.h"
-#include "UnicodeUtils.h"
 #include "CreateProcessHelper.h"
 #include "FormatMessageWrapper.h"
 #include "StringUtils.h"
 #include "Git.h"
-#include "GitAdminDir.h"
 
 #define MAX_STRING_LENGTH	4096	//should be big enough
 
@@ -74,8 +72,6 @@ const UINT CGitPropertyPage::m_UpdateLastCommit = RegisterWindowMessage(L"TORTOI
 CGitPropertyPage::CGitPropertyPage(const std::vector<std::wstring>& newFilenames, CString projectTopDir, bool bIsSubmodule)
 	: filenames(newFilenames)
 	, m_ProjectTopDir(projectTopDir)
-	,m_bChanged(false)
-	, m_hwnd(nullptr)
 	, m_bIsSubmodule(bIsSubmodule)
 {
 	m_iStripLength = m_ProjectTopDir.GetLength();
@@ -83,7 +79,7 @@ CGitPropertyPage::CGitPropertyPage(const std::vector<std::wstring>& newFilenames
 		++m_iStripLength;
 }
 
-CGitPropertyPage::~CGitPropertyPage(void)
+CGitPropertyPage::~CGitPropertyPage()
 {
 }
 
@@ -243,7 +239,7 @@ void CGitPropertyPage::PageProcOnCommand(WPARAM wParam)
 	{
 	case IDC_SHOWLOG:
 		{
-			tstring gitCmd = L" /command:";
+			std::wstring gitCmd = L" /command:";
 			gitCmd += L"log /path:\"";
 			gitCmd += filenames.front().c_str();
 			gitCmd += L'"';
@@ -254,7 +250,7 @@ void CGitPropertyPage::PageProcOnCommand(WPARAM wParam)
 		break;
 	case IDC_SHOWSETTINGS:
 		{
-			tstring gitCmd = L" /command:";
+			std::wstring gitCmd = L" /command:";
 			gitCmd += L"settings /path:\"";
 			gitCmd += m_ProjectTopDir;
 			gitCmd += L'"';
@@ -287,9 +283,9 @@ void CGitPropertyPage::PageProcOnCommand(WPARAM wParam)
 	}
 }
 
-void CGitPropertyPage::RunCommand(const tstring& command)
+void CGitPropertyPage::RunCommand(const std::wstring& command)
 {
-	tstring tortoiseProcPath = CPathUtils::GetAppDirectory(g_hmodThisDll) + L"TortoiseGitProc.exe";
+	std::wstring tortoiseProcPath { static_cast<LPCWSTR>(CPathUtils::GetAppDirectory(g_hmodThisDll) + L"TortoiseGitProc.exe") };
 	if (CCreateProcessHelper::CreateProcessDetached(tortoiseProcPath.c_str(), command.c_str()))
 	{
 		// process started - exit
@@ -299,7 +295,7 @@ void CGitPropertyPage::RunCommand(const tstring& command)
 	MessageBox(nullptr, CFormatMessageWrapper(), L"TortoiseGitProc launch failed", MB_OK | MB_ICONERROR);
 }
 
-void CGitPropertyPage::Time64ToTimeString(__time64_t time, TCHAR * buf, size_t buflen) const
+void CGitPropertyPage::Time64ToTimeString(__time64_t time, wchar_t* buf, size_t buflen) const
 {
 	struct tm newtime;
 	SYSTEMTIME systime;
@@ -311,8 +307,8 @@ void CGitPropertyPage::Time64ToTimeString(__time64_t time, TCHAR * buf, size_t b
 	*buf = '\0';
 	if (time)
 	{
-		TCHAR timebuf[MAX_STRING_LENGTH] = { 0 };
-		TCHAR datebuf[MAX_STRING_LENGTH] = { 0 };
+		wchar_t timebuf[MAX_STRING_LENGTH] = { 0 };
+		wchar_t datebuf[MAX_STRING_LENGTH] = { 0 };
 		_localtime64_s(&newtime, &time);
 
 		systime.wDay = static_cast<WORD>(newtime.tm_mday);
@@ -516,7 +512,10 @@ void CGitPropertyPage::InitWorkfileView()
 
 	CAutoRepository repository(CUnicodeUtils::GetUTF8(m_ProjectTopDir));
 	if (!repository)
+	{
+		SetDlgItemText(m_hwnd, IDC_SHELL_CURRENT_BRANCH, CGit::GetLibGit2LastErr());
 		return;
+	}
 
 	CString username;
 	CString useremail;
@@ -535,39 +534,44 @@ void CGitPropertyPage::InitWorkfileView()
 	CString branch;
 	CString remotebranch;
 	CString remoteUrl;
-	if (!git_repository_head_detached(repository))
+	int err = 0;
+	if (err = git_repository_head_detached(repository); err == 1)
+		branch = L"detached HEAD";
+	else if (err == 0)
 	{
 		CAutoReference head;
-		if (git_repository_head_unborn(repository))
+		if ((err = git_repository_head_unborn(repository)) == 1)
 		{
-			git_reference_lookup(head.GetPointer(), repository, "HEAD");
+			err = git_reference_lookup(head.GetPointer(), repository, "HEAD");
 			branch = CUnicodeUtils::GetUnicode(git_reference_symbolic_target(head));
 			if (CStringUtils::StartsWith(branch, L"refs/heads/"))
 				branch = branch.Mid(static_cast<int>(wcslen(L"refs/heads/")));
 		}
-		else if (!git_repository_head(head.GetPointer(), repository))
+		else if (err == 0 && (err = git_repository_head(head.GetPointer(), repository)) == 0)
 		{
 			const char * branchChar = git_reference_shorthand(head);
 			branch = CUnicodeUtils::GetUnicode(branchChar);
 
 			const char * branchFullChar = git_reference_name(head);
 			CAutoBuf upstreambranchname;
-			if (!git_branch_upstream_name(upstreambranchname, repository, branchFullChar))
+			if (int ret = git_branch_upstream_name(upstreambranchname, repository, branchFullChar); ret == 0)
 			{
-				remotebranch = CUnicodeUtils::GetUnicodeLength(upstreambranchname->ptr, static_cast<int>(upstreambranchname->size));
+				remotebranch = CUnicodeUtils::GetUnicodeLengthSizeT(upstreambranchname->ptr, upstreambranchname->size);
 				remotebranch = remotebranch.Mid(static_cast<int>(wcslen(L"refs/remotes/")));
 				int pos = remotebranch.Find(L'/');
 				if (pos > 0)
 				{
 					CString remoteName;
-					remoteName.Format(L"remote.%s.url", static_cast<LPCTSTR>(remotebranch.Left(pos)));
+					remoteName.Format(L"remote.%s.url", static_cast<LPCWSTR>(remotebranch.Left(pos)));
 					config.GetString(remoteName, remoteUrl);
 				}
 			}
+			else if (ret == 1)
+				remotebranch = CGit::GetLibGit2LastErr();
 		}
 	}
-	else
-		branch = L"detached HEAD";
+	if (err < 0)
+		branch = CGit::GetLibGit2LastErr();
 
 	if (autocrlf.Trim().IsEmpty())
 		autocrlf = L"false";
@@ -676,6 +680,8 @@ void CGitPropertyPage::InitWorkfileView()
 		{
 			ShowWindow(GetDlgItem(m_hwnd, IDC_EXECUTABLE), SW_HIDE);
 			ShowWindow(GetDlgItem(m_hwnd, IDC_SYMLINK), SW_HIDE);
+			EnableWindow(GetDlgItem(m_hwnd, IDC_EXECUTABLE), FALSE);
+			EnableWindow(GetDlgItem(m_hwnd, IDC_EXECUTABLE), FALSE);
 		}
 	}
 	else
@@ -685,6 +691,10 @@ void CGitPropertyPage::InitWorkfileView()
 		ShowWindow(GetDlgItem(m_hwnd, IDC_SKIPWORKTREE), SW_HIDE);
 		ShowWindow(GetDlgItem(m_hwnd, IDC_EXECUTABLE), SW_HIDE);
 		ShowWindow(GetDlgItem(m_hwnd, IDC_SYMLINK), SW_HIDE);
+		EnableWindow(GetDlgItem(m_hwnd, IDC_ASSUMEVALID), FALSE);
+		EnableWindow(GetDlgItem(m_hwnd, IDC_SKIPWORKTREE), FALSE);
+		EnableWindow(GetDlgItem(m_hwnd, IDC_EXECUTABLE), FALSE);
+		EnableWindow(GetDlgItem(m_hwnd, IDC_EXECUTABLE), FALSE);
 	}
 
 	if (filenames.size() == 1 && m_fileStats.allAreVersionedItems)

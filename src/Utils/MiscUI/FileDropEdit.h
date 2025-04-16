@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2019 - TortoiseGit
+// Copyright (C) 2019, 2023 - TortoiseGit
 // Copyright (C) 2003-2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -121,7 +121,7 @@ public:
 			auto hDrop = static_cast<HDROP>(GlobalLock(medium.hGlobal));
 			if (hDrop)
 			{
-				TCHAR szFileName[MAX_PATH] = {0};
+				wchar_t szFileName[MAX_PATH] = { 0 };
 
 				UINT cFiles = DragQueryFile(hDrop, 0xFFFFFFFF, nullptr, 0);
 				for(UINT i = 0; i < cFiles; ++i)
@@ -155,7 +155,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 	std::unique_ptr<CFileDropTarget> m_pDropTarget;
-	virtual void PreSubclassWindow();
+	void PreSubclassWindow() override;
 };
 
 

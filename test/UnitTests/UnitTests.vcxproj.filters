@@ -188,6 +188,21 @@
     <ClInclude Include="..\..\src\Utils\MiscUI\IconBitmapUtils.h">
       <Filter>Utils\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\TortoiseProc\DiffLinesForStaging.h">
+      <Filter>TortoiseProc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\TortoiseProc\StagingOperations.h">
+      <Filter>TortoiseProc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\TortoiseProc\AppUtils.h">
+      <Filter>TortoiseProc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Utils\URLFinder.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\TortoiseProc\LogFile.h">
+      <Filter>TortoiseProc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -396,6 +411,27 @@
     </ClCompile>
     <ClCompile Include="..\..\src\Utils\MiscUI\IconBitmapUtils.cpp">
       <Filter>Utils\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="StagingTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\TortoiseProc\DiffLinesForStaging.cpp">
+      <Filter>TortoiseProc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\TortoiseProc\StagingOperations.cpp">
+      <Filter>TortoiseProc</Filter>
+    </ClCompile>
+    <ClCompile Include="AppUtilsTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\TortoiseProc\AppUtils.cpp">
+      <Filter>TortoiseProc</Filter>
+    </ClCompile>
+    <ClCompile Include="LogFileTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\TortoiseProc\LogFile.cpp">
+      <Filter>TortoiseProc</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014 - TortoiseGit
+// Copyright (C) 2014, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,9 +16,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "StandAloneDlg.h"
-#include "TortoiseProc.h"
 
 class CCheckCertificateDlg : public CStandAloneDialog
 {
@@ -35,11 +35,11 @@ public:
 	CString m_sCertificateCN;
 	CString m_sCertificateIssuer;
 
-	git_cert_x509* cert;
+	git_cert_x509* cert = nullptr;
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedOpencert();
 

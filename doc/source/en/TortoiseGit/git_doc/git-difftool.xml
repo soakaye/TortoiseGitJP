@@ -68,6 +68,28 @@ to <emphasis>git diff</emphasis> and accepts the same options and arguments. See
 </varlistentry>
 <varlistentry>
 <term>
+--rotate-to=&lt;file&gt;
+</term>
+<listitem>
+<simpara>
+        Start showing the diff for the given path,
+        the paths before it will move to the end and output.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--skip-to=&lt;file&gt;
+</term>
+<listitem>
+<simpara>
+        Start showing the diff for the given path, skipping all
+        the paths before it.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 -t &lt;tool&gt;
 </term>
 <term>
@@ -119,7 +141,7 @@ with custom merge tool commands and has the same value as <emphasis>$MERGED</emp
 </term>
 <listitem>
 <simpara>
-        <emphasis>git difftool</emphasis>'s default behavior is create symlinks to the
+        <emphasis>git difftool</emphasis>'s default behavior is to create symlinks to the
         working tree when run in <emphasis>--dir-diff</emphasis> mode and the right-hand
         side of the comparison yields the same content as the file in
         the working tree.
@@ -139,7 +161,7 @@ instead.  <emphasis>--no-symlinks</emphasis> is the default on Windows.</simpara
 <simpara>
         Specify a custom command for viewing diffs.
         <emphasis>git-difftool</emphasis> ignores the configured defaults and runs
-        <emphasis>$command $LOCAL $REMOTE</emphasis> when this option is specified.
+        <emphasis>&lt;command&gt; $LOCAL $REMOTE</emphasis> when this option is specified.
         Additionally, <emphasis>$BASE</emphasis> is set in the environment.
 </simpara>
 </listitem>
@@ -155,10 +177,12 @@ instead.  <emphasis>--no-symlinks</emphasis> is the default on Windows.</simpara
 <simpara>
         When <emphasis>git-difftool</emphasis> is invoked with the <emphasis>-g</emphasis> or <emphasis>--gui</emphasis> option
         the default diff tool will be read from the configured
-        <emphasis>diff.guitool</emphasis> variable instead of <emphasis>diff.tool</emphasis>. The <emphasis>--no-gui</emphasis>
-        option can be used to override this setting. If <emphasis>diff.guitool</emphasis>
-        is not set, we will fallback in the order of <emphasis>merge.guitool</emphasis>,
-        <emphasis>diff.tool</emphasis>, <emphasis>merge.tool</emphasis> until a tool is found.
+        <emphasis>diff.guitool</emphasis> variable instead of <emphasis>diff.tool</emphasis>. This may be
+        selected automatically using the configuration variable
+        <emphasis>difftool.guiDefault</emphasis>. The <emphasis>--no-gui</emphasis> option can be used to
+        override these settings. If <emphasis>diff.guitool</emphasis> is not set, we will
+        fallback in the order of <emphasis>merge.guitool</emphasis>, <emphasis>diff.tool</emphasis>,
+        <emphasis>merge.tool</emphasis> until a tool is found.
 </simpara>
 </listitem>
 </varlistentry>
@@ -168,7 +192,6 @@ instead.  <emphasis>--no-symlinks</emphasis> is the default on Windows.</simpara
 </term>
 <listitem>
 <simpara>
-        <emphasis>git-difftool</emphasis> invokes a diff tool individually on each file.
         Errors reported by the diff tool are ignored by default.
         Use <emphasis>--trust-exit-code</emphasis> to make <emphasis>git-difftool</emphasis> exit when an
         invoked diff tool returns a non-zero exit code.
@@ -180,10 +203,13 @@ instead.  <emphasis>--no-symlinks</emphasis> is the default on Windows.</simpara
 </variablelist>
 <simpara>See <xref linkend="git-diff(1)" /> for the full list of supported options.</simpara>
 </simplesect>
-<simplesect id="git-difftool(1)__config_variables">
-<title>CONFIG VARIABLES</title>
+<simplesect id="git-difftool(1)__configuration">
+<title>CONFIGURATION</title>
 <simpara><emphasis>git difftool</emphasis> falls back to <emphasis>git mergetool</emphasis> config variables when the
 difftool equivalents have not been defined.</simpara>
+<simpara>Everything above this line in this section isn't included from the
+<xref linkend="git-config(1)" /> documentation. The content that follows is the
+same as what's found there:</simpara>
 <variablelist>
 <varlistentry>
 <term>
@@ -191,7 +217,11 @@ diff.tool
 </term>
 <listitem>
 <simpara>
-        The default diff tool to use.
+        Controls which diff tool is used by <xref linkend="git-difftool(1)" />.
+        This variable overrides the value configured in <emphasis>merge.tool</emphasis>.
+        The list below shows the valid built-in values.
+        Any other value is treated as a custom diff tool and requires
+        that a corresponding difftool.&lt;tool&gt;.cmd variable is defined.
 </simpara>
 </listitem>
 </varlistentry>
@@ -201,8 +231,281 @@ diff.guitool
 </term>
 <listitem>
 <simpara>
-        The default diff tool to use when <emphasis>--gui</emphasis> is specified.
+        Controls which diff tool is used by <xref linkend="git-difftool(1)" /> when
+        the -g/--gui flag is specified. This variable overrides the value
+        configured in <emphasis>merge.guitool</emphasis>. The list below shows the valid
+        built-in values. Any other value is treated as a custom diff tool
+        and requires that a corresponding difftool.&lt;guitool&gt;.cmd variable
+        is defined.
 </simpara>
+<variablelist>
+<varlistentry>
+<term>
+<emphasis>araxis</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Araxis Merge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>bc</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Beyond Compare (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>bc3</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Beyond Compare (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>bc4</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Beyond Compare (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>codecompare</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Code Compare (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>deltawalker</emphasis>
+</term>
+<listitem>
+<simpara>
+Use DeltaWalker (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>diffmerge</emphasis>
+</term>
+<listitem>
+<simpara>
+Use DiffMerge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>diffuse</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Diffuse (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>ecmerge</emphasis>
+</term>
+<listitem>
+<simpara>
+Use ECMerge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>emerge</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Emacs' Emerge
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>examdiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use ExamDiff Pro (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>guiffy</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Guiffy's Diff Tool (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>gvimdiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use gVim (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>kdiff3</emphasis>
+</term>
+<listitem>
+<simpara>
+Use KDiff3 (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>kompare</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Kompare (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>meld</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Meld (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>nvimdiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Neovim
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>opendiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use FileMerge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>p4merge</emphasis>
+</term>
+<listitem>
+<simpara>
+Use HelixCore P4Merge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>smerge</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Sublime Merge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>tkdiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use TkDiff (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>vimdiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Vim
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>vscode</emphasis>
+</term>
+<listitem>
+<simpara>
+Use Visual Studio Code (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>winmerge</emphasis>
+</term>
+<listitem>
+<simpara>
+Use WinMerge (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<emphasis>xxdiff</emphasis>
+</term>
+<listitem>
+<simpara>
+Use xxdiff (requires a graphical session)
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+difftool.&lt;tool&gt;.cmd
+</term>
+<listitem>
+<simpara>
+        Specify the command to invoke the specified diff tool.
+        The specified command is evaluated in shell with the following
+        variables available:  <emphasis>LOCAL</emphasis> is set to the name of the temporary
+        file containing the contents of the diff pre-image and <emphasis>REMOTE</emphasis>
+        is set to the name of the temporary file containing the contents
+        of the diff post-image.
+</simpara>
+<simpara>See the <emphasis>--tool=&lt;tool&gt;</emphasis> option in <xref linkend="git-difftool(1)" /> for more details.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -218,13 +521,13 @@ difftool.&lt;tool&gt;.path
 </varlistentry>
 <varlistentry>
 <term>
-difftool.&lt;tool&gt;.cmd
+difftool.trustExitCode
 </term>
 <listitem>
 <simpara>
-        Specify the command to invoke the specified diff tool.
+        Exit difftool if the invoked diff tool returns a non-zero exit status.
 </simpara>
-<simpara>See the <emphasis>--tool=&lt;tool&gt;</emphasis> option above for more details.</simpara>
+<simpara>See the <emphasis>--trust-exit-code</emphasis> option in <xref linkend="git-difftool(1)" /> for more details.</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>
@@ -239,13 +542,16 @@ difftool.prompt
 </varlistentry>
 <varlistentry>
 <term>
-difftool.trustExitCode
+difftool.guiDefault
 </term>
 <listitem>
 <simpara>
-        Exit difftool if the invoked diff tool returns a non-zero exit status.
+        Set <emphasis>true</emphasis> to use the <emphasis>diff.guitool</emphasis> by default (equivalent to specifying
+        the <emphasis>--gui</emphasis> argument), or <emphasis>auto</emphasis> to select <emphasis>diff.guitool</emphasis> or <emphasis>diff.tool</emphasis>
+        depending on the presence of a <emphasis>DISPLAY</emphasis> environment variable value. The
+        default is <emphasis>false</emphasis>, where the <emphasis>--gui</emphasis> argument must be provided
+        explicitly for the <emphasis>diff.guitool</emphasis> to be used.
 </simpara>
-<simpara>See the <emphasis>--trust-exit-code</emphasis> option above for more details.</simpara>
 </listitem>
 </varlistentry>
 </variablelist>

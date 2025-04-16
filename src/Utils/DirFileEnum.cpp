@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2020 - TortoiseGit
-// Copyright (C) 2005-2006, 2009-2010 - TortoiseSVN
+// Copyright (C) 2015-2021, 2023, 2025 - TortoiseGit
+// Copyright (C) 2005-2006, 2009-2010, 2021 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -20,27 +20,24 @@
 #include "DirFileEnum.h"
 #include "StringUtils.h"
 
-CSimpleFileFind::CSimpleFileFind(const CString &sPath, LPCTSTR pPattern)
-	: m_dError(ERROR_SUCCESS)
-	, m_bFirst(TRUE)
-	, m_sPathPrefix(sPath)
+CSimpleFileFind::CSimpleFileFind(const CString& sPath, LPCWSTR pPattern)
+	: m_sPathPrefix(sPath)
 {
 	// Add a trailing \ to m_sPathPrefix if it is missing.
 	// Do not add one to "C:" since "C:" and "C:\" are different.
 	int len = m_sPathPrefix.GetLength();
 	if (len != 0)
 	{
-		TCHAR ch = sPath[len-1];
+		wchar_t ch = sPath[len - 1];
 		if (ch != '\\' && (ch != ':' || len != 2))
-			m_sPathPrefix += "\\";
+			m_sPathPrefix += L'\\';
 	}
 	if (len >= 248 && (CStringUtils::StartsWith(m_sPathPrefix, L"\\\\?\\")))
-		m_hFindFile = ::FindFirstFileEx(static_cast<LPCTSTR>(L"\\\\?\\" + m_sPathPrefix + pPattern), FindExInfoBasic, &m_FindFileData, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+		m_hFindFile = ::FindFirstFileEx(static_cast<LPCWSTR>(L"\\\\?\\" + m_sPathPrefix + pPattern), FindExInfoBasic, &m_findFileData, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
 	else
-		m_hFindFile = ::FindFirstFileEx(static_cast<LPCTSTR>(m_sPathPrefix + pPattern), FindExInfoBasic, &m_FindFileData, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
-	if (m_hFindFile == INVALID_HANDLE_VALUE) {
+		m_hFindFile = ::FindFirstFileEx(static_cast<LPCWSTR>(m_sPathPrefix + pPattern), FindExInfoBasic, &m_findFileData, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+	if (m_hFindFile == INVALID_HANDLE_VALUE)
 		m_dError = ::GetLastError();
-	}
 }
 
 CSimpleFileFind::~CSimpleFileFind()
@@ -60,7 +57,7 @@ BOOL CSimpleFileFind::FindNextFile()
 		return TRUE;
 	}
 
-	if (!::FindNextFile(m_hFindFile, &m_FindFileData))
+	if (!::FindNextFile(m_hFindFile, &m_findFileData))
 	{
 		m_dError = ::GetLastError();
 		return FALSE;
@@ -72,7 +69,8 @@ BOOL CSimpleFileFind::FindNextFile()
 BOOL CSimpleFileFind::FindNextFileNoDots()
 {
 	BOOL result;
-	do {
+	do
+	{
 		result = FindNextFile();
 	} while (result && IsDots());
 
@@ -82,13 +80,13 @@ BOOL CSimpleFileFind::FindNextFileNoDots()
 BOOL CSimpleFileFind::FindNextFileNoDirectories()
 {
 	BOOL result;
-	do {
+	do
+	{
 		result = FindNextFile();
 	} while (result && IsDirectory());
 
 	return result;
 }
-
 
 /*
  * Implementation notes:
@@ -131,7 +129,7 @@ inline void CDirFileEnum::PopStack()
 
 inline void CDirFileEnum::PushStack(const CString& sDirName)
 {
-	m_seStack = new CDirStackEntry(m_seStack,sDirName);
+	m_seStack = new CDirStackEntry(m_seStack, sDirName);
 }
 
 CDirFileEnum::CDirFileEnum(const CString& sDirName)
@@ -147,7 +145,7 @@ CDirFileEnum::~CDirFileEnum()
 		PopStack();
 }
 
-BOOL CDirFileEnum::NextFile(CString &sResult, bool* pbIsDirectory, bool bRecurse /* = true */)
+const CDirFileEnum::CDirStackEntry* CDirFileEnum::NextFile(bool bRecurse /* = true */)
 {
 	if (m_bIsNew)
 	{
@@ -165,12 +163,7 @@ BOOL CDirFileEnum::NextFile(CString &sResult, bool* pbIsDirectory, bool bRecurse
 	}
 
 	if (m_seStack)
-	{
-		sResult = m_seStack->GetFilePath();
-		if (pbIsDirectory)
-			*pbIsDirectory = m_seStack->IsDirectory();
-		return TRUE;
-	}
+		return m_seStack;
 
-	return FALSE;
+	return nullptr;
 }

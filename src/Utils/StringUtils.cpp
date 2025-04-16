@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2019 - TortoiseGit
+// Copyright (C) 2011-2019, 2021-2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2011, 2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@
 #include "StringUtils.h"
 #include "ClipboardHelper.h"
 #include "SmartHandle.h"
+#include <cwctype>
 
 int strwildcmp(const char *wild, const char *string)
 {
@@ -97,8 +98,7 @@ int wcswildcmp(const wchar_t *wild, const wchar_t *string)
 	return !*wild;
 }
 
-#ifdef _MFC_VER
-
+#if defined(CSTRING_AVAILABLE) || defined(_MFC_VER)
 void CStringUtils::RemoveAccelerators(CString& text)
 {
 	int pos = 0;
@@ -113,21 +113,43 @@ void CStringUtils::RemoveAccelerators(CString& text)
 	}
 }
 
-TCHAR CStringUtils::GetAccellerator(const CString& text)
+CString CStringUtils::EscapeAccellerators(CString& text)
+{
+	text.Replace(L"&", L"&&");
+	return text;
+}
+
+wchar_t CStringUtils::GetAccellerator(const CString& text)
 {
 	int pos = 0;
-	while ((pos = text.Find('&', pos)) >= 0)
+	while ((pos = text.Find(L'&', pos)) >= 0 && pos + 1 < text.GetLength())
 	{
-		if (text.GetLength() > (pos - 1))
-		{
-			if (text.GetAt(pos + 1) != ' ' && text.GetAt(pos + 1) != '&')
-				return towupper(text.GetAt(pos + 1));
-		}
+		if (text.GetAt(pos + 1) == '&')
+			++pos;
+		else if (text.GetAt(pos + 1) != ' ')
+			return towupper(text.GetAt(pos + 1));
 		++pos;
 	}
 	return L'\0';
 }
 
+CString CStringUtils::EnsureCRLF(const CString& text)
+{
+	CString result;
+	const int length = text.GetLength();
+	for (int i = 0; i < length; ++i)
+	{
+		if (text[i] == L'\r' && (i == length - 1 || text[i + 1] != L'\n'))
+			result += L"\r\n";
+		else if (text[i] == L'\n' && (i == 0 || text[i - 1] != L'\r'))
+			result += L"\r\n";
+		else
+			result += text[i];
+	}
+	return result;
+}
+#endif
+#ifdef _MFC_VER
 bool CStringUtils::WriteAsciiStringToClipboard(const CStringA& sClipdata, LCID lcid, HWND hOwningWnd)
 {
 	CClipboardHelper clipboardHelper;
@@ -229,7 +251,9 @@ bool CStringUtils::WriteDiffToClipboard(const CStringA& sClipdata, HWND hOwningW
 
 	return true;
 }
+#endif
 
+#ifdef _MFC_VER
 bool CStringUtils::ReadStringFromTextFile(const CString& path, CString& text)
 {
 	if (!PathFileExists(path))
@@ -238,12 +262,12 @@ bool CStringUtils::ReadStringFromTextFile(const CString& path, CString& text)
 	{
 		CStdioFile file;
 		// w/o typeBinary for some files \r gets dropped
-		if (!file.Open(path, CFile::typeBinary | CFile::modeRead | CFile::shareDenyWrite))
+		if (!file.Open(path, CFile::typeBinary | CFile::modeRead | CFile::shareDenyWrite) || file.GetLength() >= INT_MAX)
 			return false;
 
 		CStringA filecontent;
-		UINT filelength = static_cast<UINT>(file.GetLength());
-		int bytesread = static_cast<int>(file.Read(filecontent.GetBuffer(filelength), filelength));
+		const UINT filelength = static_cast<UINT>(file.GetLength());
+		const int bytesread = static_cast<int>(file.Read(filecontent.GetBuffer(filelength), filelength));
 		filecontent.ReleaseBuffer(bytesread);
 		text = CUnicodeUtils::GetUnicode(filecontent);
 		file.Close();
@@ -252,6 +276,7 @@ bool CStringUtils::ReadStringFromTextFile(const CString& path, CString& text)
 	{
 		text.Empty();
 		pE->Delete();
+		return false;
 	}
 	return true;
 }
@@ -326,7 +351,7 @@ CString CStringUtils::WordWrap(const CString& longstring, int limit, bool bCompa
 				{
 					if (((!PathIsFileSpec(longline))&&longline.Find(':')<3)||(PathIsURL(longline)))
 					{
-						TCHAR buf[MAX_PATH] = {0};
+						wchar_t buf[MAX_PATH] = { 0 };
 						PathCompactPathEx(buf, longline, limit+1, 0);
 						longline = buf;
 					}
@@ -354,7 +379,7 @@ CString CStringUtils::WordWrap(const CString& longstring, int limit, bool bCompa
 		{
 			if (((!PathIsFileSpec(longline))&&longline.Find(':')<3)||(PathIsURL(longline)))
 			{
-				TCHAR buf[MAX_PATH] = {0};
+				wchar_t buf[MAX_PATH] = { 0 };
 				PathCompactPathEx(buf, longline, limit+1, 0);
 				longline = buf;
 			}
@@ -366,14 +391,54 @@ CString CStringUtils::WordWrap(const CString& longstring, int limit, bool bCompa
 
 	return retString;
 }
+
+std::vector<CString> CStringUtils::WordWrap(const CString& longstring, int limit, int tabSize)
+{
+	int nLength = longstring.GetLength();
+	std::vector<CString> retVec;
+
+	if (limit < 0)
+		limit = 0;
+
+	int nLineStart = 0;
+	int nLineEnd = 0;
+	int tabOffset = 0;
+	for (int i = 0; i < nLength; ++i)
+	{
+		if (i - nLineStart + tabOffset >= limit)
+		{
+			if (nLineEnd == nLineStart)
+				nLineEnd = i;
+
+			auto sMid = longstring.Mid(nLineStart, nLineEnd - nLineStart);
+			retVec.push_back(sMid);
+
+			tabOffset = 0;
+			nLineStart = nLineEnd;
+		}
+		if (longstring[i] == ' ')
+			nLineEnd = i;
+		if (longstring[i] == '\t')
+		{
+			tabOffset += (tabSize - i % tabSize);
+			nLineEnd = i;
+		}
+	}
+
+	auto sMid = longstring.Mid(nLineStart);
+	retVec.push_back(sMid);
+
+	return retVec;
+}
+
 int CStringUtils::GetMatchingLength (const CString& lhs, const CString& rhs)
 {
-	int lhsLength = lhs.GetLength();
-	int rhsLength = rhs.GetLength();
-	int maxResult = min (lhsLength, rhsLength);
+	const int lhsLength = lhs.GetLength();
+	const int rhsLength = rhs.GetLength();
+	const int maxResult = min(lhsLength, rhsLength);
 
-	LPCTSTR pLhs = lhs;
-	LPCTSTR pRhs = rhs;
+	LPCWSTR pLhs = lhs;
+	LPCWSTR pRhs = rhs;
 
 	for (int i = 0; i < maxResult; ++i)
 		if (pLhs[i] != pRhs[i])
@@ -451,6 +516,51 @@ static void cleanup_space(CString& string)
 	}
 }
 
+CString CStringUtils::UnescapeGitQuotePath(const CString& s)
+{
+	return UnescapeGitQuotePathA(CUnicodeUtils::GetUTF8(s));
+}
+
+CString CStringUtils::UnescapeGitQuotePathA(const CStringA& s)
+{
+	const int i_size = s.GetLength();
+	CStringA t;
+	t.Preallocate(i_size);
+	bool isEscaped = false;
+	for (int i = 0; i < i_size; ++i)
+	{
+		char c = s[i];
+		if (isEscaped)
+		{
+			if (c >= '0' && c <= '3')
+			{
+				if (i + 2 < i_size)
+				{
+					c = (((c - '0') & 03) << 6) | (((s[i + 1] - '0') & 07) << 3) | ((s[i + 2] - '0') & 07);
+					i += 2;
+					t += c;
+				}
+			}
+			else
+			{
+				// we're on purpose not supporting all possible abbreviations such as \n, \r, \t here as these filenames are invalid on Windows anaway
+				t += c;
+			}
+			isEscaped = false;
+		}
+		else
+		{
+			if (c == '\\')
+				isEscaped = true;
+			else if (c == '"')
+				break;
+			else
+				t += c;
+		}
+	}
+	return CUnicodeUtils::GetUnicode(t);
+}
+
 static void get_sane_name(CString* out, const CString* name, const CString& email)
 {
 	const CString* src = name;
@@ -465,10 +575,10 @@ static void parse_bogus_from(const CString& mailaddress, CString& parsedAddress,
 {
 	/* John Doe <johndoe> */
 
-	int bra = mailaddress.Find(L'<');
+	const int bra = mailaddress.Find(L'<');
 	if (bra < 0)
 		return;
-	int ket = mailaddress.Find(L'>');
+	const int ket = mailaddress.Find(L'>');
 	if (ket < 0)
 		return;
 
@@ -525,7 +635,7 @@ void CStringUtils::ParseEmailAddress(CString mailaddress, CString& parsedAddress
 		}
 	}
 
-	auto buf = mailaddress.GetBuffer();
+	const auto buf = mailaddress.GetBuffer();
 	auto at = wcschr(buf, L'@');
 	if (!at)
 	{
@@ -550,7 +660,7 @@ void CStringUtils::ParseEmailAddress(CString mailaddress, CString& parsedAddress
 	}
 
 	mailaddress.ReleaseBuffer();
-	size_t el = wcscspn(at, L" \n\t\r\v\f>");
+	const size_t el = wcscspn(at, L" \n\t\r\v\f>");
 	parsedAddress = mailaddress.Mid(static_cast<int>(at - buf), static_cast<int>(el));
 	mailaddress.Delete(static_cast<int>(at - buf), static_cast<int>(el + (at[el] ? 1 : 0)));
 
@@ -582,28 +692,28 @@ bool CStringUtils::StartsWith(const wchar_t* heystack, const CString& needle)
 
 bool CStringUtils::EndsWith(const CString& heystack, const wchar_t* needle)
 {
-	auto lenNeedle = wcslen(needle);
-	auto lenHeystack = static_cast<size_t>(heystack.GetLength());
+	const auto lenNeedle = wcslen(needle);
+	const auto lenHeystack = static_cast<size_t>(heystack.GetLength());
 	if (lenNeedle > lenHeystack)
 		return false;
-	return wcsncmp(static_cast<LPCTSTR>(heystack) + (lenHeystack - lenNeedle), needle, lenNeedle) == 0;
+	return wcsncmp(static_cast<LPCWSTR>(heystack) + (lenHeystack - lenNeedle), needle, lenNeedle) == 0;
 }
 
 bool CStringUtils::EndsWith(const CString& heystack, const wchar_t needle)
 {
-	auto lenHeystack = heystack.GetLength();
+	const auto lenHeystack = heystack.GetLength();
 	if (!lenHeystack)
 		return false;
-	return *(static_cast<LPCTSTR>(heystack) + (lenHeystack - 1)) == needle;
+	return *(static_cast<LPCWSTR>(heystack) + (lenHeystack - 1)) == needle;
 }
 
 bool CStringUtils::EndsWithI(const CString& heystack, const wchar_t* needle)
 {
-	auto lenNeedle = wcslen(needle);
-	auto lenHeystack = static_cast<size_t>(heystack.GetLength());
+	const auto lenNeedle = wcslen(needle);
+	const auto lenHeystack = static_cast<size_t>(heystack.GetLength());
 	if (lenNeedle > lenHeystack)
 		return false;
-	return _wcsnicmp(static_cast<LPCTSTR>(heystack) + (lenHeystack - lenNeedle), needle, lenNeedle) == 0;
+	return _wcsnicmp(static_cast<LPCWSTR>(heystack) + (lenHeystack - lenNeedle), needle, lenNeedle) == 0;
 }
 
 bool CStringUtils::StartsWithI(const wchar_t* heystack, const CString& needle)
@@ -611,7 +721,7 @@ bool CStringUtils::StartsWithI(const wchar_t* heystack, const CString& needle)
 	return _wcsnicmp(heystack, needle, needle.GetLength()) == 0;
 }
 
-bool CStringUtils::WriteStringToTextFile(LPCTSTR path, LPCTSTR text, bool bUTF8 /* = true */)
+bool CStringUtils::WriteStringToTextFile(LPCWSTR path, LPCWSTR text, bool bUTF8 /* = true */)
 {
 	return WriteStringToTextFile(static_cast<const std::wstring&>(path), static_cast<const std::wstring&>(text), bUTF8);
 }
@@ -645,7 +755,7 @@ bool CStringUtils::WriteStringToTextFile(const std::wstring& path, const std::ws
 	}
 	else
 	{
-		if (!WriteFile(hFile, text.c_str(), static_cast<DWORD>(text.length()), &dwWritten, nullptr))
+		if (!WriteFile(hFile, text.c_str(), static_cast<DWORD>(text.length() * sizeof(wchar_t)), &dwWritten, nullptr))
 		{
 			return false;
 		}
@@ -653,15 +763,15 @@ bool CStringUtils::WriteStringToTextFile(const std::wstring& path, const std::ws
 	return true;
 }
 
-inline static void PipeToNull(TCHAR* ptr)
+inline static void PipeToNull(wchar_t* ptr)
 {
 	if (*ptr == '|')
 		*ptr = '\0';
 }
 
-void CStringUtils::PipesToNulls(TCHAR* buffer, size_t length)
+void CStringUtils::PipesToNulls(wchar_t* buffer, size_t length)
 {
-	TCHAR* ptr = buffer + length;
+	wchar_t* ptr = buffer + length;
 	while (ptr != buffer)
 	{
 		PipeToNull(ptr);
@@ -669,12 +779,26 @@ void CStringUtils::PipesToNulls(TCHAR* buffer, size_t length)
 	}
 }
 
-void CStringUtils::PipesToNulls(TCHAR* buffer)
+void CStringUtils::PipesToNulls(wchar_t* buffer)
 {
-	TCHAR* ptr = buffer;
+	wchar_t* ptr = buffer;
 	while (*ptr)
 	{
 		PipeToNull(ptr);
 		++ptr;
 	}
+}
+
+bool CStringUtils::TrimRight(std::string_view& view)
+{
+	while (!view.empty() && std::isspace(static_cast<unsigned char>(view.back())))
+		view.remove_suffix(1);
+	return true;
+}
+
+bool CStringUtils::TrimRight(std::wstring_view& view)
+{
+	while (!view.empty() && std::iswspace(static_cast<wchar_t>(view.back())))
+		view.remove_suffix(1);
+	return true;
 }

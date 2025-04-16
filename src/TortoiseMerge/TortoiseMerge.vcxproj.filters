@@ -629,8 +629,14 @@
     <ClInclude Include="..\Utils\Monitor.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\Resources\TGitMergeHelpMapping.ini">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Resources\explorer.ico">
+      <Filter>Resource Files</Filter>
+    </None>
     <None Include="..\Resources\lineadded.ico">
       <Filter>Resource Files</Filter>
     </None>
@@ -694,6 +700,9 @@
     <None Include="..\Resources\ttf_glyph.bmp">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\Resources\TortoiseGitMerge_Logo.svgz">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\Resources\TortoiseMergeENG.rc">
@@ -709,5 +718,8 @@
     <Image Include="..\Resources\ribbon\Filter16.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="..\perMonitorV2DpiAware.manifest" />
   </ItemGroup>
 </Project>

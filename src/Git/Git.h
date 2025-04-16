@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -30,11 +30,11 @@
 #define REG_SYSTEM_GITCONFIGPATH L"Software\\TortoiseGit\\SystemConfig"
 #define REG_MSYSGIT_EXTRA_PATH L"Software\\TortoiseGit\\MSysGitExtra"
 
-#define DEFAULT_USE_LIBGIT2_MASK (1 << CGit::GIT_CMD_MERGE_BASE) | (1 << CGit::GIT_CMD_DELETETAGBRANCH) | (1 << CGit::GIT_CMD_GETONEFILE) | (1 << CGit::GIT_CMD_ADD) | (1 << CGit::GIT_CMD_CHECKCONFLICTS) | (1 << CGit::GIT_CMD_GET_COMMIT)
+#define DEFAULT_USE_LIBGIT2_MASK (1 << CGit::GIT_CMD_MERGE_BASE) | (1 << CGit::GIT_CMD_DELETETAGBRANCH) | (1 << CGit::GIT_CMD_GETONEFILE) | (1 << CGit::GIT_CMD_ADD) | (1 << CGit::GIT_CMD_CHECKCONFLICTS) | (1 << CGit::GIT_CMD_GET_COMMIT) | (1 << CGit::GIT_CMD_GETCONFLICTINFO) | (1 << CGit::GIT_CMD_FOREACHREF)
 
 struct git_repository;
 
-typedef CComCritSecLock<CComCriticalSection> CAutoLocker;
+using CAutoLocker = CComCritSecLock<CComCriticalSection>;
 
 constexpr static inline int ConvertVersionToInt(unsigned __int8 major, unsigned __int8 minor, unsigned __int8 patchlevel, unsigned __int8 build = 0)
 {
@@ -81,21 +81,84 @@ public:
 	//This function is called when command output data is available.
 	//When this function returns 'true' the git command should be aborted.
 	//This behavior is not implemented yet.
-	virtual bool	OnOutputData(const BYTE* data, size_t size)=0;
-	virtual bool	OnOutputErrData(const BYTE* data, size_t size)=0;
+	virtual bool	OnOutputData(const char* data, size_t size) = 0;
+	virtual bool	OnOutputErrData(const char* data, size_t size) = 0;
 	virtual void	OnEnd(){}
 
 private:
 	CString m_Cmd;
 };
 
-typedef std::function<void (const CStringA&)> GitReceiverFunc;
+template <typename GitReceiverFunc>
+class CGitCallCb : public CGitCall
+{
+public:
+	CGitCallCb(CString cmd, const GitReceiverFunc recv, BYTE_VECTOR* pvectorErr = nullptr)
+		: CGitCall(cmd)
+		, m_recv(recv)
+		, m_pvectorErr(pvectorErr)
+	{
+		static_assert(std::is_convertible_v<GitReceiverFunc, std::function<void(const CStringA&)>>, "Wrong signature for GitReceiverFunc!");
+	}
 
-class CEnvironment : protected std::vector<TCHAR>
+	bool OnOutputData(const char* data, size_t size) override
+	{
+		ASSERT(data);
+		// Add data
+		if (size == 0 || size >= INT_MAX)
+			return false;
+		const int oldEndPos = m_buffer.GetLength();
+		int newLength;
+		if (IntAdd(oldEndPos, static_cast<int>(size), &newLength) != S_OK)
+			return false;
+		memcpy(CStrBufA(m_buffer, newLength, 0) + oldEndPos, data, size);
+
+		// Break into lines and feed to m_recv
+		int eolPos;
+		CStringA line;
+		while ((eolPos = m_buffer.Find('\n')) >= 0)
+		{
+			memcpy(CStrBufA(line, eolPos, 0), static_cast<const char*>(m_buffer), eolPos);
+			auto oldLen = m_buffer.GetLength();
+			memmove(m_buffer.GetBuffer(oldLen), static_cast<const char*>(m_buffer) + eolPos + 1, m_buffer.GetLength() - eolPos - 1);
+			m_buffer.ReleaseBuffer(oldLen - eolPos - 1);
+			m_recv(line);
+		}
+		return false;
+	}
+
+	bool OnOutputErrData(const char* data, size_t size) override
+	{
+		ASSERT(data);
+		if (!m_pvectorErr || size == 0 || size >= INT_MAX)
+			return false;
+		const size_t oldsize = m_pvectorErr->size();
+		size_t newLength;
+		if (SizeTAdd(oldsize, size, &newLength) != S_OK)
+			return false;
+		m_pvectorErr->resize(newLength);
+		memcpy(&*(m_pvectorErr->begin() + oldsize), data, size);
+		return false;
+	}
+
+	void OnEnd() override
+	{
+		if (!m_buffer.IsEmpty())
+			m_recv(m_buffer);
+		m_buffer.Empty(); // Just for sure
+	}
+
+private:
+	GitReceiverFunc m_recv;
+	CStringA m_buffer;
+	BYTE_VECTOR* m_pvectorErr;
+};
+
+class CEnvironment : protected std::vector<wchar_t>
 {
 public:
 	CEnvironment() : baseptr(nullptr) {}
-	CEnvironment(const CEnvironment& env) : std::vector<TCHAR>(env)
+	CEnvironment(const CEnvironment& env) : std::vector<wchar_t>(env)
 	{
 		baseptr = data();
 	}
@@ -109,13 +172,13 @@ public:
 		return *this;
 	}
 	void CopyProcessEnvironment();
-	CString GetEnv(const TCHAR *name);
-	void SetEnv(const TCHAR* name, const TCHAR* value);
+	CString GetEnv(const wchar_t* name) const;
+	void SetEnv(const wchar_t* name, const wchar_t* value);
 	void AddToPath(CString value);
 	void clear();
-	bool empty();
-	operator LPTSTR();
-	operator LPWSTR*();
+	bool empty() const;
+	operator LPWSTR();
+	operator const LPWSTR*() const;
 	LPWSTR baseptr;
 	CEnvironment(CEnvironment&& env) = delete;
 	CEnvironment& operator =(CEnvironment&& env) = delete;
@@ -125,12 +188,12 @@ class CGit
 private:
 	CString		gitLastErr;
 protected:
-	GIT_DIFF m_GitDiff;
-	GIT_DIFF m_GitSimpleListDiff;
-#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
+	GIT_DIFF m_GitDiff = nullptr;
+	GIT_DIFF m_GitSimpleListDiff = nullptr;
+#ifdef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 public:
 #endif
-	bool m_IsGitDllInited;
+	bool m_IsGitDllInited = false;
 public:
 	CComAutoCriticalSection m_critGitDllSec;
 	bool	m_IsUseGitDLL;
@@ -145,7 +208,7 @@ public:
 		//it is netshare \\server\sharefoldername
 		// \\server\.git will create smb error log.
 		{
-			int length = path.GetLength();
+			const int length = path.GetLength();
 
 			if(length<2)
 				return false;
@@ -167,20 +230,29 @@ public:
 
 	inline void ForceReInitDll()
 	{
+#ifdef TGITCACHE
+		ATLASSERT("we should never get here");
+#endif
 		m_IsGitDllInited = false;
 		CheckAndInitDll();
 	}
 	void CheckAndInitDll()
 	{
+#ifdef TGITCACHE
+		ATLASSERT("we should never get here");
+#endif
 		if(!m_IsGitDllInited)
 		{
-			git_init();
+			git_init(m_Environment);
 			m_IsGitDllInited=true;
 		}
 	}
 
 	GIT_DIFF GetGitDiff()
 	{
+#ifdef TGITCACHE
+		ATLASSERT("we should never get here");
+#endif
 		if(m_GitDiff)
 			return m_GitDiff;
 		else
@@ -195,6 +267,9 @@ public:
 
 	GIT_DIFF GetGitSimpleListDiff()
 	{
+#ifdef TGITCACHE
+		ATLASSERT("we should never get here");
+#endif
 		if(m_GitSimpleListDiff)
 			return m_GitSimpleListDiff;
 		else
@@ -206,9 +281,9 @@ public:
 
 	BOOL CheckMsysGitDir(BOOL bFallback = TRUE);
 	BOOL FindAndSetGitExePath(BOOL bFallback);
-	BOOL m_bInitialized;
+	bool m_bInitialized = false;
 
-	typedef enum
+	enum LIBGIT2_CMD
 	{
 		GIT_CMD_CLONE,
 		GIT_CMD_FETCH,
@@ -225,7 +300,12 @@ public:
 		GIT_CMD_CHECKCONFLICTS,
 		GIT_CMD_GET_COMMIT,
 		GIT_CMD_LOGLISTDIFF,
-	} LIBGIT2_CMD;
+		GIT_CMD_BRANCH_CONTAINS,
+		GIT_CMD_GETCONFLICTINFO,
+		GIT_CMD_FOREACHREF,
+		LAST_VALUE,
+	};
+	static_assert(LIBGIT2_CMD::LAST_VALUE < sizeof(DWORD) * 8, "too many flags for storing them in a DWORD bitfield");
 	bool UsingLibGit2(LIBGIT2_CMD cmd) const;
 	/**
 	 * callback type should be git_cred_acquire_cb
@@ -236,10 +316,8 @@ public:
 	CString GetHomeDirectory() const;
 	CString GetGitLocalConfig() const;
 	CString GetGitGlobalConfig() const;
-	CString GetGitGlobalXDGConfigPath() const;
-	CString GetGitGlobalXDGConfig() const;
+	CString GetGitGlobalXDGConfig(bool returnDirectory = false) const;
 	CString GetGitSystemConfig() const;
-	CString GetGitProgramDataConfig() const;
 	CAutoRepository GetGitRepository() const;
 	static CStringA GetGitPathStringA(const CString &path);
 	static CString ms_LastMsysGitDir;	// the last msysgitdir added to the path, blank if none
@@ -249,6 +327,7 @@ public:
 	static bool ms_bMsys2Git;
 	static int ms_iSimilarityIndexThreshold;
 	static int m_LogEncode;
+	CString GetNotesRef() const;
 	static bool IsBranchNameValid(const CString& branchname);
 	bool IsLocalBranch(const CString& shortName);
 	bool IsBranchTagNameUnique(const CString& name);
@@ -259,33 +338,48 @@ public:
 	bool BranchTagExists(const CString& name, bool isBranch = true);
 	unsigned int Hash2int(const CGitHash &hash);
 
-	PROCESS_INFORMATION m_CurrentGitPi;
+	PROCESS_INFORMATION m_CurrentGitPi{};
 
-	CGit(void);
-	~CGit(void);
+	CGit();
+	~CGit();
 
 	int Run(CString cmd, CString* output, int code);
 	int Run(CString cmd, CString* output, CString* outputErr, int code);
 	int Run(CString cmd, BYTE_VECTOR* byte_array, BYTE_VECTOR* byte_arrayErr = nullptr);
-	int Run(CGitCall* pcall);
-	int Run(CString cmd, const GitReceiverFunc& recv, CString* outputErr = nullptr);
+	int Run(CGitCall& pcall);
+	template<typename GitReceiverFunc>
+	int Run(CString cmd, GitReceiverFunc recv, CString* outputErr = nullptr)
+	{
+		if (outputErr)
+		{
+			BYTE_VECTOR vectorErr;
+			CGitCallCb call(cmd, recv, &vectorErr);
+			const int ret = Run(call);
+			vectorErr.push_back(0);
+			StringAppend(*outputErr, vectorErr.data());
+			return ret;
+		}
+
+		CGitCallCb call(cmd, recv);
+		return Run(call);
+	}
 
 private:
 	CComAutoCriticalSection	m_critSecThreadMap;
 	std::map<DWORD, HANDLE>	m_AsyncReadStdErrThreadMap;
 	static DWORD WINAPI AsyncReadStdErrThread(LPVOID lpParam);
-	typedef struct AsyncReadStdErrThreadArguments
+	struct ASYNCREADSTDERRTHREADARGS
 	{
 		HANDLE fileHandle;
 		CGitCall* pcall;
-	} ASYNCREADSTDERRTHREADARGS, *PASYNCREADSTDERRTHREADARGS;
+	};
 	CString GetUnifiedDiffCmd(const CTGitPath& path, const CString& rev1, const CString& rev2, bool bMerge, bool bCombine, int diffContext, bool bNoPrefix = false);
 
 public:
 #ifdef _MFC_VER
 	void KillRelatedThreads(CWinThread* thread);
 #endif
-	int RunAsync(CString cmd, PROCESS_INFORMATION* pi, HANDLE* hRead, HANDLE* hErrReadOut, const CString* StdioFile = nullptr);
+	int RunAsync(CString cmd, PROCESS_INFORMATION& pi, HANDLE* hRead, HANDLE* hErrReadOut, const CString* StdioFile = nullptr);
 	int RunLogFile(CString cmd, const CString &filename, CString *stdErr);
 
 	bool IsFastForward(const CString& from, const CString& to, CGitHash* commonAncestor = nullptr);
@@ -296,10 +390,10 @@ public:
 	int SetConfigValue(const CString& key, const CString& value, CONFIG_TYPE type = CONFIG_LOCAL);
 	int UnsetConfigValue(const CString& key, CONFIG_TYPE type = CONFIG_LOCAL);
 
-	CString GetUserName(void);
-	CString GetUserEmail(void);
-	CString GetCommitterName(void);
-	CString GetCommitterEmail(void);
+	CString GetUserName();
+	CString GetUserEmail();
+	CString GetCommitterName();
+	CString GetCommitterEmail();
 	CString GetCurrentBranch(bool fallback = false);
 	void GetRemoteTrackedBranch(const CString& localBranch, CString& remote, CString& branch);
 	void GetRemoteTrackedBranchForHEAD(CString& remote, CString& branch);
@@ -311,8 +405,6 @@ public:
 	*/
 	BOOL CheckCleanWorkTree(bool stagedOk = false);
 	BOOL IsResultingCommitBecomeEmpty(bool amend = false);
-	int Revert(const CString& commit, const CTGitPathList &list, CString& err);
-	int Revert(const CString& commit, const CTGitPath &path, CString& err);
 	int DeleteRef(const CString& reference);
 	/**
 	Use this method only if m_IsUseLibGit2 is used for fallbacks.
@@ -342,6 +434,7 @@ public:
 		LOG_ORDER_CHRONOLOGIALREVERSED,
 		LOG_ORDER_TOPOORDER,
 		LOG_ORDER_DATEORDER,
+		LOG_ORDER_AUTHORDATEORDER,
 	};
 
 	typedef enum
@@ -373,6 +466,7 @@ public:
 		LOG_INFO_BASIC_REFS = 0x10000,
 		LOG_INFO_SPARSE = 0x20000,
 		LOG_INFO_ALWAYS_APPLY_RANGE = 0x40000,
+		LOG_INFO_FULL_HISTORY = 0x80000,
 	}LOG_INFO_MASK;
 
 	typedef enum
@@ -415,11 +509,7 @@ public:
 	int GetHash(CGitHash &hash, const CString& friendname);
 	static int GetHash(git_repository * repo, CGitHash &hash, const CString& friendname, bool skipFastCheck = false);
 
-	static void StringAppend(CString* str, const char* p, int code = CP_UTF8, int length = -1);
-	inline static void StringAppend(CString* str, const BYTE* p, int code = CP_UTF8, int length = -1)
-	{
-		StringAppend(str, reinterpret_cast<const char*>(p), code, length);
-	}
+	static void StringAppend(CString& str, const char* p, int code = CP_UTF8, int length = -1);
 
 	BOOL CanParseRev(CString ref);
 	/**
@@ -431,11 +521,33 @@ public:
 	int HasWorkingTreeConflicts();
 	/** Returns 0 if no conflict, if a conflict was found and -1 in case of a failure */
 	int HasWorkingTreeConflicts(git_repository* repo);
-	int IsRebaseRunning();
 	void GetBisectTerms(CString* good, CString* bad);
 	int GetRefList(STRING_VECTOR &list);
 
-	CGitHash GetSubmodulePointer();
+	class SubmoduleInfo
+	{
+	public:
+		CGitHash superProjectHash;
+		CGitHash mergeconflictMineHash;
+		CGitHash mergeconflictTheirsHash;
+		CString mineLabel;
+		CString theirsLabel;
+
+		bool AnyMatches(const CGitHash& hash) const
+		{
+			return !superProjectHash.IsEmpty() && superProjectHash == hash || !mergeconflictMineHash.IsEmpty() && mergeconflictMineHash == hash || !mergeconflictTheirsHash.IsEmpty() && mergeconflictTheirsHash == hash;
+		}
+		void Empty()
+		{
+			superProjectHash.Empty();
+			mergeconflictMineHash.Empty();
+			mergeconflictTheirsHash.Empty();
+		}
+	};
+	int GetSubmodulePointer(SubmoduleInfo& mergeInfo) const;
+
+	int ApplyPatchToIndex(const CString& patchPath, CString* out);
+	int ApplyPatchToIndexReverse(const CString& patchPath, CString* out);
 
 	int RefreshGitIndex();
 	int GetOneFile(const CString &Refname, const CTGitPath &path, const CString &outputfile);
@@ -446,22 +558,19 @@ public:
 	static CString StripRefName(CString refName);
 
 	int GetCommitDiffList(const CString &rev1, const CString &rev2, CTGitPathList &outpathlist, bool ignoreSpaceAtEol = false, bool ignoreSpaceChange = false, bool ignoreAllSpace = false, bool ignoreBlankLines = false);
-	int GetInitAddList(CTGitPathList &outpathlist);
-	int GetWorkingTreeChanges(CTGitPathList& result, bool amend = false, const CTGitPathList* filterlist = nullptr, bool includedStaged = false);
+	int GetInitAddList(CTGitPathList &outpathlist, bool getStagingStatus = false);
+	int GetWorkingTreeChanges(CTGitPathList& result, bool amend = false, const CTGitPathList* filterlist = nullptr, bool includedStaged = false, bool getStagingStatus = false);
 
-	static __int64 filetime_to_time_t(__int64 winTime)
+	static int ParseConflictHashesFromLsFile(const BYTE_VECTOR& out, CGitHash& baseHash, bool& baseIsFile, CGitHash& mineHash, bool& mineIsFile, CGitHash& remoteHash, bool& remoteIsFile);
+
+	constexpr static __int64 filetime_to_time_t(__int64 winTime) noexcept
 	{
 		winTime -= 116444736000000000LL; /* Windows to Unix Epoch conversion */
 		winTime /= 10000000;		 /* Nano to seconds resolution */
 		return static_cast<time_t>(winTime);
 	}
 
-	static inline __int64 filetime_to_time_t(const FILETIME *ft)
-	{
-		return filetime_to_time_t(static_cast<__int64>(ft->dwHighDateTime) << 32 | ft->dwLowDateTime);
-	}
-
-	static int GetFileModifyTime(LPCTSTR filename, __int64* time, bool* isDir = nullptr, __int64* size = nullptr, bool* isSymlink = nullptr)
+	static int GetFileModifyTime(LPCWSTR filename, __int64* time, bool* isDir = nullptr, __int64* size = nullptr, bool* isSymlink = nullptr)
 	{
 		WIN32_FILE_ATTRIBUTE_DATA fdata;
 		if (GetFileAttributesEx(filename, GetFileExInfoStandard, &fdata))
@@ -506,7 +615,7 @@ public:
 	int SetGitNotes(const CGitHash& hash, const CString& notes);
 
 	int GetUnifiedDiff(const CTGitPath& path, const CString& rev1, const CString& rev2, CString patchfile, bool bMerge, bool bCombine, int diffContext, bool bNoPrefix = false);
-	int GetUnifiedDiff(const CTGitPath& path, const CString& rev1, const CString& rev2, CStringA* buffer, bool bMerge, bool bCombine, int diffContext);
+	int GetUnifiedDiff(const CTGitPath& path, const CString& rev1, const CString& rev2, CStringA& buffer, bool bMerge, bool bCombine, int diffContext);
 
 	int GitRevert(int parent, const CGitHash &hash);
 
@@ -534,6 +643,6 @@ public:
 };
 extern void GetTempPath(CString &path);
 extern CString GetTempFile();
-extern DWORD GetTortoiseGitTempPath(DWORD nBufferLength, LPTSTR lpBuffer);
+extern DWORD GetTortoiseGitTempPath(DWORD nBufferLength, LPWSTR lpBuffer);
 
 extern CGit g_Git;

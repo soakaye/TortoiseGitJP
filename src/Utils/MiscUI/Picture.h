@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseGit
-// Copyright (C) 2003-2007, 2009, 2012-2015, 2017 - TortoiseSVN
+// Copyright (C) 2020, 2023, 2025 - TortoiseGit
+// Copyright (C) 2003-2007, 2009, 2012-2015, 2017, 2023 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,7 +18,6 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #pragma once
-#include "tstring.h"
 #include <string>
 #include <ocidl.h>
 #pragma warning(push)
@@ -26,6 +25,7 @@
 #include <GdiPlus.h>
 #pragma warning(pop)
 #include "SmartHandle.h"
+#include <memory>
 #include <vector>
 
 using namespace Gdiplus;
@@ -76,7 +76,7 @@ public:
 	 * \param sFilePathName the path of the picture file
 	 * \return TRUE if succeeded.
 	 */
-	bool Load(tstring sFilePathName);
+	bool Load(std::wstring sFilePathName);
 	/**
 	 * draws the loaded picture directly to the given device context.
 	 * \note
@@ -166,18 +166,18 @@ public:
 	void FreePictureData();
 
 	DWORD GetFileSize() const {return m_nSize;}
-	tstring GetFileSizeAsText(bool bAbbrev = true);
+	std::wstring GetFileSizeAsText(bool bAbbrev = true);
 	CPicture();
 	virtual ~CPicture();
 
 
 	CComPtr<IPicture> m_IPicture;	///< Same As LPPICTURE (typedef IPicture __RPC_FAR *LPPICTURE)
 
-	LONG		m_Height;	///< Height (in pixels)
-	LONG		m_Width;	///< Width (in pixels)
-	UINT		m_ColorDepth;///< the color depth
-	LONG		m_Weight;	///< Size Of The Image Object In Bytes (File OR Resource)
-	tstring m_Name;			///< The FileName of the Picture as used in Load()
+	LONG		m_Height = 0;	///< Height (in pixels)
+	LONG		m_Width = 0;	///< Width (in pixels)
+	UINT		m_ColorDepth = 0;///< the color depth
+	LONG		m_Weight = 0;	///< Size Of The Image Object In Bytes (File OR Resource)
+	std::wstring m_Name;	///< The FileName of the Picture as used in Load()
 
 protected:
 	/**
@@ -189,21 +189,22 @@ protected:
 	bool LoadPictureData(BYTE* pBuffer, int nSize);
 
 private:
-	bool TryLoadIcon(const tstring& sFilePathName);
-	bool TryLoadWIC(const tstring& sFilePathName);
-	bool TryLoadFreeImage(const tstring& sFilePathName);
+	bool TryLoadIcon(const std::wstring& sFilePathName);
+	bool TryLoadWIC(const std::wstring& sFilePathName);
+	bool TryLoadFreeImage(const std::wstring& sFilePathName);
+	bool TryLoadSvg(const std::wstring& sFilePathName);
 
 	GdiplusStartupInput gdiplusStartupInput;
-	ULONG_PTR			gdiplusToken;
+	ULONG_PTR			gdiplusToken = 0;
 	std::unique_ptr<Bitmap> m_pBitmap;
 	std::unique_ptr<BYTE[]> m_pBitmapBuffer;
-	InterpolationMode	m_ip;
-	bool				bIsIcon;
-	bool				bIsTiff;
-	UINT				nCurrentIcon;
+	InterpolationMode	m_ip = InterpolationModeDefault;
+	bool				bIsIcon = false;
+	bool				bIsTiff = false;
+	UINT				nCurrentIcon = 0;
 	std::unique_ptr<BYTE[]> m_lpIcons;
 	std::unique_ptr<std::vector<CAutoIcon>> m_hIcons;
-	DWORD				m_nSize;
+	DWORD				m_nSize = 0;
 
 	#pragma pack(push, r1, 2)   // n = 16, pushed to stack
 

@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2007-2008,2011 - TortoiseSVN
-// Copyright (C) 2008-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2019, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -43,10 +43,10 @@ bool LogCommand::Execute()
 		// support deprecated parameter prior 1.5.0
 		revstart = parser.GetVal(L"revstart");
 	}
-	if (revstart == GIT_REV_ZERO)
+	if (revstart == GitRev::GetWorkingCopyRef())
 		revstart.Empty();
 	if (!revstart.IsEmpty())
-		range.Format(L"%s..", static_cast<LPCTSTR>(g_Git.FixBranchName(revstart)));
+		range.Format(L"%s..", static_cast<LPCWSTR>(g_Git.FixBranchName(revstart)));
 
 	CString revend = parser.GetVal(L"endrev");
 	if (revend.IsEmpty())
@@ -54,7 +54,7 @@ bool LogCommand::Execute()
 		// support deprecated parameter prior 1.5.0
 		revend = parser.GetVal(L"revend");
 	}
-	if (revend == GIT_REV_ZERO)
+	if (revend == GitRev::GetWorkingCopyRef())
 		revend.Empty();
 	if (!revend.IsEmpty())
 		range += g_Git.FixBranchName(revend);
@@ -103,7 +103,7 @@ bool LogCommand::Execute()
 		CString sText;
 		if (!dlg.GetSelectedHash().empty())
 			sText = dlg.GetSelectedHash().at(0).ToString();
-		CStringUtils::WriteStringToTextFile(parser.GetVal(L"outfile"), static_cast<LPCTSTR>(sText), true);
+		CStringUtils::WriteStringToTextFile(parser.GetVal(L"outfile"), static_cast<LPCWSTR>(sText), true);
 	}
 	return true;
 }

@@ -56,11 +56,11 @@ class MyGraph : public CStatic
 {
 // Enum.
 public:
-	enum GraphType		{ Bar, Line, PieChart }; // Renamed 'Pie' because it hides a GDI function name
+	enum class GraphType		{ Bar, Line, PieChart }; // Renamed 'Pie' because it hides a GDI function name
 
 // Construction.
 public:
-	MyGraph(GraphType eGraphType = MyGraph::PieChart, bool bStackedGraph = false);
+	MyGraph(GraphType eGraphType = MyGraph::GraphType::PieChart, bool bStackedGraph = false);
 	virtual ~MyGraph();
 
 // Declared but not defined.
@@ -101,7 +101,7 @@ private:
 
 	CString	GetTipText() const;
 
-	INT_PTR	OnToolHitTest(CPoint point, TOOLINFO* pTI) const;
+	INT_PTR OnToolHitTest(CPoint point, TOOLINFO* pTI) const override;
 
 	CPoint  WedgeEndFromDegrees(double degrees, const CPoint& ptCenter,
 					double radius) const;
@@ -118,7 +118,7 @@ private:
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(MyGraph)
 	protected:
-	virtual void PreSubclassWindow();
+	void PreSubclassWindow() override;
 	//}}AFX_VIRTUAL
 
 // Generated message map functions

@@ -25,7 +25,6 @@
 #define IDD_URL                         164
 #define IDI_PROXY                       166
 #define IDI_MISC                        167
-#define IDB_LOGOFLIPPED                 168
 #define IDD_SETTINGSPROGSADV            170
 #define IDD_TOOLASSOC                   171
 #define IDD_CHECKFORUPDATES             174
@@ -127,7 +126,6 @@
 #define IDB_BITMAP_REFTYPE              336
 #define IDI_IMPORTPATHCES_BKG           337
 #define IDD_SETTINGSOVERLAYHANDLERS     338
-#define IDI_LIBRARY                     339
 #define IDD_SETTINGS_CONFIG             340
 #define IDI_RESTORE                     341
 #define IDI_RESTOREOVL                  342
@@ -150,6 +148,12 @@
 #define IDR_REVISIONGRAPH               359
 #define IDI_RESET                       361
 #define IDI_NOTEPAD                     362
+#define IDR_STAGING                     364
+#define IDI_INDETERMINATE               368
+#define IDI_CHERRYPICK                  369
+#define IDR_TGITLOGO                    370
+#define IDI_ACTIONERROR                 371
+#define IDR_HELPMAPPING                 372
 #define IDS_CHSTAT_FILECOL              1000
 #define IDS_CHSTAT_WCCOL                1001
 #define IDS_CHSTAT_REPOCOL              1002
@@ -176,7 +180,7 @@
 #define IDC_EXTDIFF                     1015
 #define IDS_ERR_TGITBLAME               1015
 #define IDC_EXTMERGE                    1016
-#define IDS_PROC_RESETBRANCH            1016
+#define IDS_ERR_FILE_TOOBIG             1016
 #define IDC_DIFFVIEWER                  1017
 #define IDS_STATUSLIST_CONTEXT_COPYFULLPATHS 1017
 #define IDS_FILEDIFF_LOG                1018
@@ -811,6 +815,7 @@
 #define IDC_COMMIT                      1383
 #define IDS_GITVER_REQUIRED             1383
 #define IDC_BUTTON_BAD                  1383
+#define IDC_BUTTON_PRUNE                1383
 #define IDC_BUTTON_DIR                  1384
 #define IDC_BUTTON_DOWN                 1384
 #define IDC_PUTTYKEYFILE_BROWSE         1384
@@ -832,7 +837,7 @@
 #define IDS_STATUSLIST_WARN_MAXDIFF     1391
 #define IDS_PROC_MARK_ASSUMEVALID       1392
 #define IDS_PROC_MARK_SKIPWORKTREE      1393
-#define IDS_SHOWLOG_OF                  1394
+#define IDS_REMOVEWITHFORCE             1394
 #define IDS_LOG_CHRONOLOGICALREVERSEDORDER 1395
 #define IDS_TORTOISEGITDEFAULT          1396
 #define IDS_DELETING_REMOTE_REFS        1397
@@ -1280,7 +1285,7 @@
 #define IDC_HANDLERHINT                 1609
 #define IDS_ARCHIVEFILEFILTER           1609
 #define IDC_COMBOBOXEX_URL              1610
-#define IDS_PROC_USELFS_TT              1610
+#define IDS_WALKBEHAVIOUR_FULLHISTORY   1610
 #define IDC_BUTTON_PULL                 1611
 #define IDS_EXTRAPATH_TT                1611
 #define IDC_BUTTON_PUSH                 1612
@@ -1335,8 +1340,10 @@
 #define IDC_VIEW_PATCH                  1637
 #define IDS_PROC_PUSH_ALLBRANCHES       1637
 #define IDS_CONFLICT_NOSUBMODULE        1638
+#define IDC_PARTIAL_UNSTAGING           1638
 #define IDC_BUTTON_SUBMODULE            1639
 #define IDS_CONFLICT_SUBMODULENOTINITIALIZED 1639
+#define IDC_PARTIAL_STAGING             1639
 #define IDC_RADIO_EXCLUDE               1640
 #define IDS_CONFLICT_REFTOBEMERGED      1640
 #define IDC_RADIO_GITIGNORE             1641
@@ -1431,37 +1438,60 @@
 #define IDC_BUTTON_REVISION             1684
 #define IDC_RUNFIRSTSTARTWIZARD         1684
 #define IDS_PRUNE_OPTION_GUIDE          1684
+#define IDS_PROC_COMMIT_PARTIAL_STAGING 1685
 #define IDC_REPOBROWSER_URL             1685
+#define IDS_TIPSTAGINGMODE              1686
 #define IDC_REFLOG_BUTTONCLEARSTASH     1686
 #define IDC_GROUP_IGNORE_TYPE           1686
+#define IDS_ERROR_PARTIALSTAGING        1687
 #define IDC_RADIO_IGNORETYPE_ONLYINFOLDER 1687
 #define IDC_SEARCH                      1687
+#define IDS_PROC_COMMIT_HIDE_UNSTAGING  1688
 #define IDC_RADIO_IGNORETYPE_RECURSIVELY 1688
+#define IDS_PROC_COMMIT_PARTIAL_UNSTAGING 1689
 #define IDC_RADIO_IGNOREFILE_GLOBALGITIGNORE 1689
+#define IDS_PROC_COMMIT_HIDE_STAGING    1690
 #define IDC_RADIO_IGNOREFILE_LOCALGITIGNORES 1690
 #define IDC_RADIO_IGNOREFILE_GITINFOEXCLUDE 1691
+#define IDS_STATUSLIST_CONTEXT_KEEPCHANGELISTS 1691
 #define IDC_GROUP_IGNORE_FILE           1692
+#define IDS_STATUSLIST_TOOMANYITEMS     1692
 #define IDC_CHECK_SUBMODULE_INIT        1693
+#define IDS_PROC_STAGE_SELECTED_HUNKS   1693
 #define IDC_CHECK_SUBMODULE_RECURSIVE   1694
+#define IDS_PROC_STAGE_SELECTED_LINES   1694
 #define IDC_LOG2                        1695
+#define IDS_PROC_UNSTAGE_SELECTED_HUNKS 1695
 #define IDC_LIST_TAGS                   1696
 #define IDC_SHOW_DIFF                   1696
+#define IDS_PROC_UNSTAGE_SELECTED_LINES 1696
 #define IDC_GROUP_CHANGELOG             1697
+#define IDS_HANDLESUBMODULES            1697
 #define IDC_GROUP_DOWNLOADS             1698
 #define IDC_LOG3                        1698
+#define IDS_LOCKED                      1698
 #define IDC_DARKTHEME                   1699
+#define IDS_UNLOCKED                    1699
 #define IDC_SELECTLABEL                 1700
 #define IDS_ABOUTVERSION                1700
 #define IDC_CHECKALL                    1701
 #define IDS_ABOUTVERSIONBOX             1701
 #define IDC_CHECKNONE                   1702
+#define IDS_REASON                      1702
 #define IDC_CHECKUNVERSIONED            1703
+#define IDS_PRUNE                       1703
 #define IDC_CHECKVERSIONED              1704
+#define IDS_PROC_DELETE_WORKTREE        1704
 #define IDC_CHECKADDED                  1705
+#define IDS_PROC_LOCKED_WORKTREES       1705
 #define IDC_CHECKMODIFIED               1706
+#define IDS_PROC_UNLOCKED_WORKTREES     1706
 #define IDC_CHECKFILES                  1707
+#define IDS_PROC_LOG_FETCHFILESERROR    1707
 #define IDC_CHECKSUBMODULES             1708
+#define IDS_LASTCOMMITTER               1708
 #define IDC_CHECKDELETED                1709
+#define IDS_DATELASTAUTHOR              1709
 #define IDC_BUTTON_UPDATE               1710
 #define IDC_LIST_DOWNLOADS              1711
 #define IDC_STATIC_REVISION             1712
@@ -1624,7 +1654,6 @@
 #define IDC_GENERATEPUTTYKEY            1844
 #define IDC_ADVANCEDCONFIGURATION       1845
 #define IDC_FIRSTSTART_SSHHINT          1846
-#define IDC_CHECK_LFS                   1847
 #define IDC_LOCALCHECK                  1848
 #define IDC_CLEARCREDENTIALS            1848
 #define IDC_STORECREDENTIALS            1849
@@ -1640,10 +1669,17 @@
 #define IDC_DIFFVIEWER_CROSSLINK        1853
 #define IDS_LOG_FILTER_REVS             1854
 #define IDC_BRANCH                      1854
+#define IDC_STAGINGSUPPORT              1855
 #define IDS_LOG_FILTER_REGEX            1855
 #define IDS_LOG_FILTER_BUGIDS           1856
+#define IDC_WORKTREE_DIR                1856
+#define IDC_CHECK_DETACH                1857
 #define IDS_LOG_FILTER_CASESENSITIVE    1857
+#define IDC_CHECK_CHECKOUT              1858
+#define IDC_WORKTREE_LIST               1859
+#define IDC_WINDOWSCREDMGR              1859
 #define IDS_LOG_FILTER_REGEX_TT         1860
+#define IDC_REGISTER                    1861
 #define IDS_LOG_REVERTTOREV_CONFIRM     1890
 #define IDS_LOG_REVERTREV_ERROR         1891
 #define IDS_LOG_STOPONCOPY_HINT         1892
@@ -1902,6 +1938,9 @@
 #define IDD_FIRSTSTARTWIZARD_AUTHENTICATION 4599
 #define IDD_FIRSTSTARTWIZARD_LANGUAGE   4600
 #define IDD_SELECTREMOTEREF             4601
+#define IDD_SETTINGSWIN11CONTEXTMENU    4602
+#define IDD_WORKTREE_CREATE             4603
+#define IDD_WORKTREE_LIST               4604
 #define IDC_COMBOBOXEX_LOCAL_BRANCH     5000
 #define IDC_COMBOBOXEX_REMOTE_BRANCH    5001
 #define IDC_COMBOBOXEX_BAD              5001
@@ -1925,6 +1964,7 @@
 #define IDS_SVN_PROGRESS_TOTALBYTESTRANSFERRED 5704
 #define IDS_SETTINGS_CONF_NAMECOL       5707
 #define IDS_SETTINGS_CONF_VALUECOL      5708
+#define IDS_PACKAGE_REGISTERED          5709
 #define IDS_COLOURPICKER_CUSTOMTEXT     7000
 #define IDS_COLOURPICKER_DEFAULTTEXT    7001
 #define IDS_ERR_NOTFOUND_SUPER_PRJECT   9031
@@ -1942,6 +1982,9 @@
 #define IDS_HOOKFAILED_TASK2            9118
 #define IDS_HOOKFAILED_TASK3            9119
 #define IDS_HOOKFAILED_TASK4            9120
+#define IDS_VIEWPATCH_HEAD_INDEX        9200
+#define IDS_VIEWPATCH_INDEX_WORKTREE    9201
+#define IDS_VIEWPATCH                   9202
 #define IDS_STATUSLIST_COLADD           9603
 #define IDS_STATUSLIST_COLDEL           9604
 #define IDS_B_T_NOTEMPTY                9619
@@ -2021,7 +2064,7 @@
 #define IDM_FINDEXIT                    32791
 #define ID_VIEW_ZOOM100                 32803
 #define ID_VIEW_ZOOMALL                 32804
-#define ID_FILE_SAVEGRAPHAS32805        32805
+#define ID_FILE_SAVEGRAPHAS             32805
 #define ID_FILE_SAVESTATGRAPHAS         32806
 #define ID_FILTER_EXCLUDEPATHS          32807
 #define ID_FILTER_EXCLUDEREVISIONS      32808
@@ -2048,7 +2091,6 @@
 #define ID_VIEW_SHOWWCMODIFICATION      32838
 #define ID_VIEW_FILTER                  32839
 #define ID_VIEW_SHOWTREESTRIPES         32840
-#define ID_FILE_SAVEGRAPHAS             32841
 #define ID_MENUEXIT                     32842
 #define ID_MENUHELP                     32843
 #define ID_VIEW_COMPAREREVISIONS        32844
@@ -2084,6 +2126,10 @@
 #define ID_VIEW_SHOWBRANCHINGSANDMERGES 32874
 #define ID_VIEW_SHOWALLTAGS             32875
 #define ID_VIEW_ARROW_POINT_TO_MERGES   32876
+#define ID_STAGING_STAGESELECTEDLINES   32877
+#define ID_STAGING_STAGESELECTEDHUNKS   32878
+#define ID_UNSTAGING_UNSTAGESELECTEDLINES 32879
+#define ID_UNSTAGING_UNSTAGESELECTEDHUNKS 32880
 #define IDS_ERR_CHANGELIST_LOAD         32900
 #define IDS_ERR_CHANGELIST_SAVE         32901
 #define IDS_PROGRS_TITLE_LFS_LOCK       32920
@@ -2099,9 +2145,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        364
-#define _APS_NEXT_COMMAND_VALUE         32875
-#define _APS_NEXT_CONTROL_VALUE         1855
+#define _APS_NEXT_RESOURCE_VALUE        373
+#define _APS_NEXT_COMMAND_VALUE         32881
+#define _APS_NEXT_CONTROL_VALUE         1860
 #define _APS_NEXT_SYMED_VALUE           201
 #endif
 #endif

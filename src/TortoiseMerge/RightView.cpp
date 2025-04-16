@@ -1,5 +1,6 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2006-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,26 +17,21 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "resource.h"
-#include "AppUtils.h"
-#if 0
-#include "IconBitmapUtils.h"
-#endif
-
 #include "RightView.h"
-#include "BottomView.h"
 
 IMPLEMENT_DYNCREATE(CRightView, CBaseView)
 
-CRightView::CRightView(void)
+CRightView::CRightView()
 {
 	m_pwndRight = this;
 	m_pState = &m_AllState.right;
 	m_nStatusBarID = ID_INDICATOR_RIGHTVIEW;
 }
 
-CRightView::~CRightView(void)
+CRightView::~CRightView()
 {
 }
 
@@ -60,7 +56,7 @@ void CRightView::UseBothLeftFirst()
 	{
 		if (!IsStateEmpty(GetViewState(viewLine)))
 		{
-			SetViewState(viewLine, DIFFSTATE_YOURSADDED);
+			SetViewState(viewLine, DiffState::YoursAdded);
 		}
 	}
 	SaveUndoStep();
@@ -70,12 +66,12 @@ void CRightView::UseBothLeftFirst()
 		viewdata line = m_pwndLeft->GetViewData(viewLine);
 		if (IsStateEmpty(line.state))
 		{
-			line.state = DIFFSTATE_EMPTY;
+			line.state = DiffState::Empty;
 		}
 		else
 		{
 			SetModified();
-			line.state = DIFFSTATE_THEIRSADDED;
+			line.state = DiffState::TheirsAdded;
 		}
 		InsertViewData(viewLine, line);
 	}
@@ -122,7 +118,7 @@ void CRightView::UseBothRightFirst()
 	{
 		if (!IsStateEmpty(GetViewState(viewLine)))
 		{
-			SetViewState(viewLine, DIFFSTATE_ADDED);
+			SetViewState(viewLine, DiffState::Added);
 		}
 	}
 	SaveUndoStep();
@@ -134,12 +130,12 @@ void CRightView::UseBothRightFirst()
 		viewdata line = m_pwndLeft->GetViewData(viewLine);
 		if (IsStateEmpty(line.state))
 		{
-			line.state = DIFFSTATE_EMPTY;
+			line.state = DiffState::Empty;
 		}
 		else
 		{
 			SetModified();
-			line.state = DIFFSTATE_THEIRSADDED;
+			line.state = DiffState::TheirsAdded;
 		}
 		InsertViewData(viewindex++, line);
 	}
@@ -217,9 +213,9 @@ void CRightView::UseViewFileExceptEdited()
 	CBaseView::UseViewFileExceptEdited(m_pwndLeft);
 }
 
-void CRightView::AddContextItems(CIconMenu& popup, DiffStates state)
+void CRightView::AddContextItems(CIconMenu& popup, DiffState state)
 {
-	const bool bShow = HasSelection() && (state != DIFFSTATE_UNKNOWN);
+	const bool bShow = HasSelection() && (state != DiffState::Unknown);
 
 	if (IsBottomViewGood())
 	{

@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2016, 2019, 2021, 2023, 2025 - TortoiseGit
 // Copyright (C) 2009, 2012-2016, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,26 +17,22 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "LinkControl.h"
-#include "CommonAppUtils.h"
 
 const UINT CLinkControl::LK_LINKITEMCLICKED = ::RegisterWindowMessage(L"LK_LINKITEMCLICKED");
 
-CLinkControl::CLinkControl(void)
-	: m_bOverControl(false)
-	, m_hLinkCursor(nullptr)
+CLinkControl::CLinkControl()
 {
 }
 
-CLinkControl::~CLinkControl(void)
+CLinkControl::~CLinkControl()
 {
 	/*
 	* No need to call DestroyCursor() for cursors acquired through
 	* LoadCursor().
 	*/
-	m_NormalFont.DeleteObject();
-	m_UnderlineFont.DeleteObject();
 }
 
 void CLinkControl::PreSubclassWindow()

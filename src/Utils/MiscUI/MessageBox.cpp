@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2016, 2018-2020 - TortoiseGit
+// Copyright (C) 2012-2016, 2018-2025 - TortoiseGit
 // Copyright (C) 2003-2008,2010 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,33 +17,24 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "resource.h"			//if you defined some IDS_MSGBOX_xxxx this include is needed!
+#include "dlgtemplate.h"
 #include "messagebox.h"
-#include "ClipboardHelper.h"
 #include "SmartHandle.h"
 #include <afxtaskdialog.h>
 #include "DPIAware.h"
 #include "LoadIconEx.h"
+#include "StringUtils.h"
 
 #define BTN_OFFSET 100 // use an offset in order to not interfere with IDYES and so on...
 
-CMessageBox::CMessageBox(void)
-	: m_hIcon(nullptr)
-	, m_uButton1Ret(1)
-	, m_uButton2Ret(2)
-	, m_uButton3Ret(3)
-	, m_uCancelRet(0)
-	, m_bShowCheck(FALSE)
-	, m_bDestroyIcon(FALSE)
-	, m_nDefButton(0)
-	, m_uType(0)
-	, m_bChecked(FALSE)
+CMessageBox::CMessageBox()
 {
-	SecureZeroMemory(&m_LogFont, sizeof(LOGFONT));
 }
 
-CMessageBox::~CMessageBox(void)
+CMessageBox::~CMessageBox()
 {
 	if (m_bDestroyIcon)
 		::DestroyIcon(m_hIcon);
@@ -56,24 +47,29 @@ static HWND GetMainHWND(HWND hWnd)
 	return hWnd;
 }
 
-UINT CMessageBox::ShowCheck(HWND hWnd, UINT nMessage, UINT nCaption, int nDef, LPCTSTR icon, UINT nButton1, UINT nButton2, UINT nButton3, LPCTSTR lpRegistry, UINT nCheckMessage/* = nullptr*/, BOOL* bChecked)
+UINT CMessageBox::ShowCheck(HWND hWnd, LPCWSTR lpMessage, UINT nCaption, int nDef, LPCWSTR icon, UINT nButton1, UINT nButton2, UINT nButton3, LPCWSTR lpRegistry, UINT nCheckMessage /* = nullptr*/, BOOL* bChecked)
 {
 	CString sButton1;
 	CString sButton2;
 	CString sButton3;
-	CString sMessage;
 	CString sCaption;
 	CString nCheckMsg;
 	sButton1.LoadString(nButton1);
 	sButton2.LoadString(nButton2);
 	sButton3.LoadString(nButton3);
-	sMessage.LoadString(nMessage);
 	sCaption.LoadString(nCaption);
 	nCheckMsg.LoadString(nCheckMessage);
-	return CMessageBox::ShowCheck(hWnd, sMessage, sCaption, nDef, icon, sButton1, sButton2, sButton3, lpRegistry, nCheckMsg, bChecked);
+	return CMessageBox::ShowCheck(hWnd, lpMessage, sCaption, nDef, icon, sButton1, sButton2, sButton3, lpRegistry, nCheckMsg, bChecked);
 }
 
-UINT CMessageBox::ShowCheck(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, int nDef, LPCTSTR icon, LPCTSTR lpButton1, LPCTSTR lpButton2, LPCTSTR lpButton3, LPCTSTR lpRegistry, LPCTSTR lpCheckMessage/* = nullptr*/, BOOL* bChecked)
+UINT CMessageBox::ShowCheck(HWND hWnd, UINT nMessage, UINT nCaption, int nDef, LPCWSTR icon, UINT nButton1, UINT nButton2, UINT nButton3, LPCWSTR lpRegistry, UINT nCheckMessage/* = nullptr*/, BOOL* bChecked)
+{
+	CString sMessage;
+	sMessage.LoadString(nMessage);
+	return CMessageBox::ShowCheck(hWnd, sMessage, nCaption, nDef, icon, nButton1, nButton2, nButton3, lpRegistry, nCheckMessage, bChecked);
+}
+
+UINT CMessageBox::ShowCheck(HWND hWnd, LPCWSTR lpMessage, LPCWSTR lpCaption, int nDef, LPCWSTR icon, LPCWSTR lpButton1, LPCWSTR lpButton2, LPCWSTR lpButton3, LPCWSTR lpRegistry, LPCWSTR lpCheckMessage/* = nullptr*/, BOOL* bChecked)
 {
 	//check the registry if we have to show the box or just return with the last used return value
 	//this would be the case if the user pressed "do not show again".
@@ -81,9 +77,9 @@ UINT CMessageBox::ShowCheck(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, int
 	HKEY hKey;
 	CString path;
 #ifdef XMESSAGEBOX_APPREGPATH
-	path = XMESSAGEBOX_APPREGPATH;
+	path = _T(XMESSAGEBOX_APPREGPATH);
 #else
-	path = "Software\\TortoiseGit\\";
+	path = L"Software\\TortoiseGit\\";
 	path += AfxGetApp()->m_pszProfileName;
 #endif
 	if (lpRegistry && *lpRegistry && RegOpenKeyEx(HKEY_CURRENT_USER, path, 0, KEY_EXECUTE, &hKey)==ERROR_SUCCESS)
@@ -166,7 +162,7 @@ UINT CMessageBox::ShowCheck(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, int
 	return result;
 }
 
-UINT CMessageBox::Show(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, int nDef, LPCTSTR icon, LPCTSTR lpButton1, LPCTSTR lpButton2/* = nullptr*/, LPCTSTR lpButton3/* = nullptr*/)
+UINT CMessageBox::Show(HWND hWnd, LPCWSTR lpMessage, LPCWSTR lpCaption, int nDef, LPCWSTR icon, LPCWSTR lpButton1, LPCWSTR lpButton2/* = nullptr*/, LPCWSTR lpButton3/* = nullptr*/)
 {
 	if (CTaskDialog::IsSupported())
 	{
@@ -194,33 +190,43 @@ UINT CMessageBox::Show(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, int nDef
 	return box.GoModal(CWnd::FromHandle(hWnd), lpCaption, lpMessage, nDef);
 }
 
-UINT CMessageBox::Show(HWND hWnd, UINT nMessage, UINT nCaption, int nDef, LPCTSTR icon, UINT nButton1, UINT nButton2, UINT nButton3)
+UINT CMessageBox::Show(HWND hWnd, LPCWSTR lpMessage, UINT nCaption, int nDef, LPCWSTR icon, UINT nButton1, UINT nButton2, UINT nButton3)
 {
 	CString sButton1;
 	CString sButton2;
 	CString sButton3;
-	CString sMessage;
 	CString sCaption;
 	sButton1.LoadString(nButton1);
 	sButton2.LoadString(nButton2);
 	sButton3.LoadString(nButton3);
-	sMessage.LoadString(nMessage);
 	sCaption.LoadString(nCaption);
-	return CMessageBox::Show(hWnd, sMessage, sCaption, nDef, icon, sButton1, sButton2, sButton3);
+	return CMessageBox::Show(hWnd, lpMessage, sCaption, nDef, icon, sButton1, sButton2, sButton3);
 }
 
-UINT CMessageBox::ShowCheck(HWND hWnd, UINT nMessage, UINT nCaption, UINT uType, LPCTSTR lpRegistry, UINT nCheckMessage, BOOL *bChecked)
+UINT CMessageBox::Show(HWND hWnd, UINT nMessage, UINT nCaption, int nDef, LPCWSTR icon, UINT nButton1, UINT nButton2, UINT nButton3)
 {
 	CString sMessage;
-	CString sCaption;
-	CString sCheckMsg;
 	sMessage.LoadString(nMessage);
-	sCaption.LoadString(nCaption);
-	sCheckMsg.LoadString(nCheckMessage);
-	return CMessageBox::ShowCheck(hWnd, sMessage, sCaption, uType, lpRegistry, sCheckMsg, bChecked);
+	return CMessageBox::Show(hWnd, sMessage, nCaption, nDef, icon, nButton1, nButton2, nButton3);
 }
 
-UINT CMessageBox::ShowCheck(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, UINT uType, LPCTSTR lpRegistry, LPCTSTR lpCheckMessage, BOOL *bChecked)
+UINT CMessageBox::ShowCheck(HWND hWnd, UINT nMessage, UINT nCaption, UINT uType, LPCWSTR lpRegistry, UINT nCheckMessage, BOOL* bChecked)
+{
+	CString sMessage;
+	sMessage.LoadString(nMessage);
+	return CMessageBox::ShowCheck(hWnd, sMessage, nCaption, uType, lpRegistry, nCheckMessage, bChecked);
+}
+
+UINT CMessageBox::ShowCheck(HWND hWnd, LPCWSTR lpMessage, UINT nCaption, UINT uType, LPCWSTR lpRegistry, UINT nCheckMessage, BOOL* bChecked /* = nullptr*/)
+{
+	CString sCaption;
+	CString sCheckMsg;
+	sCaption.LoadString(nCaption);
+	sCheckMsg.LoadString(nCheckMessage);
+	return CMessageBox::ShowCheck(hWnd, lpMessage, sCaption, uType, lpRegistry, sCheckMsg, bChecked);
+}
+
+UINT CMessageBox::ShowCheck(HWND hWnd, LPCWSTR lpMessage, LPCWSTR lpCaption, UINT uType, LPCWSTR lpRegistry, LPCWSTR lpCheckMessage, BOOL* bChecked)
 {
 	//check the registry if we have to show the box or just return with the last used return value
 	//this would be the case if the user pressed "do not show again".
@@ -228,9 +234,9 @@ UINT CMessageBox::ShowCheck(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, UIN
 	HKEY hKey;
 	CString path;
 #ifdef XMESSAGEBOX_APPREGPATH
-	path = XMESSAGEBOX_APPREGPATH;
+	path = _T(XMESSAGEBOX_APPREGPATH);
 #else
-	path = "Software\\TortoiseGit\\";
+	path = L"Software\\TortoiseGit\\";
 	path += AfxGetApp()->m_pszProfileName;
 #endif
 	if (lpRegistry && *lpRegistry && RegOpenKeyEx(HKEY_CURRENT_USER, path, 0, KEY_EXECUTE, &hKey)==ERROR_SUCCESS)
@@ -366,7 +372,7 @@ UINT CMessageBox::ShowCheck(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, UIN
 	return result;
 }
 
-UINT CMessageBox::Show(HWND hWnd, UINT nMessage, UINT nCaption, UINT uType, LPCTSTR sHelpPath)
+UINT CMessageBox::Show(HWND hWnd, UINT nMessage, UINT nCaption, UINT uType, LPCWSTR sHelpPath)
 {
 	CString sMessage;
 	CString sCaption;
@@ -375,7 +381,7 @@ UINT CMessageBox::Show(HWND hWnd, UINT nMessage, UINT nCaption, UINT uType, LPCT
 	return CMessageBox::Show(hWnd, sMessage, sCaption, uType, sHelpPath);
 }
 
-UINT CMessageBox::Show(HWND hWnd, LPCTSTR lpMessage, LPCTSTR lpCaption, UINT uType, LPCTSTR sHelpPath)
+UINT CMessageBox::Show(HWND hWnd, LPCWSTR lpMessage, LPCWSTR lpCaption, UINT uType, LPCWSTR sHelpPath)
 {
 	if (!IsWindow(hWnd))
 		hWnd = nullptr;
@@ -408,14 +414,14 @@ UINT CMessageBox::Show(HWND hWnd, UINT nMessage, UINT nCaption, UINT uType, UINT
 	return ::MessageBox(GetMainHWND(hWnd), sMessage, sCaption, uType);
 }
 
-bool CMessageBox::RemoveRegistryKey(LPCTSTR lpRegistry)
+bool CMessageBox::RemoveRegistryKey(LPCWSTR lpRegistry)
 {
 	HKEY hKey;
 	CString path;
 #ifdef XMESSAGEBOX_APPREGPATH
-	path = XMESSAGEBOX_APPREGPATH;
+	path = _T(XMESSAGEBOX_APPREGPATH);
 #else
-	path = "Software\\TortoiseGit\\";
+	path = L"Software\\TortoiseGit\\";
 	path += AfxGetApp()->m_pszProfileName;
 #endif
 	if (RegOpenKeyEx(HKEY_CURRENT_USER, path, 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
@@ -457,21 +463,21 @@ int CMessageBox::FillBoxStandard(UINT uType)
 	{
 	case MB_ABORTRETRYIGNORE:
 #ifndef IDS_MSGBOX_ABORT
-		m_sButton1 = "&Abort";
+		m_sButton1 = L"&Abort";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_ABORT);
 		m_sButton1 = m_i18l;
 #endif
 		m_uButton1Ret = IDABORT;
 #ifndef IDS_MSGBOX_RETRY
-		m_sButton2 = "&Retry";
+		m_sButton2 = L"&Retry";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_RETRY);
 		m_sButton2 = m_i18l;
 #endif
 		m_uButton2Ret = IDRETRY;
 #ifndef IDS_MSGBOX_IGNORE
-		m_sButton3 = "&Ignore";
+		m_sButton3 = L"&Ignore";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_IGNORE);
 		m_sButton3 = m_i18l;
@@ -480,21 +486,21 @@ int CMessageBox::FillBoxStandard(UINT uType)
 		break;
 	case MB_CANCELTRYCONTINUE:
 #ifndef IDS_MSGBOX_CANCEL
-		m_sButton1 = "Cancel";
+		m_sButton1 = L"Cancel";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_CANCEL);
 		m_sButton1 = m_i18l;
 #endif
 		m_uButton1Ret = IDCANCEL;
 #ifndef IDS_MSGBOX_TRYAGAIN
-		m_sButton2 = "&Try Again";
+		m_sButton2 = L"&Try Again";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_TRYAGAIN);
 		m_sButton2 = m_i18l;
 #endif
 		m_uButton2Ret = IDTRYAGAIN;
 #ifndef IDS_MSGBOX_CONTINUE
-		m_sButton3 = "&Continue";
+		m_sButton3 = L"&Continue";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_CONTINUE);
 		m_sButton3 = m_i18l;
@@ -503,14 +509,14 @@ int CMessageBox::FillBoxStandard(UINT uType)
 		break;
 	case MB_OKCANCEL:
 #ifndef IDS_MSGBOX_OK
-		m_sButton1 = "OK";
+		m_sButton1 = L"OK";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_OK);
 		m_sButton1 = m_i18l;
 #endif
 		m_uButton1Ret = IDOK;
 #ifndef IDS_MSGBOX_CANCEL
-		m_sButton2 = "Cancel";
+		m_sButton2 = L"Cancel";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_CANCEL);
 		m_sButton2 = m_i18l;
@@ -519,14 +525,14 @@ int CMessageBox::FillBoxStandard(UINT uType)
 		break;
 	case MB_RETRYCANCEL:
 #ifndef IDS_MSGBOX_RETRY
-		m_sButton1 = "&Retry";
+		m_sButton1 = L"&Retry";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_RETRY);
 		m_sButton1 = m_i18l;
 #endif
 		m_uButton1Ret = IDRETRY;
 #ifndef IDS_MSGBOX_CANCEL
-		m_sButton2 = "Cancel";
+		m_sButton2 = L"Cancel";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_CANCEL);
 		m_sButton2 = m_i18l;
@@ -535,14 +541,14 @@ int CMessageBox::FillBoxStandard(UINT uType)
 		break;
 	case MB_YESNO:
 #ifndef IDS_MSGBOX_YES
-		m_sButton1 = "&Yes";
+		m_sButton1 = L"&Yes";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_YES);
 		m_sButton1 = m_i18l;
 #endif
 		m_uButton1Ret = IDYES;
 #ifndef IDS_MSGBOX_NO
-		m_sButton2 = "&No";
+		m_sButton2 = L"&No";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_NO);
 		m_sButton2 = m_i18l;
@@ -551,21 +557,21 @@ int CMessageBox::FillBoxStandard(UINT uType)
 		break;
 	case MB_YESNOCANCEL:
 #ifndef IDS_MSGBOX_YES
-		m_sButton1 = "&Yes";
+		m_sButton1 = L"&Yes";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_YES);
 		m_sButton1 = m_i18l;
 #endif
 		m_uButton1Ret = IDYES;
 #ifndef IDS_MSGBOX_NO
-		m_sButton2 = "&No";
+		m_sButton2 = L"&No";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_NO);
 		m_sButton2 = m_i18l;
 #endif
 		m_uButton2Ret = IDNO;
 #ifndef IDS_MSGBOX_CANCEL
-		m_sButton3 = "Cancel";
+		m_sButton3 = L"Cancel";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_CANCEL);
 		m_sButton3 = m_i18l;
@@ -575,7 +581,7 @@ int CMessageBox::FillBoxStandard(UINT uType)
 	case MB_OK:
 	default:
 #ifndef IDS_MSGBOX_OK
-		m_sButton1 = "OK";
+		m_sButton1 = L"OK";
 #else
 		m_i18l.LoadString(IDS_MSGBOX_OK);
 		m_sButton1 = m_i18l;
@@ -643,7 +649,7 @@ UINT CMessageBox::GoModal(CWnd * pWnd, const CString& title, const CString& msg,
 		return ::MessageBox(hw, msg, title, m_uType | defButton);
 	}
 
-	int pix = -CDPIAware::Instance().PixelsToPointsY(m_LogFont.lfHeight);
+	int pix = -CDPIAware::Instance().PixelsToPointsY(GetSafeHwnd(), m_LogFont.lfHeight);
 	CDlgTemplate dialogTemplate = CDlgTemplate(title, WS_CAPTION | DS_CENTER,
 		0, 0, 0, 0, m_LogFont.lfFaceName, pix);
 	dialogTemplate.AddButton(L"Button1", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | ((nDefaultButton == 1) ? BS_DEFPUSHBUTTON : 0), 0,
@@ -669,14 +675,14 @@ void CMessageBox::SetRegistryValue(const CString& sValue, DWORD value)
 
 	CString path;
 #ifdef XMESSAGEBOX_APPREGPATH
-	path = XMESSAGEBOX_APPREGPATH;
+	path = _T(XMESSAGEBOX_APPREGPATH);
 #else
-	path = "Software\\TortoiseGit\\";
+	path = L"Software\\TortoiseGit\\";
 	path += AfxGetApp()->m_pszProfileName;
 #endif
 	DWORD disp;
 	HKEY hKey;
-	if (RegCreateKeyEx(HKEY_CURRENT_USER, path, 0, L"", REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &hKey, &disp) != ERROR_SUCCESS)
+	if (RegCreateKeyEx(HKEY_CURRENT_USER, path, 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &hKey, &disp) != ERROR_SUCCESS)
 	{
 		return;
 	}
@@ -684,11 +690,11 @@ void CMessageBox::SetRegistryValue(const CString& sValue, DWORD value)
 	RegCloseKey(hKey);
 }
 
-typedef enum {
-	NONE = 0,
-	NEW_LINE,
-	TABULATION,
-} COMMAND;
+enum class Command {
+	None = 0,
+	NewLine,
+	Tabulation,
+};
 
 CSize DrawText(CDC* pDC, CRect rect, const CString& str, LOGFONT font, BOOL bCalculate = FALSE)
 {
@@ -718,16 +724,16 @@ CSize DrawText(CDC* pDC, CRect rect, const CString& str, LOGFONT font, BOOL bCal
 	//iterate through all characters of the string
 	for (int i = 0; i <= str.GetLength(); ++i)
 	{
-		COMMAND nCmd = NONE;
+		Command nCmd = Command::None;
 		if (i < str.GetLength())
 		{
 			switch (str.GetAt(i))
 			{
 			case L'\n':
-				nCmd = NEW_LINE;
+				nCmd = Command::NewLine;
 				break;
 			case L'\t':
-				nCmd = TABULATION;
+				nCmd = Command::Tabulation;
 				break;
 			case L'\r':
 				break;
@@ -737,9 +743,9 @@ CSize DrawText(CDC* pDC, CRect rect, const CString& str, LOGFONT font, BOOL bCal
 			}
 		}
 		else // Immitates new line at the end of the string
-			nCmd = NEW_LINE;
+			nCmd = Command::NewLine;
 
-		if (nCmd != NONE)
+		if (nCmd != Command::None)
 		{
 			if (!strText.IsEmpty())
 			{
@@ -753,13 +759,13 @@ CSize DrawText(CDC* pDC, CRect rect, const CString& str, LOGFONT font, BOOL bCal
 			// Executes command
 			switch (nCmd)
 			{
-			case NEW_LINE:
+			case Command::NewLine:
 				// New line
 				sz.cx = max(sz.cx, ptCur.x - pt.x);
 				ptCur.y += nHeight;
 				ptCur.x = pt.x;
 				break;
-			case TABULATION:
+			case Command::Tabulation:
 				// Tabulation
 				int nTemp = (ptCur.x - pt.x) % (nWidth * 4);
 				if (nTemp)
@@ -845,19 +851,19 @@ CSize CMessageBox::GetButtonSize()
 	CSize sz2 = GetTextSize(m_sButton2);
 	CSize sz3 = GetTextSize(m_sButton3);
 
-	sz1.cx += CDPIAware::Instance().ScaleX(2 * MESSAGEBOX_BUTTONX);
-	sz1.cy += CDPIAware::Instance().ScaleY(2 * MESSAGEBOX_BUTTONY);
+	sz1.cx += CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2 * MESSAGEBOX_BUTTONX);
+	sz1.cy += CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2 * MESSAGEBOX_BUTTONY);
 
 	if (sz2.cx)
 	{
-		sz2.cx += CDPIAware::Instance().ScaleX(2 * MESSAGEBOX_BUTTONX);
-		sz2.cy += CDPIAware::Instance().ScaleY(2 * MESSAGEBOX_BUTTONY);
+		sz2.cx += CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2 * MESSAGEBOX_BUTTONX);
+		sz2.cy += CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2 * MESSAGEBOX_BUTTONY);
 		nButtons++;
 	}
 	if (sz3.cx)
 	{
-		sz3.cx += CDPIAware::Instance().ScaleX(2 * MESSAGEBOX_BUTTONX);
-		sz3.cy += CDPIAware::Instance().ScaleY(2 * MESSAGEBOX_BUTTONY);
+		sz3.cx += CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2 * MESSAGEBOX_BUTTONX);
+		sz3.cy += CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2 * MESSAGEBOX_BUTTONY);
 		nButtons++;
 	}
 
@@ -865,7 +871,7 @@ CSize CMessageBox::GetButtonSize()
 	GetDlgItem(IDC_MESSAGEBOX_BUTTON2)->MoveWindow(0, 0, sz2.cx, sz2.cy);
 	GetDlgItem(IDC_MESSAGEBOX_BUTTON3)->MoveWindow(0, 0, sz3.cx, sz3.cy);
 
-	sz.cx = sz1.cx + sz2.cx + sz3.cx + (nButtons * CDPIAware::Instance().ScaleX(MESSAGEBOX_BUTTONMARGIN));
+	sz.cx = sz1.cx + sz2.cx + sz3.cx + (nButtons * CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_BUTTONMARGIN));
 	sz.cy = max(sz1.cy, sz2.cy);
 	sz.cy = max(sz.cy, sz3.cy);
 	m_szButtons = sz;
@@ -875,7 +881,7 @@ CSize CMessageBox::GetButtonSize()
 		szCheck.cx += 2*GetSystemMetrics(SM_CXMENUCHECK);
 		szCheck.cy += 2*MESSAGEBOX_BUTTONY;
 		sz.cx = max(sz.cx, szCheck.cx);
-		sz.cy += szCheck.cy + CDPIAware::Instance().ScaleY(MESSAGEBOX_BUTTONCHECKMARGIN);
+		sz.cy += szCheck.cy + CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BUTTONCHECKMARGIN);
 		GetDlgItem(IDC_MESSAGEBOX_CHECKBOX)->MoveWindow(0, 0, szCheck.cx, szCheck.cy);
 	}
 	m_szAllButtons = sz;
@@ -914,14 +920,14 @@ void CMessageBox::OnPaint()
 	memDC.SetTextColor(GetSysColor(COLOR_WINDOWTEXT));
 
 	//OnDrawBackground();
-	drawrect.DeflateRect(CDPIAware::Instance().ScaleX(MESSAGEBOX_BORDERMARGINX), CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY));
+	drawrect.DeflateRect(CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINX), CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY));
 	if (m_hIcon)
 	{
 		DrawIconEx(memDC.m_hDC, drawrect.left, max(drawrect.top, drawrect.top +
-			((drawrect.Height() - m_szAllButtons.cy - CDPIAware::Instance().ScaleY(MESSAGEBOX_TEXTBUTTONMARGIN) - m_szIcon.cy) / 2)),
+			((drawrect.Height() - m_szAllButtons.cy - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_TEXTBUTTONMARGIN) - m_szIcon.cy) / 2)),
 			m_hIcon, m_szIcon.cx, m_szIcon.cy, 0, nullptr, DI_NORMAL);
 
-		drawrect.left += m_szIcon.cx + CDPIAware::Instance().ScaleX(MESSAGEBOX_ICONMARGIN);
+		drawrect.left += m_szIcon.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_ICONMARGIN);
 		if (m_szIcon.cy > m_szText.cy)
 			drawrect.top += (m_szIcon.cy - m_szText.cy) / 2;
 	}
@@ -960,7 +966,7 @@ void CMessageBox::OnButton2()
 		m_bChecked = FALSE;
 	if ((m_uButton2Ret == IDHELP)&&(!m_sHelpPath.IsEmpty()))
 	{
-		typedef HWND (WINAPI* FPHH)(HWND, LPCWSTR, UINT, DWORD);
+		using FPHH = HWND(WINAPI*)(HWND, LPCWSTR, UINT, DWORD);
 		FPHH pHtmlHelp = nullptr; // Function pointer
 		CAutoLibrary hInstHtmlHelp = AtlLoadSystemLibraryUsingFullPath(L"HHCtrl.ocx");
 		HWND hHelp = nullptr;
@@ -968,7 +974,7 @@ void CMessageBox::OnButton2()
 		{
 			reinterpret_cast<FARPROC&>(pHtmlHelp) = GetProcAddress(hInstHtmlHelp, "HtmlHelpW");
 			if (pHtmlHelp)
-				hHelp = pHtmlHelp(m_hWnd, static_cast<LPCTSTR>(m_sHelpPath), HH_DISPLAY_TOPIC, NULL);
+				hHelp = pHtmlHelp(m_hWnd, static_cast<LPCWSTR>(m_sHelpPath), HH_DISPLAY_TOPIC, NULL);
 		}
 		if (!hHelp)
 			::MessageBox(m_hWnd, L"could not show help file", L"Help", MB_ICONERROR);
@@ -990,7 +996,7 @@ void CMessageBox::OnButton3()
 		m_bChecked = FALSE;
 	if ((m_uButton3Ret == IDHELP)&&(!m_sHelpPath.IsEmpty()))
 	{
-		typedef HWND (WINAPI* FPHH)(HWND, LPCWSTR, UINT, DWORD);
+		using FPHH = HWND(WINAPI*)(HWND, LPCWSTR, UINT, DWORD);
 		FPHH pHtmlHelp = nullptr; // Function pointer
 		CAutoLibrary hInstHtmlHelp = AtlLoadSystemLibraryUsingFullPath(L"HHCtrl.ocx");
 		HWND hHelp = nullptr;
@@ -998,7 +1004,7 @@ void CMessageBox::OnButton3()
 		{
 			reinterpret_cast<FARPROC&>(pHtmlHelp) = GetProcAddress(hInstHtmlHelp, "HtmlHelpW");
 			if (pHtmlHelp)
-				hHelp = pHtmlHelp(m_hWnd, static_cast<LPCTSTR>(m_sHelpPath), HH_DISPLAY_TOPIC, NULL);
+				hHelp = pHtmlHelp(m_hWnd, static_cast<LPCWSTR>(m_sHelpPath), HH_DISPLAY_TOPIC, NULL);
 		}
 		if (!hHelp)
 			::MessageBox(m_hWnd, L"could not show help file", L"Help", MB_ICONERROR);
@@ -1028,15 +1034,15 @@ BOOL CMessageBox::OnInitDialog()
 	CSize szButtons = GetButtonSize();
 
 	CSize szIconText;
-	szIconText.cx = m_szText.cx + szIcon.cx + CDPIAware::Instance().ScaleX((szIcon.cx == 0) ? MESSAGEBOX_ICONMARGIN : (2 * MESSAGEBOX_ICONMARGIN));
+	szIconText.cx = m_szText.cx + szIcon.cx + CDPIAware::Instance().ScaleX(GetSafeHwnd(), (szIcon.cx == 0) ? MESSAGEBOX_ICONMARGIN : (2 * MESSAGEBOX_ICONMARGIN));
 	szIconText.cy = max(szIcon.cy, m_szText.cy);
 
 	rect.right = max(szButtons.cx, szIconText.cx);
 	rect.right += 2*GetSystemMetrics(SM_CXBORDER);
-	rect.right += CDPIAware::Instance().ScaleX(2 * MESSAGEBOX_BORDERMARGINX);
+	rect.right += CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2 * MESSAGEBOX_BORDERMARGINX);
 	rect.bottom = szIconText.cy;
 	rect.bottom += szButtons.cy;
-	rect.bottom += CDPIAware::Instance().ScaleY(2 * MESSAGEBOX_BORDERMARGINY + MESSAGEBOX_TEXTBUTTONMARGIN);
+	rect.bottom += CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2 * MESSAGEBOX_BORDERMARGINY + MESSAGEBOX_TEXTBUTTONMARGIN);
 	rect.bottom += GetSystemMetrics(SM_CYCAPTION);
 	rect.bottom += 2 * GetSystemMetrics(SM_CYFIXEDFRAME);
 	rect.bottom += 2*GetSystemMetrics(SM_CYBORDER);
@@ -1055,7 +1061,7 @@ BOOL CMessageBox::OnInitDialog()
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON1)->GetWindowRect(rt);
 		ScreenToClient(rt);
 		rt.MoveToX(rect.left + ((rect.Width() - m_szButtons.cx)/2));
-		rt.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
+		rt.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON1)->MoveWindow(rt);
 		//hide the other two buttons
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON2)->ShowWindow(SW_HIDE);
@@ -1071,9 +1077,9 @@ BOOL CMessageBox::OnInitDialog()
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON2)->GetWindowRect(rt2);
 		ScreenToClient(rt2);
 		rt1.MoveToX(rect.left + ((rect.Width() - m_szButtons.cx)/2));
-		rt1.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
-		rt2.MoveToX(rt1.right + CDPIAware::Instance().ScaleX(MESSAGEBOX_BUTTONMARGIN));
-		rt2.MoveToY(rect.bottom -CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
+		rt1.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
+		rt2.MoveToX(rt1.right + CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_BUTTONMARGIN));
+		rt2.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON1)->MoveWindow(rt1);
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON2)->MoveWindow(rt2);
 		//hide the third button
@@ -1094,11 +1100,11 @@ BOOL CMessageBox::OnInitDialog()
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON3)->GetWindowRect(rt3);
 		ScreenToClient(rt3);
 		rt1.MoveToX(rect.left + ((rect.Width() - m_szButtons.cx)/2));
-		rt1.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
-		rt2.MoveToX(rt1.right + CDPIAware::Instance().ScaleX(MESSAGEBOX_BUTTONMARGIN));
-		rt2.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
-		rt3.MoveToX(rt2.right + CDPIAware::Instance().ScaleX(MESSAGEBOX_BUTTONMARGIN));
-		rt3.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
+		rt1.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
+		rt2.MoveToX(rt1.right + CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_BUTTONMARGIN));
+		rt2.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
+		rt3.MoveToX(rt2.right + CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_BUTTONMARGIN));
+		rt3.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - m_szButtons.cy);
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON1)->MoveWindow(rt1);
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON2)->MoveWindow(rt2);
 		GetDlgItem(IDC_MESSAGEBOX_BUTTON3)->MoveWindow(rt3);
@@ -1108,8 +1114,8 @@ BOOL CMessageBox::OnInitDialog()
 		CRect rt;
 		GetDlgItem(IDC_MESSAGEBOX_CHECKBOX)->GetWindowRect(rt);
 		ScreenToClient(rt);
-		rt.MoveToX(rect.left + CDPIAware::Instance().ScaleX(MESSAGEBOX_BORDERMARGINX) /*+ ((rect.Width() - szButtons.cx)/2)*/);
-		rt.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(MESSAGEBOX_BORDERMARGINY) - szButtons.cy);
+		rt.MoveToX(rect.left + CDPIAware::Instance().ScaleX(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINX) /*+ ((rect.Width() - szButtons.cx)/2)*/);
+		rt.MoveToY(rect.bottom - CDPIAware::Instance().ScaleY(GetSafeHwnd(), MESSAGEBOX_BORDERMARGINY) - szButtons.cy);
 		GetDlgItem(IDC_MESSAGEBOX_CHECKBOX)->MoveWindow(rt);
 		GetDlgItem(IDC_MESSAGEBOX_CHECKBOX)->ShowWindow(SW_SHOW);
 	}
@@ -1142,18 +1148,7 @@ BOOL CMessageBox::PreTranslateMessage(MSG* pMsg)
 			{
 				if (GetAsyncKeyState(VK_CONTROL)&0x8000)
 				{
-					CClipboardHelper clipboardHelper;
-					if(clipboardHelper.Open(GetSafeHwnd()))
-					{
-						EmptyClipboard();
-						CStringA sClipboard = CStringA(m_sMessage);
-						HGLOBAL hClipboardData = CClipboardHelper::GlobalAlloc(sClipboard.GetLength()+1);
-						auto pchData = static_cast<char*>(GlobalLock(hClipboardData));
-						if (pchData)
-							strcpy_s(pchData, sClipboard.GetLength() + 1, static_cast<LPCSTR>(sClipboard));
-						GlobalUnlock(hClipboardData);
-						SetClipboardData(CF_TEXT,hClipboardData);
-					}
+					CStringUtils::WriteAsciiStringToClipboard(m_sMessage, GetSafeHwnd());
 					return TRUE;
 				}
 			}

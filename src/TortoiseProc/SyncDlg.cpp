@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,11 +27,9 @@
 #include "ProgressDlg.h"
 #include "MessageBox.h"
 #include "ImportPatchDlg.h"
-#include "RebaseDlg.h"
 #include "Hooks.h"
 #include "SmartHandle.h"
 #include "ProgressCommands/FetchProgressCommand.h"
-#include "SyncTabCtrl.h"
 #include "SysProgressDlg.h"
 #include "ThemeMFCVisualManager.h"
 
@@ -41,21 +39,10 @@ IMPLEMENT_DYNAMIC(CSyncDlg, CResizableStandAloneDialog)
 
 CSyncDlg::CSyncDlg(CWnd* pParent /*=nullptr*/)
 : CResizableStandAloneDialog(CSyncDlg::IDD, pParent)
-, m_iPullRebase(0)
-, m_CurrentCmd(0)
-, m_bInited(false)
-, m_CmdOutCurrentPos(0)
+, CBranchCombox(L"sync")
 , m_bAutoLoadPuttyKey(CAppUtils::IsSSHPutty())
 , m_bForce(BST_UNCHECKED)
-, m_bBlock(false)
-, m_BufStart(0)
-, m_pThread(nullptr)
-, m_bAbort(false)
-, m_bDone(false)
-, m_bWantToExit(false)
-, m_GitCmdStatus(-1)
 , m_startTick(GetTickCount64())
-, m_seq(0)
 {
 	m_pTooltip = &m_tooltips;
 }
@@ -125,9 +112,9 @@ bool CSyncDlg::AskSetTrackedBranch()
 		if (remoteBranch.IsEmpty())
 			remoteBranch = m_strLocalBranch;
 		CString temp;
-		temp.FormatMessage(IDS_NOTYET_SETTRACKEDBRANCH, static_cast<LPCTSTR>(m_strLocalBranch), static_cast<LPCTSTR>(remoteBranch));
+		temp.FormatMessage(IDS_NOTYET_SETTRACKEDBRANCH, static_cast<LPCWSTR>(m_strLocalBranch), static_cast<LPCWSTR>(remoteBranch));
 		BOOL dontShowAgain = FALSE;
-		auto ret = CMessageBox::ShowCheck(GetSafeHwnd(), temp, L"TortoiseGit", MB_ICONQUESTION | MB_YESNOCANCEL, nullptr, CString(MAKEINTRESOURCE(IDS_MSGBOX_DONOTSHOW)), &dontShowAgain);
+		const auto ret = CMessageBox::ShowCheck(GetSafeHwnd(), temp, IDS_APPNAME, MB_ICONQUESTION | MB_YESNOCANCEL, nullptr, IDS_MSGBOX_DONOTSHOW, &dontShowAgain);
 		if (dontShowAgain)
 			CRegDWORD(L"Software\\TortoiseGit\\AskSetTrackedBranch") = FALSE;
 		if (ret == IDCANCEL)
@@ -135,9 +122,9 @@ bool CSyncDlg::AskSetTrackedBranch()
 		if (ret == IDYES)
 		{
 			CString key;
-			key.Format(L"branch.%s.remote", static_cast<LPCTSTR>(m_strLocalBranch));
+			key.Format(L"branch.%s.remote", static_cast<LPCWSTR>(m_strLocalBranch));
 			g_Git.SetConfigValue(key, m_strURL);
-			key.Format(L"branch.%s.merge", static_cast<LPCTSTR>(m_strLocalBranch));
+			key.Format(L"branch.%s.merge", static_cast<LPCWSTR>(m_strLocalBranch));
 			g_Git.SetConfigValue(key, L"refs/heads/" + g_Git.StripRefName(remoteBranch));
 		}
 	}
@@ -146,7 +133,7 @@ bool CSyncDlg::AskSetTrackedBranch()
 
 void CSyncDlg::OnBnClickedButtonPull()
 {
-	bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+	const bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 
 	int CurrentEntry = static_cast<int>(this->m_ctrlPull.GetCurrentEntry());
 	this->m_regPullButton = CurrentEntry;
@@ -183,15 +170,18 @@ void CSyncDlg::OnBnClickedButtonPull()
 		if (localBranchHash != m_oldHash || m_strLocalBranch != g_Git.GetCurrentBranch())
 		{
 			CString tmp;
-			tmp.Format(IDS_PROC_SYNC_SWITCHTO, static_cast<LPCTSTR>(m_strLocalBranch));
+			tmp.Format(IDS_PROC_SYNC_SWITCHTO, static_cast<LPCWSTR>(m_strLocalBranch));
 			if (CMessageBox::Show(GetSafeHwnd(), CString(MAKEINTRESOURCE(IDS_PROC_SYNC_PULLWRONGBRANCH)), L"TortoiseGit", 2, IDI_QUESTION, tmp, CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
 				return;
 
+			CString endOfOptions;
+			if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+				endOfOptions = L" --end-of-options";
 			CString cmd;
-			cmd.Format(L"git.exe checkout %s --", static_cast<LPCTSTR>(m_strLocalBranch));
+			cmd.Format(L"git.exe checkout%s %s --", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(m_strLocalBranch));
 
 			CProgressDlg progress(this);
-			progress.m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
+			progress.m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
 			progress.m_GitCmd = cmd;
 			if (progress.DoModal() != IDOK || progress.m_GitStatus != 0)
 				return;
@@ -207,7 +197,7 @@ void CSyncDlg::OnBnClickedButtonPull()
 	if (CurrentEntry == 6)
 	{
 		SwitchToRun();
-		m_ctrlTabCtrl.ShowTab(IDC_LOG - 1, false);
+		m_ctrlTabCtrl.ShowTab(IDC_CMD_LOG - 1, false);
 		m_ctrlTabCtrl.ShowTab(IDC_REFLIST - 1, false);
 		m_ctrlTabCtrl.ShowTab(IDC_OUT_LOGLIST - 1, false);
 		m_ctrlTabCtrl.ShowTab(IDC_OUT_CHANGELIST - 1, false);
@@ -216,6 +206,9 @@ void CSyncDlg::OnBnClickedButtonPull()
 		m_ctrlTabCtrl.ShowTab(IDC_IN_CONFLICT - 1, false);
 		m_ctrlTabCtrl.ShowTab(IDC_TAGCOMPARELIST - 1, true);
 
+		if (m_pTaskbarList)
+			m_pTaskbarList->SetProgressState(m_hWnd, TBPF_INDETERMINATE);
+
 		CSysProgressDlg sysProgressDlg;
 		sysProgressDlg.SetTitle(CString(MAKEINTRESOURCE(IDS_APPNAME)));
 		sysProgressDlg.SetLine(1, CString(MAKEINTRESOURCE(IDS_LOADING)));
@@ -223,10 +216,22 @@ void CSyncDlg::OnBnClickedButtonPull()
 		sysProgressDlg.SetShowProgressBar(false);
 		sysProgressDlg.ShowModal(this, true);
 		CString err;
-		auto ret = m_tagCompareList.Fill(m_strURL, err);
+		const auto ret = m_tagCompareList.Fill(m_strURL, err);
 		sysProgressDlg.Stop();
 		if (ret)
+		{
+			if (m_pTaskbarList)
+			{
+				m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);
+				m_pTaskbarList->SetProgressValue(m_hWnd, 100, 100);
+			}
 			MessageBox(err, L"TortoiseGit", MB_ICONERROR);
+		}
+		else
+		{
+			if (m_pTaskbarList)
+				m_pTaskbarList->SetProgressState(m_hWnd, TBPF_NOPROGRESS);
+		}
 
 		BringWindowToTop();
 		SwitchToInput();
@@ -251,14 +256,14 @@ void CSyncDlg::OnBnClickedButtonPull()
 	if (bShift && (CurrentEntry == 0 || CurrentEntry == 1))
 	{
 		if (CurrentEntry == 1 || CurrentEntry == 2 || CurrentEntry == 3)
-			CAppUtils::Fetch(GetSafeHwnd(), !IsURL() ? m_strURL : L"");
+			CAppUtils::Fetch(GetSafeHwnd(), !IsURL() ? m_strURL : CString());
 		else
 			CAppUtils::Pull(GetSafeHwnd());
 
 		FillNewRefMap();
 		FetchOutList(true);
 
-		int hasConflicts = g_Git.HasWorkingTreeConflicts();
+		const int hasConflicts = g_Git.HasWorkingTreeConflicts();
 		if (hasConflicts < 0)
 		{
 			this->m_ctrlCmdOut.SetSel(-1, -1);
@@ -319,7 +324,7 @@ void CSyncDlg::OnBnClickedButtonPull()
 				{
 					CString value;
 					config.GetString(L"pull.rebase", value);
-					if (value == L"preserve")
+					if (value == L"merges")
 					{
 						m_iPullRebase = 2;
 						break;
@@ -330,7 +335,7 @@ void CSyncDlg::OnBnClickedButtonPull()
 			{
 				CString value;
 				config.GetString(L"branch." + g_Git.GetCurrentBranch() + L".rebase", value);
-				if (value == L"preserve")
+				if (value == L"merges")
 				{
 					m_iPullRebase = 2;
 					break;
@@ -372,10 +377,10 @@ void CSyncDlg::OnBnClickedButtonPull()
 				remotebranch.Empty();
 		}
 
-		cmd.Format(L"git.exe pull -v --progress%s \"%s\" %s",
-				static_cast<LPCTSTR>(force),
-				static_cast<LPCTSTR>(m_strURL),
-				static_cast<LPCTSTR>(remotebranch));
+		cmd.Format(L"git.exe pull -v --progress%s -- \"%s\" %s",
+				static_cast<LPCWSTR>(force),
+				static_cast<LPCWSTR>(m_strURL),
+				static_cast<LPCWSTR>(remotebranch));
 
 		m_CurrentCmd = GIT_COMMAND_PULL;
 		m_GitCmdList.push_back(cmd);
@@ -397,7 +402,7 @@ void CSyncDlg::OnBnClickedButtonPull()
 		}
 		else
 		{
-			remotebranch.Format(L"remotes/%s/%s", static_cast<LPCTSTR>(m_strURL), static_cast<LPCTSTR>(m_strRemoteBranch));
+			remotebranch.Format(L"remotes/%s/%s", static_cast<LPCWSTR>(m_strURL), static_cast<LPCWSTR>(m_strRemoteBranch));
 			g_Git.GetHash(m_oldRemoteHash, remotebranch);
 			if (m_oldRemoteHash.IsEmpty())
 				remotebranch=m_strRemoteBranch;
@@ -414,7 +419,7 @@ void CSyncDlg::OnBnClickedButtonPull()
 		{
 			CString refspec;
 			if (!remotebranch.IsEmpty())
-				refspec.Format(L"refs/heads/%s:refs/remotes/%s/%s", static_cast<LPCTSTR>(m_strRemoteBranch), static_cast<LPCTSTR>(m_strURL), static_cast<LPCTSTR>(m_strRemoteBranch));
+				refspec.Format(L"refs/heads/%s:refs/remotes/%s/%s", static_cast<LPCWSTR>(m_strRemoteBranch), static_cast<LPCWSTR>(m_strURL), static_cast<LPCWSTR>(m_strRemoteBranch));
 
 			progressCommand = std::make_unique<FetchProgressCommand>();
 			FetchProgressCommand* fetchProgressCommand = static_cast<FetchProgressCommand*>(progressCommand.get());
@@ -426,10 +431,10 @@ void CSyncDlg::OnBnClickedButtonPull()
 		}
 		else
 		{
-			cmd.Format(L"git.exe fetch --progress -v%s \"%s\" %s",
-					static_cast<LPCTSTR>(force),
-					static_cast<LPCTSTR>(m_strURL),
-					static_cast<LPCTSTR>(remotebranch));
+			cmd.Format(L"git.exe fetch --progress -v%s -- \"%s\" %s",
+					static_cast<LPCWSTR>(force),
+					static_cast<LPCWSTR>(m_strURL),
+					static_cast<LPCWSTR>(remotebranch));
 
 			m_GitCmdList.push_back(cmd);
 
@@ -457,7 +462,7 @@ void CSyncDlg::OnBnClickedButtonPull()
 	if (CurrentEntry == 5)
 	{
 		m_CurrentCmd = GIT_COMMAND_REMOTE;
-		cmd.Format(L"git.exe remote prune \"%s\"", static_cast<LPCTSTR>(m_strURL));
+		cmd.Format(L"git.exe remote prune -- \"%s\"", static_cast<LPCWSTR>(m_strURL));
 		m_GitCmdList.push_back(cmd);
 
 		StartWorkerThread();
@@ -489,7 +494,7 @@ void CSyncDlg::ShowInCommits(const CString& friendname)
 		AddDiffFileList(&m_InChangeFileList, &m_arInChangeList, newHash, m_oldHash);
 
 		CString range;
-		range.Format(L"%s..%s", static_cast<LPCTSTR>(m_oldHash.ToString()), static_cast<LPCTSTR>(newHash.ToString()));
+		range.Format(L"%s..%s", static_cast<LPCWSTR>(m_oldHash.ToString()), static_cast<LPCWSTR>(newHash.ToString()));
 		m_InLogList.FillGitLog(nullptr, &range, CGit::LOG_INFO_STAT | CGit::LOG_INFO_FILESTATE | CGit::LOG_INFO_SHOW_MERGEDFILE);
 		ShowTab(IDC_IN_LOGLIST);
 	}
@@ -503,7 +508,7 @@ void CSyncDlg::PullComplete()
 
 	if( this ->m_GitCmdStatus )
 	{
-		int hasConflicts = g_Git.HasWorkingTreeConflicts();
+		const int hasConflicts = g_Git.HasWorkingTreeConflicts();
 		if (hasConflicts < 0)
 		{
 			this->m_ctrlCmdOut.SetSel(-1,-1);
@@ -581,14 +586,14 @@ void CSyncDlg::FetchComplete()
 
 	if (g_Git.IsFastForward(L"HEAD", upstream))
 	{
-		UINT ret = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_REBASE_BRANCH_FF, IDS_APPNAME, 2, IDI_QUESTION, IDS_MERGEBUTTON, IDS_REBASEBUTTON, IDS_ABORTBUTTON, L"OpenRebaseRemoteBranchFastForwards", IDS_MSGBOX_DONOTSHOWAGAIN);
+		const UINT ret = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_REBASE_BRANCH_FF, IDS_APPNAME, 2, IDI_QUESTION, IDS_MERGEBUTTON, IDS_REBASEBUTTON, IDS_ABORTBUTTON, L"OpenRebaseRemoteBranchFastForwards", IDS_MSGBOX_DONOTSHOWAGAIN);
 		if (ret == 3)
 			return;
 		if (ret == 1)
 		{
 			CProgressDlg mergeProgress;
-			mergeProgress.m_GitCmd = L"git.exe merge --ff-only " + upstream;
-			mergeProgress.m_AutoClose = AUTOCLOSE_IF_NO_ERRORS;
+			mergeProgress.m_GitCmd = L"git.exe merge --ff-only -- " + upstream;
+			mergeProgress.m_AutoClose = GitProgressAutoClose::AUTOCLOSE_IF_NO_ERRORS;
 			mergeProgress.m_PostCmdCallback = [](DWORD status, PostCmdList& postCmdList)
 			{
 				if (status && g_Git.HasWorkingTreeConflicts())
@@ -597,7 +602,7 @@ void CSyncDlg::FetchComplete()
 					postCmdList.emplace_back(IDI_RESOLVE, IDS_PROGRS_CMD_RESOLVE, []
 					{
 						CString sCmd;
-						sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
+						sCmd.Format(L"/command:commit /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
 						CAppUtils::RunTortoiseGitProc(sCmd);
 					});
 				}
@@ -629,7 +634,7 @@ void CSyncDlg::StashComplete()
 	SwitchToInput();
 	if (m_GitCmdStatus)
 	{
-		int hasConflicts = g_Git.HasWorkingTreeConflicts();
+		const int hasConflicts = g_Git.HasWorkingTreeConflicts();
 		if (hasConflicts < 0)
 		{
 			m_ctrlCmdOut.SetSel(-1, -1);
@@ -654,7 +659,7 @@ void CSyncDlg::StashComplete()
 
 void CSyncDlg::OnBnClickedButtonPush()
 {
-	bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+	const bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 	this->UpdateData();
 	UpdateCombox();
 
@@ -720,17 +725,17 @@ void CSyncDlg::OnBnClickedButtonPush()
 		arg += L" --tags";
 		break;
 	case 2:
-		refName = L"refs/notes/commits";	//default ref for notes
+		refName = g_Git.GetNotesRef();
 		break;
 	}
 
 	if(this->m_bForce)
 		arg += L" --force";
 
-	cmd.Format(L"git.exe push -v --progress%s \"%s\" %s",
-				static_cast<LPCTSTR>(arg),
-				static_cast<LPCTSTR>(m_strURL),
-				static_cast<LPCTSTR>(refName));
+	cmd.Format(L"git.exe push -v --progress%s -- \"%s\" %s",
+				static_cast<LPCWSTR>(arg),
+				static_cast<LPCWSTR>(m_strURL),
+				static_cast<LPCWSTR>(refName));
 
 	if (!m_strRemoteBranch.IsEmpty() && m_ctrlPush.GetCurrentEntry() != 2)
 	{
@@ -766,7 +771,7 @@ void CSyncDlg::OnBnClickedButtonApply()
 		int err=0;
 		for (int i = 0; i < dlg.m_PathList.GetCount(); ++i)
 		{
-			cmd.Format(L"git.exe am \"%s\"", static_cast<LPCTSTR>(dlg.m_PathList[i].GetGitPathString()));
+			cmd.Format(L"git.exe am -- \"%s\"", static_cast<LPCWSTR>(dlg.m_PathList[i].GetGitPathString()));
 
 			if (g_Git.Run(cmd, &output, CP_UTF8))
 			{
@@ -804,7 +809,7 @@ void CSyncDlg::OnBnClickedButtonApply()
 			this->m_ctrlTabCtrl.ShowTab(IDC_IN_LOGLIST-1,true);
 
 			CString range;
-			range.Format(L"%s..%s", static_cast<LPCTSTR>(m_oldHash.ToString()), static_cast<LPCTSTR>(newhash.ToString()));
+			range.Format(L"%s..%s", static_cast<LPCWSTR>(m_oldHash.ToString()), static_cast<LPCWSTR>(newhash.ToString()));
 			this->AddDiffFileList(&m_InChangeFileList, &m_arInChangeList, newhash, oldhash);
 			m_InLogList.FillGitLog(nullptr, &range, CGit::LOG_INFO_STAT| CGit::LOG_INFO_FILESTATE | CGit::LOG_INFO_SHOW_MERGEDFILE);
 
@@ -834,9 +839,9 @@ void CSyncDlg::OnBnClickedButtonEmail()
 	m_strURL=m_strURL.Trim();
 	m_strRemoteBranch=m_strRemoteBranch.Trim();
 
-	cmd.Format(L"git.exe format-patch -o \"%s\" %s/%s..%s",
-					static_cast<LPCTSTR>(g_Git.m_CurrentDir),
-					static_cast<LPCTSTR>(m_strURL), static_cast<LPCTSTR>(m_strRemoteBranch), static_cast<LPCTSTR>(g_Git.FixBranchName(m_strLocalBranch)));
+	cmd.Format(L"git.exe format-patch -o \"%s\" --end-of-options %s/%s..%s",
+					static_cast<LPCWSTR>(g_Git.m_CurrentDir),
+					static_cast<LPCWSTR>(m_strURL), static_cast<LPCWSTR>(m_strRemoteBranch), static_cast<LPCWSTR>(g_Git.FixBranchName(m_strLocalBranch)));
 
 	if (g_Git.Run(cmd, &out, &err, CP_UTF8))
 	{
@@ -848,7 +853,7 @@ void CSyncDlg::OnBnClickedButtonEmail()
 }
 void CSyncDlg::ShowProgressCtrl(bool bShow)
 {
-	int b=bShow?SW_NORMAL:SW_HIDE;
+	const int b = bShow ? SW_NORMAL : SW_HIDE;
 	this->m_ctrlAnimate.ShowWindow(b);
 	this->m_ctrlProgress.ShowWindow(b);
 	this->m_ctrlProgLabel.ShowWindow(b);
@@ -860,16 +865,21 @@ void CSyncDlg::ShowProgressCtrl(bool bShow)
 }
 void CSyncDlg::ShowInputCtrl(bool bShow)
 {
-	int b=bShow?SW_NORMAL:SW_HIDE;
+	const int b = bShow ? SW_NORMAL : SW_HIDE;
 	this->m_ctrlURL.ShowWindow(b);
 	this->m_ctrlLocalBranch.ShowWindow(b);
 	this->m_ctrlRemoteBranch.ShowWindow(b);
+	GetDlgItem(IDC_BUTTON_LOCAL_BRANCH)->EnableWindow(bShow);
 	this->GetDlgItem(IDC_BUTTON_LOCAL_BRANCH)->ShowWindow(b);
+	GetDlgItem(IDC_BUTTON_REMOTE_BRANCH)->EnableWindow(bShow);
 	this->GetDlgItem(IDC_BUTTON_REMOTE_BRANCH)->ShowWindow(b);
 	this->GetDlgItem(IDC_STATIC_LOCAL_BRANCH)->ShowWindow(b);
 	this->GetDlgItem(IDC_STATIC_REMOTE_BRANCH)->ShowWindow(b);
+	GetDlgItem(IDC_BUTTON_MANAGE)->EnableWindow(bShow);
 	this->GetDlgItem(IDC_BUTTON_MANAGE)->ShowWindow(b);
+	GetDlgItem(IDC_CHECK_PUTTY_KEY)->EnableWindow(bShow);
 	this->GetDlgItem(IDC_CHECK_PUTTY_KEY)->ShowWindow(b);
+	GetDlgItem(IDC_CHECK_FORCE)->EnableWindow(bShow);
 	this->GetDlgItem(IDC_CHECK_FORCE)->ShowWindow(b);
 	this->GetDlgItem(IDC_STATIC_REMOTE_URL)->ShowWindow(b);
 }
@@ -883,7 +893,7 @@ BOOL CSyncDlg::OnInitDialog()
 	// were running elevated. It's OK to make the call all the time, since if we're
 	// not elevated, this is a no-op.
 	CHANGEFILTERSTRUCT cfs = { sizeof(CHANGEFILTERSTRUCT) };
-	typedef BOOL STDAPICALLTYPE ChangeWindowMessageFilterExDFN(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
+	using ChangeWindowMessageFilterExDFN = BOOL(STDAPICALLTYPE)(HWND hWnd, UINT message, DWORD action, PCHANGEFILTERSTRUCT pChangeFilterStruct);
 	CAutoLibrary hUser = AtlLoadSystemLibraryUsingFullPath(L"user32.dll");
 	if (hUser)
 	{
@@ -929,7 +939,7 @@ BOOL CSyncDlg::OnInitDialog()
 
 	// set the font to use in the log message view, configured in the settings dialog
 	CFont m_logFont;
-	CAppUtils::CreateFontForLogs(m_logFont);
+	CAppUtils::CreateFontForLogs(GetSafeHwnd(), m_logFont);
 	m_ctrlCmdOut.SetFont(&m_logFont);
 	m_ctrlTabCtrl.InsertTab(&m_ctrlCmdOut, CString(MAKEINTRESOURCE(IDS_LOG)), -1);
 	// make the log message rich edit control send a message when the mouse pointer is over a link
@@ -1105,7 +1115,7 @@ BOOL CSyncDlg::OnInitDialog()
 	WorkingDir.Replace(L':', L'_');
 
 	CString regkey ;
-	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\Sync\\%s", static_cast<LPCTSTR>(WorkingDir));
+	regkey.Format(L"Software\\TortoiseGit\\TortoiseProc\\Sync\\%s", static_cast<LPCWSTR>(WorkingDir));
 
 	this->m_regPullButton = CRegDWORD(regkey + L"\\Pull", 0);
 	this->m_regPushButton = CRegDWORD(regkey + L"\\Push", 0);
@@ -1122,9 +1132,7 @@ BOOL CSyncDlg::OnInitDialog()
 	this->m_ctrlPush.SetCurrentEntry(this->m_regPushButton);
 	this->m_ctrlSubmodule.SetCurrentEntry(this->m_regSubmoduleButton);
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	EnableSaveRestore(L"SyncDlg");
 
@@ -1170,8 +1178,8 @@ BOOL CSyncDlg::OnInitDialog()
 		rect.bottom -= m_seq * 30;
 		if (rect.top < 0)
 		{
-			rect.top += CDPIAware::Instance().ScaleY(150);
-			rect.bottom += CDPIAware::Instance().ScaleY(150);
+			rect.top += CDPIAware::Instance().ScaleY(GetSafeHwnd(), 150);
+			rect.bottom += CDPIAware::Instance().ScaleY(GetSafeHwnd(), 150);
 		}
 		MoveWindow(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
 	}
@@ -1192,7 +1200,7 @@ void CSyncDlg::Refresh()
 {
 	theApp.DoWaitCursor(1);
 
-	int lastSelected = m_ctrlURL.GetCurSel();
+	const int lastSelected = m_ctrlURL.GetCurSel();
 	CString url;
 	this->m_ctrlURL.GetWindowText(url);
 
@@ -1252,7 +1260,7 @@ BOOL CSyncDlg::PreTranslateMessage(MSG* pMsg)
 		case VK_ESCAPE:
 		case VK_CANCEL:
 			{
-				TCHAR buff[129];
+				wchar_t buff[129];
 				::GetClassName(pMsg->hwnd, buff, _countof(buff) - 1);
 
 				/* Use MSFTEDIT_CLASS http://msdn.microsoft.com/en-us/library/bb531344.aspx */
@@ -1302,7 +1310,7 @@ void CSyncDlg::FetchOutList(bool force)
 	else if(remotebranchHash.IsEmpty())
 	{
 		CString str;
-		str.Format(IDS_PROC_SYNC_PUSH_UNKNOWNBRANCH, static_cast<LPCTSTR>(remotebranch));
+		str.Format(IDS_PROC_SYNC_PUSH_UNKNOWNBRANCH, static_cast<LPCWSTR>(remotebranch));
 		m_OutLogList.ShowText(str);
 		this->m_ctrlTabCtrl.ShowTab(m_OutChangeFileList.GetDlgCtrlID()-1,FALSE);
 		m_OutLocalBranch.Empty();
@@ -1321,7 +1329,7 @@ void CSyncDlg::FetchOutList(bool force)
 			m_OutLogList.ClearText();
 
 			CGitHash base, localBranchHash;
-			bool isFastForward = g_Git.IsFastForward(remotebranch, localbranch, &base);
+			const bool isFastForward = g_Git.IsFastForward(remotebranch, localbranch, &base);
 
 			if (g_Git.GetHash(localBranchHash, localbranch))
 			{
@@ -1331,7 +1339,7 @@ void CSyncDlg::FetchOutList(bool force)
 			if (remotebranchHash == localBranchHash)
 			{
 				CString str;
-				str.FormatMessage(IDS_PROC_SYNC_COMMITSAHEAD, 0, static_cast<LPCTSTR>(remotebranch));
+				str.FormatMessage(IDS_PROC_SYNC_COMMITSAHEAD, 0, static_cast<LPCWSTR>(remotebranch));
 				m_OutLogList.ShowText(str);
 				this->m_ctrlStatus.SetWindowText(str);
 				this->m_ctrlTabCtrl.ShowTab(m_OutChangeFileList.GetDlgCtrlID()-1,FALSE);
@@ -1340,11 +1348,11 @@ void CSyncDlg::FetchOutList(bool force)
 			else if (isFastForward || m_bForce)
 			{
 				CString range;
-				range.Format(L"%s..%s", static_cast<LPCTSTR>(g_Git.FixBranchName(remotebranch)), static_cast<LPCTSTR>(g_Git.FixBranchName(localbranch)));
+				range.Format(L"%s..%s", static_cast<LPCWSTR>(g_Git.FixBranchName(remotebranch)), static_cast<LPCWSTR>(g_Git.FixBranchName(localbranch)));
 				//fast forward
 				m_OutLogList.FillGitLog(nullptr, &range, CGit::LOG_INFO_STAT | CGit::LOG_INFO_FILESTATE | CGit::LOG_INFO_SHOW_MERGEDFILE);
 				CString str;
-				str.FormatMessage(IDS_PROC_SYNC_COMMITSAHEAD, m_OutLogList.GetItemCount(), static_cast<LPCTSTR>(remotebranch));
+				str.FormatMessage(IDS_PROC_SYNC_COMMITSAHEAD, m_OutLogList.GetItemCount(), static_cast<LPCWSTR>(remotebranch));
 				this->m_ctrlStatus.SetWindowText(str);
 
 				if (isFastForward)
@@ -1360,7 +1368,7 @@ void CSyncDlg::FetchOutList(bool force)
 			else
 			{
 				CString str;
-				str.FormatMessage(IDS_PROC_SYNC_NOFASTFORWARD, static_cast<LPCTSTR>(localbranch), static_cast<LPCTSTR>(remotebranch));
+				str.FormatMessage(IDS_PROC_SYNC_NOFASTFORWARD, static_cast<LPCWSTR>(localbranch), static_cast<LPCWSTR>(remotebranch));
 				m_OutLogList.ShowText(str);
 				this->m_ctrlStatus.SetWindowText(str);
 				this->m_ctrlTabCtrl.ShowTab(m_OutChangeFileList.GetDlgCtrlID() - 1, FALSE);
@@ -1433,6 +1441,8 @@ LRESULT CSyncDlg::OnProgressUpdateUI(WPARAM wParam,LPARAM lParam)
 			CString text;
 			m_ctrlCmdOut.GetWindowText(text);
 			text.Remove('\r');
+			if (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\StyleGitOutput", TRUE)) == TRUE)
+				CAppUtils::StyleWarningsErrors(text, &m_ctrlCmdOut);
 			CAppUtils::StyleURLs(text, &m_ctrlCmdOut);
 		}
 
@@ -1447,10 +1457,10 @@ LRESULT CSyncDlg::OnProgressUpdateUI(WPARAM wParam,LPARAM lParam)
 			CString log;
 			log.Format(IDS_PROC_PROGRESS_GITUNCLEANEXIT, exitCode);
 			CString err;
-			err.Format(L"\r\n\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCTSTR>(log), tickSpent, static_cast<LPCTSTR>(strEndTime));
+			err.Format(L"\r\n\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCWSTR>(log), tickSpent, static_cast<LPCWSTR>(strEndTime));
 			CProgressDlg::InsertColorText(this->m_ctrlCmdOut, err, RGB(255,0,0));
 			if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
-				PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
+				PlaySound(reinterpret_cast<LPCWSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
 		}
 		else
 		{
@@ -1459,7 +1469,7 @@ LRESULT CSyncDlg::OnProgressUpdateUI(WPARAM wParam,LPARAM lParam)
 			CString temp;
 			temp.LoadString(IDS_SUCCESS);
 			CString log;
-			log.Format(L"\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCTSTR>(temp), tickSpent, static_cast<LPCTSTR>(strEndTime));
+			log.Format(L"\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCWSTR>(temp), tickSpent, static_cast<LPCWSTR>(strEndTime));
 			CProgressDlg::InsertColorText(this->m_ctrlCmdOut, log, RGB(0,0,255));
 		}
 		m_GitCmdStatus = exitCode;
@@ -1582,7 +1592,7 @@ void CSyncDlg::RunPostAction()
 			if (exitcode)
 			{
 				CString temp;
-				temp.Format(IDS_ERR_HOOKFAILED, static_cast<LPCTSTR>(error));
+				temp.Format(IDS_ERR_HOOKFAILED, static_cast<LPCWSTR>(error));
 				CMessageBox::Show(GetSafeHwnd(), temp, L"TortoiseGit", MB_OK | MB_ICONERROR);
 				return;
 			}
@@ -1676,7 +1686,7 @@ void CSyncDlg::OnCancel()
 
 void CSyncDlg::OnBnClickedButtonSubmodule()
 {
-	bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+	const bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 	this->UpdateData();
 	UpdateCombox();
 
@@ -1713,13 +1723,15 @@ void CSyncDlg::OnBnClickedButtonSubmodule()
 	switch (m_ctrlSubmodule.GetCurrentEntry())
 	{
 	case 0:
-		cmd = L"git.exe submodule update --init";
+		cmd = L"git.exe submodule update --init --recursive";
+		if (m_bForce)
+			cmd += L" --force";
 		break;
 	case 1:
 		cmd = L"git.exe submodule init";
 		break;
 	case 2:
-		cmd = L"git.exe submodule sync";
+		cmd = L"git.exe submodule sync --recursive";
 		break;
 	}
 
@@ -1732,7 +1744,7 @@ void CSyncDlg::OnBnClickedButtonSubmodule()
 
 void CSyncDlg::OnBnClickedButtonStash()
 {
-	bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+	const bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 	UpdateData();
 	UpdateCombox();
 
@@ -1761,9 +1773,7 @@ void CSyncDlg::OnBnClickedButtonStash()
 	switch (m_ctrlStash.GetCurrentEntry())
 	{
 	case 0:
-		cmd = L"git.exe stash push";
-		if (!CAppUtils::IsGitVersionNewerOrEqual(GetSafeHwnd(), 2, 14))
-			cmd = L"git.exe stash save";
+		cmd = L"git.exe stash save";
 		break;
 	case 1:
 		cmd = L"git.exe stash pop";

@@ -1,4 +1,4 @@
-/********************************************************************
+﻿/********************************************************************
 *
 * Copyright (c) 2002 Sven Wiegand <mail@sven-wiegand.de>
 *
@@ -37,24 +37,16 @@ namespace TreePropSheet
 //-------------------------------------------------------------------
 
 CPropPageFrame::CPropPageFrame()
-:	m_bShowCaption(FALSE),
-	m_nCaptionHeight(0),
-	m_hCaptionIcon(nullptr),
-	m_dwMsgFormat(DT_CENTER|DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE),
-	m_uiFont(nullptr)
-	, m_bDark(false)
 {
 	NONCLIENTMETRICS metrics = { 0 };
 	metrics.cbSize = sizeof(NONCLIENTMETRICS);
 	SystemParametersInfo(SPI_GETNONCLIENTMETRICS, 0, &metrics, FALSE);
-	m_uiFont = CreateFontIndirect(&metrics.lfMessageFont);
+	m_uiFont.CreateFontIndirect(&metrics.lfMessageFont);
 }
 
 
 CPropPageFrame::~CPropPageFrame()
 {
-	if (m_uiFont)
-		DeleteObject(m_uiFont);
 }
 
 
@@ -75,7 +67,7 @@ BOOL CPropPageFrame::GetShowCaption() const
 }
 
 
-void CPropPageFrame::SetCaption(LPCTSTR lpszCaption, HICON hIcon /*= nullptr*/)
+void CPropPageFrame::SetCaption(LPCWSTR lpszCaption, HICON hIcon /*= nullptr*/)
 {
 	m_strCaption = lpszCaption;
 	m_hCaptionIcon = hIcon;
@@ -104,7 +96,7 @@ int CPropPageFrame::GetCaptionHeight() const
 }
 
 
-void CPropPageFrame::SetMsgText(LPCTSTR lpszMsg)
+void CPropPageFrame::SetMsgText(LPCWSTR lpszMsg)
 {
 	m_strMsg = lpszMsg;
 	SafeUpdateWindow(CalcMsgArea());
@@ -154,7 +146,7 @@ CRect CPropPageFrame::CalcMsgArea()
 }
 
 
-void CPropPageFrame::DrawMsg(CDC *pDc, CRect rect, LPCTSTR /*lpszMsg*/, DWORD /*dwFormat*/)
+void CPropPageFrame::DrawMsg(CDC* pDc, CRect rect, LPCWSTR /*lpszMsg*/, DWORD /*dwFormat*/)
 {
 	auto hOldFont = pDc->SelectObject(m_uiFont);
 	int		nPrevBkMode = pDc->SetBkMode(TRANSPARENT);
@@ -181,7 +173,7 @@ CRect	CPropPageFrame::CalcCaptionArea()
 }
 
 
-void CPropPageFrame::DrawCaption(CDC * /*pDc*/, CRect /*rect*/, LPCTSTR /*lpszCaption*/, HICON /*hIcon*/)
+void CPropPageFrame::DrawCaption(CDC* /*pDc*/, CRect /*rect*/, LPCWSTR /*lpszCaption*/, HICON /*hIcon*/)
 {
 	// should be implemented by specialized classes
 }

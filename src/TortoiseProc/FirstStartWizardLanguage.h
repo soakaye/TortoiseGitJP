@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016 - TortoiseGit
+// Copyright (C) 2016, 2023-2024 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -34,10 +34,10 @@ public:
 	enum { IDD = IDD_FIRSTSTARTWIZARD_LANGUAGE };
 
 protected:
-	virtual void	DoDataExchange(CDataExchange* pDX) override;
-	virtual BOOL	OnInitDialog() override;
-	virtual BOOL	OnSetActive() override;
-	virtual LRESULT	OnWizardNext() override;
+	void	DoDataExchange(CDataExchange* pDX) override;
+	BOOL	OnInitDialog() override;
+	BOOL	OnSetActive() override;
+	LRESULT	OnWizardNext() override;
 	afx_msg LRESULT	OnDialogDisplayed(WPARAM wParam, LPARAM lParam);
 	afx_msg void	OnClickedLink(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void	OnBnClickedRefresh();
@@ -47,6 +47,7 @@ protected:
 	CComboBox		m_LanguageCombo;
 	CRegDWORD		m_regLanguage;
 	DWORD			m_dwLanguage;
+	DWORD			m_dwInitialLanguage;
 
 	CHyperLink		m_link;
 };

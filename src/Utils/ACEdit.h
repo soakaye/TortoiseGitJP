@@ -1,7 +1,7 @@
 // TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (c) 2003 by Andreas Kapust <info@akinstaller.de>; <http://www.codeproject.com/Articles/2607/AutoComplete-without-IAutoComplete>
-// Copyright (C) 2009, 2012-2013, 2019 - TortoiseGit
+// Copyright (C) 2009, 2012-2013, 2019, 2023 - TortoiseGit
 
 // Licensed under: The Code Project Open License (CPOL); <http://www.codeproject.com/info/cpol10.aspx>
 
@@ -50,7 +50,7 @@ class CACEdit : public CWnd //CEdit
 public:
 	CACEdit();
 	void SetMode(int iMode=_MODE_STANDARD_);
-	void SetSeparator(LPCTSTR lpszString, TCHAR lpszPrefixChar = L'\0')
+	void SetSeparator(LPCWSTR lpszString, wchar_t lpszPrefixChar = L'\0')
 	{
 		m_SeparationStr = lpszString;
 		m_Liste.m_PrefixChar = m_PrefixChar = lpszPrefixChar;
@@ -58,33 +58,33 @@ public:
 	}
 
 	// CComboBox
-	int AddString( LPCTSTR lpszString);
-	int GetLBText( int nIndex, LPTSTR lpszText );
+	int AddString(LPCWSTR lpszString);
+	int GetLBText(int nIndex, LPWSTR lpszText);
 	void GetLBText( int nIndex, CString& rString );
 	int SetDroppedWidth(UINT nWidth);
-	int FindString( int nStartAfter, LPCTSTR lpszString );
-	int SelectString( int nStartAfter, LPCTSTR lpszString );
+	int FindString(int nStartAfter, LPCWSTR lpszString);
+	int SelectString(int nStartAfter, LPCWSTR lpszString);
 	void ShowDropDown(BOOL bShowIt = TRUE );
 	void ResetContent();
 	int GetCurSel();
 	// Attribute
 public:
 	void Init();
-	void AddSearchString(LPCTSTR lpszString);
-	void AddSearchStrings(LPCTSTR Strings[]);
+	void AddSearchString(LPCWSTR lpszString);
+	void AddSearchStrings(LPCWSTR Strings[]);
 	void RemoveSearchAll();
-	void SetStartDirectory(LPCTSTR lpszString);
+	void SetStartDirectory(LPCWSTR lpszString);
 	// Operationen
 public:
 
-	// Überschreibungen
-	// Vom Klassen-Assistenten generierte virtuelle Funktionsüberschreibungen
-	void SetWindowText(LPCTSTR text);
+	// Ãœberschreibungen
+	// Vom Klassen-Assistenten generierte virtuelle FunktionsÃ¼berschreibungen
+	void SetWindowText(LPCWSTR text);
 
 	//{{AFX_VIRTUAL(CACEdit)
 public:
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
-	virtual ULONG GetGestureStatus(CPoint /*ptTouch*/) override { return 0; }
+	BOOL PreTranslateMessage(MSG* pMsg) override;
+	ULONG GetGestureStatus(CPoint /*ptTouch*/) override { return 0; }
 	//}}AFX_VIRTUAL
 
 	// Implementierung
@@ -94,8 +94,8 @@ public:
 	// Generierte Nachrichtenzuordnungsfunktionen
 protected:
 	CString m_EditText, m_SeparationStr,m_LastDirectory;
-	TCHAR m_PrefixChar;
-	int m_iMode;
+	wchar_t m_PrefixChar = L'\0';
+	int m_iMode = _MODE_STANDARD_;
 	//{{AFX_MSG(CACEdit)
 	afx_msg void OnKillfocus();
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
@@ -113,16 +113,16 @@ protected:
 	int FindSepRightPos(int pos);
 	bool HandleKey(UINT nChar, bool m_bFromChild);
 
-	bool m_CursorMode;
-	int m_iType;
-	CEdit *m_pEdit;
+	bool m_CursorMode = false;
+	int m_iType = -1;
+	CEdit* m_pEdit = nullptr;
 
-	TCHAR m_szDrive[_MAX_DRIVE], m_szDir[_MAX_DIR],m_szFname[_MAX_FNAME], m_szExt[_MAX_EXT];
+	wchar_t m_szDrive[_MAX_DRIVE], m_szDir[_MAX_DIR], m_szFname[_MAX_FNAME], m_szExt[_MAX_EXT];
 };
 
 /////////////////////////////////////////////////////////////////////////////
 
 //{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ fügt unmittelbar vor der vorhergehenden Zeile zusätzliche Deklarationen ein.
+// Microsoft Visual C++ fÃ¼gt unmittelbar vor der vorhergehenden Zeile zusÃ¤tzliche Deklarationen ein.
 
 #endif // AFX_ACEDIT_H__56D21C13_ECEA_41DF_AADF_55980E861AC2__INCLUDED_

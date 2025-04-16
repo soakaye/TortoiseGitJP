@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016 - TortoiseGit
+// Copyright (C) 2016, 2023 - TortoiseGit
 // Copyright (C) 2008,2010 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -42,9 +42,9 @@ public:
 	enum { IDD = IDD_SETTINGSBUGTRAQADV };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL OnInitDialog() override;
-	virtual void OnOK() override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL OnInitDialog() override;
+	void OnOK() override;
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedBugTraqbrowse();
 	afx_msg void OnCbnSelchangeBugtraqprovidercombo();
@@ -56,7 +56,7 @@ protected:
 
 	BOOL			m_bEnabled;
 	CString			m_sPath;
-	CLSID			m_provider_clsid;
+	CLSID			m_provider_clsid = GUID_NULL;
 	CString			m_sParameters;
 	CComboBox		m_cProviderCombo;
 };

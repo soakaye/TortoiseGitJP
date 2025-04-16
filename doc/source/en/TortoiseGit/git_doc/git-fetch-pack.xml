@@ -122,7 +122,7 @@ be in a separate packet, and the list must end with a flush packet.</simpara>
 <listitem>
 <simpara>
         Use this to specify the path to <emphasis>git-upload-pack</emphasis> on the
-        remote side, if is not found on your $PATH.
+        remote side, if it is not found on your $PATH.
         Installations of sshd ignores the user's environment
         setup scripts for login shells (e.g. .bash_profile) and
         your privately installed git may not be found on the system
@@ -169,7 +169,7 @@ be in a separate packet, and the list must end with a flush packet.</simpara>
 </varlistentry>
 <varlistentry>
 <term>
---shallow-exclude=&lt;revision&gt;
+--shallow-exclude=&lt;ref&gt;
 </term>
 <listitem>
 <simpara>
@@ -188,6 +188,17 @@ be in a separate packet, and the list must end with a flush packet.</simpara>
         Argument --depth specifies the number of commits from the
         current shallow boundary instead of from the tip of each
         remote branch history.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+--refetch
+</term>
+<listitem>
+<simpara>
+        Skips negotiating commits with the server in order to fetch all matching
+        objects. Use to reapply a new partial clone blob/tree filter.
 </simpara>
 </listitem>
 </varlistentry>

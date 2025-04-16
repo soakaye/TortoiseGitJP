@@ -79,9 +79,6 @@ CJobScheduler* CJobScheduler::CThreadPool::SelectStarving()
 // create empty thread pool
 
 CJobScheduler::CThreadPool::CThreadPool()
-    : yetToCreate (0)
-    , allocCount (0)
-    , maxCount (0)
 {
 }
 
@@ -200,11 +197,10 @@ bool CJobScheduler::CThreadPool::RemoveStarving (CJobScheduler* scheduler)
 {
     CCriticalSectionLock lock (mutex);
 
-    typedef std::vector<CJobScheduler*>::iterator TI;
-    TI begin = starving.begin();
-    TI end = starving.end();
+    auto begin = starving.begin();
+    auto end = starving.end();
 
-    TI newEnd = std::remove_copy (begin, end, begin, scheduler);
+    auto newEnd = std::remove_copy (begin, end, begin, scheduler);
     if (newEnd == end)
         return false;
 
@@ -419,20 +415,12 @@ CJobScheduler::CJobScheduler
     , size_t sharedThreads
     , bool aggressiveThreading
     , bool fifo)
-    : waitingThreads (0)
-    , aggressiveThreading (aggressiveThreading)
+    : aggressiveThreading(aggressiveThreading)
 {
-    threads.runningCount = 0;
-    threads.suspendedCount = 0;
-
-    threads.fromShared = 0;
     threads.maxFromShared = sharedThreads;
 
     threads.unusedCount = threadCount + sharedThreads;
     threads.yetToCreate = threadCount;
-
-    threads.starved = false;
-    threads.stopCount = 0;
 
     queue.set_fifo (fifo);
 
@@ -442,7 +430,7 @@ CJobScheduler::CJobScheduler
         UseAllCPUs();
 }
 
-CJobScheduler::~CJobScheduler(void)
+CJobScheduler::~CJobScheduler()
 {
     StopStarvation();
     WaitForEmptyQueue();

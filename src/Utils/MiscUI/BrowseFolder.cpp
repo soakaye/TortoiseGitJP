@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016, 2019 - TortoiseGit
+// Copyright (C) 2016, 2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2014, 2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,10 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
-#include <windowsx.h>
 #include "BrowseFolder.h"
-#include "SmartHandle.h"
 #include "FileDlgEventHandler.h"
 #include <strsafe.h>
 
@@ -31,12 +30,9 @@ CString CBrowseFolder::m_sDefaultPath;
 class BrowseFolderDlgEventHandler : public CFileDlgEventHandler
 {
 public:
-	BrowseFolderDlgEventHandler()
-		: m_DisableCheckbox2WhenCheckbox1IsChecked(false)
-	{
-	}
+	BrowseFolderDlgEventHandler() = default;
 
-	bool m_DisableCheckbox2WhenCheckbox1IsChecked;
+	bool m_DisableCheckbox2WhenCheckbox1IsChecked = false;
 
 	STDMETHODIMP OnCheckButtonToggled(IFileDialogCustomize *pfdc, DWORD dwIDCtl, BOOL bChecked) override
 	{
@@ -51,19 +47,16 @@ public:
 	}
 };
 
-CBrowseFolder::CBrowseFolder(void)
-:	m_style(0)
-,	m_DisableCheckbox2WhenCheckbox1IsChecked(false)
+CBrowseFolder::CBrowseFolder()
 {
-	SecureZeroMemory(&m_title, sizeof(m_title));
 }
 
-CBrowseFolder::~CBrowseFolder(void)
+CBrowseFolder::~CBrowseFolder()
 {
 }
 
 //show the dialog
-CBrowseFolder::retVal CBrowseFolder::Show(HWND parent, LPTSTR path, size_t pathlen, LPCTSTR szDefaultPath /* = nullptr */)
+CBrowseFolder::retVal CBrowseFolder::Show(HWND parent, LPWSTR path, size_t pathlen, LPCWSTR szDefaultPath /* = nullptr */)
 {
 	CString temp;
 	temp = path;
@@ -109,7 +102,7 @@ CBrowseFolder::retVal CBrowseFolder::Show(HWND parent, CString& path, const CStr
 		return CANCEL;
 
 	// Set a title
-	TCHAR* nl = wcschr(m_title, L'\n');
+	wchar_t* nl = wcschr(m_title, L'\n');
 	if (nl)
 		*nl = L'\0';
 	pfd->SetTitle(m_title);
@@ -165,7 +158,7 @@ CBrowseFolder::retVal CBrowseFolder::Show(HWND parent, CString& path, const CStr
 	return OK;
 }
 
-void CBrowseFolder::SetInfo(LPCTSTR title)
+void CBrowseFolder::SetInfo(LPCWSTR title)
 {
 	ASSERT(title);
 
@@ -173,7 +166,7 @@ void CBrowseFolder::SetInfo(LPCTSTR title)
 		wcscpy_s(m_title, title);
 }
 
-void CBrowseFolder::SetCheckBoxText(LPCTSTR checktext)
+void CBrowseFolder::SetCheckBoxText(LPCWSTR checktext)
 {
 	ASSERT(checktext);
 
@@ -181,7 +174,7 @@ void CBrowseFolder::SetCheckBoxText(LPCTSTR checktext)
 		m_CheckText = checktext;
 }
 
-void CBrowseFolder::SetCheckBoxText2(LPCTSTR checktext)
+void CBrowseFolder::SetCheckBoxText2(LPCWSTR checktext)
 {
 	ASSERT(checktext);
 

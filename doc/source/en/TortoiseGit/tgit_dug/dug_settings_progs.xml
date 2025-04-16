@@ -115,8 +115,7 @@
 		<para>
 			For example, with ExamDiff Pro:
 <screen>
-C:\Path-To\ExamDiff.exe %base %mine --left_display_name:%bname
-    --right_display_name:%yname
+C:\Path-To\ExamDiff.exe %base %mine --left_display_name:%bname --right_display_name:%yname
 </screen>
 			or with KDiff3:
 <screen>
@@ -128,8 +127,7 @@ C:\Path-To\WinMerge.exe -e -ub -dl %bname -dr %yname %base %mine
 </screen>
 			or with Araxis:
 <screen>
-C:\Path-To\compare.exe /max /wait /title1:%bname /title2:%yname
-    %base %mine
+C:\Path-To\compare.exe /max /wait /title1:%bname /title2:%yname %base %mine
 </screen>
 		</para>
 <!--
@@ -281,13 +279,11 @@ C:\Path-To\P4Merge.exe %base %theirs %mine %merged
 </screen>
 			or with KDiff3:
 <screen>
-C:\Path-To\kdiff3.exe %base %mine %theirs -o %merged
-    --L1 %bname --L2 %yname --L3 %tname
+C:\Path-To\kdiff3.exe %base %mine %theirs -o %merged --L1 %bname --L2 %yname --L3 %tname
 </screen>
 			or with Araxis:
 <screen>
-C:\Path-To\compare.exe /max /wait /3 /title1:%tname /title2:%bname
-    /title3:%yname %theirs %base %mine %merged /a2
+C:\Path-To\compare.exe /max /wait /3 /title1:%tname /title2:%bname /title3:%yname %theirs %base %mine %merged /a2
 </screen>
 			or with WinMerge (2.12 or later):
 <screen>
@@ -300,12 +296,13 @@ C:\Path-To\WinMergeU.exe /e /ub /fr /wl /wm /dl %bname /dm %tname /dr %yname  %b
 		</para>
 		<para>
 			When using an external tool, a conflicted file needs to be marked as revolved in TortoiseGit manually (doing so also removes the temporary files).
-			This can be simplified and might also be automated: TortoiseGit can be configured to synchronously executing the merge tool (<guilabel>Block TortoiseGit while executing the external merge tool</guilabel>). Then TortoiseGit waits until the external merge tool is closed and asks whether to resolve the conflict (the temporary files are removed in any case). If the external merge tool provides a proper exit code (0 for success) you can trust the exit code to automatically mark the conflicted file as resolved (as Git does, cf. <xref linkend="git-mergetool(1)"/>).
+			This can be simplified and might also be automated: TortoiseGit can be configured to synchronously executing the merge tool (<guilabel>Block TortoiseGit while executing the external merge tool</guilabel>). Then TortoiseGit waits until the external merge tool is closed and asks whether to resolve the conflict (the temporary files are removed in any case). If the external merge tool provides a proper exit code (0 for success) you can trust the exit code to automatically mark the conflicted file as resolved (as Git does, cf. <gitdoclink cmd="git-mergetool" section="1"/>).
 		</para>
 	</sect3>
 	<sect3 id="tgit-dug-settings-Progs-Adv">
 		<title>Diff/Merge Advanced Settings</title>
 		<?dbhh topicname="HIDD_SETTINGSPROGSADV"?>
+		<?dbhh topicname="HIDD_TOOLASSOC"?>
 		<para>
 			<figure id="tgit-dug-settings-dia-6">
 				<title>The Settings Dialog, Diff/Merge Advanced Dialog</title>
@@ -328,15 +325,16 @@ C:\Path-To\WinMergeU.exe /e /ub /fr /wl /wm /dl %bname /dm %tname /dr %yname  %b
 			<graphic fileref="../images/SettingsAlternativeEditor.png"/>
 		</figure>
 		<para>
-			The original Windows Notepad program does not behave
-			well on files which do not have standard CR-LF
-			line-endings. However, a lot of git configuration files do not have
-			a standard CR-LF line-ending. Because of this TortoiseGit uses a free
-			(shipped) Notepad replacement
-			<ulink url="https://www.flos-freeware.ch/notepad2.html">
-				<citetitle>Notepad2</citetitle>
+			The original Windows Notepad program did not support
+			files which do not have standard CR-LF
+			line-endings before Windows 10. As a lot of Git configuration files do not have
+			a standard CR-LF line-ending by default, TortoiseGit used to ship the
+			Notepad replacement
+			<ulink url="https://github.com/ProgerXP/Notepad2e">
+				<citetitle>Notepad2e</citetitle>
 			</ulink>
-			which displays the line-endings correctly by default.
+			until version 2.18.0.
+			So if you (still) want to use Notepad2e you have to set it up and configure it here.
 		</para>
 	</sect3>
 </sect2>

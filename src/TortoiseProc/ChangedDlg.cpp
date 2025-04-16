@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2021 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,13 +17,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "ChangedDlg.h"
 #include "MessageBox.h"
-#include "cursor.h"
 #include "AppUtils.h"
-#include "ChangedDlg.h"
 #include "IconMenu.h"
 #include "RefLogDlg.h"
 
@@ -32,8 +31,6 @@ CChangedDlg::CChangedDlg(CWnd* pParent /*=nullptr*/)
 	: CResizableStandAloneDialog(CChangedDlg::IDD, pParent)
 	, m_bShowUnversioned(FALSE)
 	, m_iShowUnmodified(0)
-	, m_bBlock(FALSE)
-	, m_bCanceled(false)
 	, m_bShowIgnored(FALSE)
 	, m_bShowLocalChangesIgnored(FALSE)
 	, m_bWholeProject(FALSE)
@@ -131,6 +128,7 @@ BOOL CChangedDlg::OnInitDialog()
 	if (GetExplorerHWND())
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"ChangedDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	m_ctrlStash.m_bAlwaysShowArrow = true;
 
@@ -442,7 +440,7 @@ void CChangedDlg::OnBnClickedButtonUnifieddiff()
 	if (bSingleFile)
 		commonDirectory = m_pathList[0];
 	CString sCmd;
-	sCmd.Format(L"/command:showcompare /unified /path:\"%s\" /revision1:HEAD /revision2:%s", static_cast<LPCTSTR>(g_Git.CombinePath(commonDirectory)), static_cast<LPCTSTR>(GitRev::GetWorkingCopy()));
+	sCmd.Format(L"/command:showcompare /unified /path:\"%s\" /revision1:HEAD /revision2:%s", static_cast<LPCWSTR>(g_Git.CombinePath(commonDirectory)), GitRev::GetWorkingCopyRef());
 	if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
 		sCmd += L" /alternative";
 	CAppUtils::RunTortoiseGitProc(sCmd);

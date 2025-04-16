@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2016-2017 - TortoiseGit
+// Copyright (C) 2008-2013, 2016-2017, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,11 +16,12 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-// MergeAbort.cpp : implementation file
+// MergeAbortDlg.cpp : implementation file
 //
 
 #include "stdafx.h"
 #include "TortoiseProc.h"
+#include "Git.h"
 #include "MergeAbortDlg.h"
 #include "FileDiffDlg.h"
 #include "AppUtils.h"
@@ -56,15 +57,14 @@ BOOL CMergeAbortDlg::OnInitDialog()
 	CStateStandAloneDialog::OnInitDialog();
 	CAppUtils::MarkWindowAsUnpinnable(m_hWnd);
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	AdjustControlSize(IDC_RADIO_RESET_MERGE);
 	AdjustControlSize(IDC_RADIO_RESET_MIXED);
 	AdjustControlSize(IDC_RADIO_RESET_HARD);
 
 	EnableSaveRestore(L"MergeAbortDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	this->CheckRadioButton(IDC_RADIO_RESET_MERGE, IDC_RADIO_RESET_HARD, IDC_RADIO_RESET_MERGE + m_ResetType);
 
@@ -83,7 +83,7 @@ void CMergeAbortDlg::OnBnClickedShowModifiedFiles()
 		CFileDiffDlg dlg;
 
 		dlg.m_strRev1 = L"HEAD";
-		dlg.m_strRev2 = GIT_REV_ZERO;
+		dlg.m_strRev2 = GitRev::GetWorkingCopyRef();
 
 		dlg.DoModal();
 }

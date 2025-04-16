@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2012, 2020 - TortoiseSVN
-// Copyright (C) 2013-2017, 2019-2021 - TortoiseGit
+// Copyright (C) 2013-2017, 2019-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,34 +17,27 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "HistoryCombo.h"
-#include "../registry.h"
+#include "registry.h"
 #include "DPIAware.h"
 #include "Theme.h"
+#include "ClipboardHelper.h"
 
 #ifdef HISTORYCOMBO_WITH_SYSIMAGELIST
-#include "../SysImageList.h"
+#include "SysImageList.h"
 #endif
 
 #define MAX_HISTORY_ITEMS 25
 
 int CHistoryCombo::m_nGitIconIndex = 0;
+WNDPROC CHistoryCombo::lpfnEditWndProc = nullptr;
 
 CHistoryCombo::CHistoryCombo(BOOL bAllowSortStyle /*=FALSE*/ )
 	: m_nMaxHistoryItems ( MAX_HISTORY_ITEMS)
 	, m_bAllowSortStyle(bAllowSortStyle)
-	, m_bURLHistory(FALSE)
-	, m_bPathHistory(FALSE)
-	, m_hWndToolTip(nullptr)
-	, m_ttShown(FALSE)
-	, m_bDyn(FALSE)
-	, m_bWantReturn(FALSE)
-	, m_bTrim(TRUE)
-	, m_bCaseSensitive(FALSE)
-	, m_bCheckDuplicate(TRUE)
 {
-	SecureZeroMemory(&m_ToolInfo, sizeof(m_ToolInfo));
 }
 
 CHistoryCombo::~CHistoryCombo()
@@ -79,6 +72,8 @@ BOOL CHistoryCombo::PreTranslateMessage(MSG* pMsg)
 		}
 		else if (nVirtKey == VK_DELETE && bShift && GetDroppedState() )
 		{
+			if (!m_bAllowDelete)
+				return TRUE;
 			RemoveSelectedItem();
 			return TRUE;
 		}
@@ -110,10 +105,40 @@ BOOL CHistoryCombo::PreTranslateMessage(MSG* pMsg)
 	return CComboBoxEx::PreTranslateMessage(pMsg);
 }
 
+LRESULT CALLBACK CHistoryCombo::SubClassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	if (msg == WM_PASTE)
+	{
+		auto parent = ::GetParent(::GetParent(hwnd));
+		::SendMessage(parent, WM_PASTE,0,0);
+		return 0;
+	}
+
+	// Call the original window procedure
+	return CallWindowProc(lpfnEditWndProc, hwnd, msg, wParam, lParam);
+}
+
+void CHistoryCombo::SetEditWndProc()
+{
+	CEdit* edit = GetEditCtrl();
+	if (!edit)
+		return;
+
+	if (m_bURLHistory || m_bPathHistory)
+	{
+		auto lpfnEditWndProcLocal = reinterpret_cast<WNDPROC>(SetWindowLongPtr(edit->GetSafeHwnd(), GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(static_cast<WNDPROC>(SubClassProc))));
+		if (!lpfnEditWndProc)
+			lpfnEditWndProc = lpfnEditWndProcLocal;
+	}
+	else if (lpfnEditWndProc)
+		SetWindowLongPtr(edit->GetSafeHwnd(), GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(lpfnEditWndProc));
+}
+
 BEGIN_MESSAGE_MAP(CHistoryCombo, CComboBoxEx)
 	ON_WM_MOUSEMOVE()
 	ON_WM_TIMER()
 	ON_WM_CREATE()
+	ON_MESSAGE(WM_PASTE, OnPaste)
 END_MESSAGE_MAP()
 
 int CHistoryCombo::AddString(const CString& str, INT_PTR pos /* = -1*/, BOOL isSel /* = TRUE */)
@@ -174,7 +199,7 @@ int CHistoryCombo::InsertEntry(const CString& combostring, INT_PTR pos)
 	cbei.mask = CBEIF_TEXT;
 	cbei.iItem = pos;
 
-	cbei.pszText = const_cast<LPTSTR>(combostring.GetString());
+	cbei.pszText = const_cast<LPWSTR>(combostring.GetString());
 
 #ifdef HISTORYCOMBO_WITH_SYSIMAGELIST
 	if (m_bURLHistory)
@@ -234,13 +259,14 @@ void CHistoryCombo::SetList(const STRING_VECTOR& list)
 	}
 }
 
-CString CHistoryCombo::LoadHistory(LPCTSTR lpszSection, LPCTSTR lpszKeyPrefix)
+CString CHistoryCombo::LoadHistory(LPCWSTR lpszSection, LPCWSTR lpszKeyPrefix, bool allowUserDelete /* =true */)
 {
 	if (!lpszSection || !lpszKeyPrefix || *lpszSection == '\0')
 		return L"";
 
 	m_sSection = lpszSection;
 	m_sKeyPrefix = lpszKeyPrefix;
+	m_bAllowDelete = allowUserDelete;
 
 	int n = 0;
 	CString sText;
@@ -248,7 +274,7 @@ CString CHistoryCombo::LoadHistory(LPCTSTR lpszSection, LPCTSTR lpszKeyPrefix)
 	{
 		//keys are of form <lpszKeyPrefix><entrynumber>
 		CString sKey;
-		sKey.Format(L"%s\\%s%d", static_cast<LPCTSTR>(m_sSection), static_cast<LPCTSTR>(m_sKeyPrefix), n++);
+		sKey.Format(L"%s\\%s%d", static_cast<LPCWSTR>(m_sSection), static_cast<LPCWSTR>(m_sKeyPrefix), n++);
 		sText = CRegString(sKey);
 		if (!sText.IsEmpty())
 			AddString(sText);
@@ -262,7 +288,7 @@ CString CHistoryCombo::LoadHistory(LPCTSTR lpszSection, LPCTSTR lpszKeyPrefix)
 	CRect rect;
 	GetWindowRect(rect);
 	GetParent()->ScreenToClient(rect);
-	MoveWindow(rect.left, rect.top, rect.Width(), CDPIAware::Instance().ScaleX(100));
+	MoveWindow(rect.left, rect.top, rect.Width(), CDPIAware::Instance().ScaleX(GetSafeHwnd(), 100));
 
 	return sText;
 }
@@ -284,7 +310,7 @@ void CHistoryCombo::SaveHistory()
 	for (int n = 0; n < nMax; n++)
 	{
 		CString sKey;
-		sKey.Format(L"%s\\%s%d", static_cast<LPCTSTR>(m_sSection), static_cast<LPCTSTR>(m_sKeyPrefix), n);
+		sKey.Format(L"%s\\%s%d", static_cast<LPCWSTR>(m_sSection), static_cast<LPCWSTR>(m_sKeyPrefix), n);
 		CRegString regkey(sKey);
 		regkey = m_arEntries.GetAt(n);
 	}
@@ -292,7 +318,7 @@ void CHistoryCombo::SaveHistory()
 	for (int n = nMax; ; n++)
 	{
 		CString sKey;
-		sKey.Format(L"%s\\%s%d", static_cast<LPCTSTR>(m_sSection), static_cast<LPCTSTR>(m_sKeyPrefix), n);
+		sKey.Format(L"%s\\%s%d", static_cast<LPCWSTR>(m_sSection), static_cast<LPCWSTR>(m_sKeyPrefix), n);
 		CRegString regkey(sKey);
 		CString sText = regkey;
 		if (sText.IsEmpty())
@@ -310,7 +336,7 @@ void CHistoryCombo::ClearHistory(BOOL bDeleteRegistryEntries/*=TRUE*/)
 		CString sKey;
 		for (int n = 0; ; n++)
 		{
-			sKey.Format(L"%s\\%s%d", static_cast<LPCTSTR>(m_sSection), static_cast<LPCTSTR>(m_sKeyPrefix), n);
+			sKey.Format(L"%s\\%s%d", static_cast<LPCWSTR>(m_sSection), static_cast<LPCWSTR>(m_sKeyPrefix), n);
 			CRegString regkey(sKey);
 			CString sText = regkey;
 			if (sText.IsEmpty())
@@ -320,7 +346,7 @@ void CHistoryCombo::ClearHistory(BOOL bDeleteRegistryEntries/*=TRUE*/)
 	}
 }
 
-void CHistoryCombo::RemoveEntryFromHistory(LPCTSTR lpszSection, LPCTSTR lpszKeyPrefix, const CString& entryToRemove)
+void CHistoryCombo::RemoveEntryFromHistory(LPCWSTR lpszSection, LPCWSTR lpszKeyPrefix, const CString& entryToRemove)
 {
 	if (entryToRemove.IsEmpty())
 		return;
@@ -383,6 +409,7 @@ void CHistoryCombo::SetURLHistory(BOOL bURLHistory)
 		if (hwndEdit)
 			SHAutoComplete(hwndEdit, SHACF_URLALL);
 	}
+	SetEditWndProc();
 
 #ifdef HISTORYCOMBO_WITH_SYSIMAGELIST
 	SetImageList(&SYS_IMAGE_LIST());
@@ -406,6 +433,7 @@ void CHistoryCombo::SetPathHistory(BOOL bPathHistory)
 		if (hwndEdit)
 			SHAutoComplete(hwndEdit, SHACF_FILESYSTEM);
 	}
+	SetEditWndProc();
 
 #ifdef HISTORYCOMBO_WITH_SYSIMAGELIST
 	SetImageList(&SYS_IMAGE_LIST());
@@ -576,7 +604,7 @@ void CHistoryCombo::OnMouseMove(UINT nFlags, CPoint point)
 		ClientToScreen(&rectClient);
 
 		m_ToolText = GetString();
-		m_ToolInfo.lpszText = const_cast<LPTSTR>(static_cast<LPCTSTR>(m_ToolText));
+		m_ToolInfo.lpszText = const_cast<LPWSTR>(static_cast<LPCWSTR>(m_ToolText));
 
 		HDC hDC = ::GetDC(m_hWnd);
 
@@ -709,7 +737,7 @@ int CHistoryCombo::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	return 0;
 }
 
-int CHistoryCombo::FindStringExactCaseSensitive(int nIndexStart, LPCTSTR lpszFind)
+int CHistoryCombo::FindStringExactCaseSensitive(int nIndexStart, LPCWSTR lpszFind)
 {
 	nIndexStart = max(0, nIndexStart);
 	for (int i = nIndexStart; i < GetCount(); i++)
@@ -724,10 +752,61 @@ int CHistoryCombo::FindStringExactCaseSensitive(int nIndexStart, LPCTSTR lpszFin
 	return -1;
 }
 
+LRESULT CHistoryCombo::OnPaste(WPARAM, LPARAM)
+{
+	CClipboardHelper clipboardHelper;
+	if (!clipboardHelper.Open(nullptr))
+		return 0;
+
+	CString toInsert;
+	HGLOBAL hglb = GetClipboardData(CF_TEXT);
+	if (hglb)
+	{
+		LPCSTR lpstr = static_cast<LPCSTR>(GlobalLock(hglb));
+		toInsert = CString(lpstr);
+		GlobalUnlock(hglb);
+	}
+	hglb = GetClipboardData(CF_UNICODETEXT);
+	if (hglb)
+	{
+		LPCWSTR lpstr = static_cast<LPCWSTR>(GlobalLock(hglb));
+		toInsert = lpstr;
+		GlobalUnlock(hglb);
+	}
+
+	// elimate control chars, especially newlines
+	toInsert.Replace(L'\t', L' ');
+
+	// only insert first line
+	toInsert.Replace(L'\r', L'\n');
+	int pos = 0;
+	toInsert = toInsert.Tokenize(L"\n", pos);
+	toInsert.Trim();
+	toInsert.Trim(L'"');
+
+	// get the current text
+	CString text;
+	GetWindowText(text);
+
+	// construct the new text
+	int from, to;
+	GetEditCtrl()->GetSel(from, to);
+	text.Delete(from, to - from);
+	text.Insert(from, toInsert);
+	from += toInsert.GetLength();
+
+	// update & notify controls
+	SetWindowText(text);
+	GetEditCtrl()->SetSel(from, from, FALSE);
+	GetEditCtrl()->SetModify(TRUE);
+
+	GetEditCtrl()->GetParent()->SendMessage(WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(), EN_CHANGE), reinterpret_cast<LPARAM>(GetEditCtrl()->GetSafeHwnd()));
+
+	return 0;
+}
+
 CCustomAutoCompleteSource::CCustomAutoCompleteSource(const CStringArray& pData)
 	: m_pData(pData)
-	, m_index(0)
-	, m_cRefCount(0)
 {
 }
 

@@ -1,6 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
@@ -8,6 +12,10 @@
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
@@ -40,7 +48,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\..\ext\gitdll;..\git;.\svninclude;..\..\ext\apr\include;..\..\ext\apr-util\include;.\libsvn_diff;..\Utils;..\;..\Utils\MiscUI;..\..\ext\ResizableLib;..\..\ext\libgit2\include;..\..\ext\zlib;..\..\ext\editorconfig\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\..\ext\gitdll;..\git;.\svninclude;..\..\ext\build\apr;..\..\ext\apr\include;..\..\ext\apr-util\include;.\libsvn_diff;..\Utils;..\;..\Utils\MiscUI;..\..\ext\ResizableLib;..\..\ext\libgit2\include;..\..\ext\zlib;..\..\ext\editorconfig\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>APR_DECLARE_STATIC;APU_DECLARE_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
@@ -49,6 +57,9 @@
     <Link>
       <AdditionalDependencies>shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Git\Git.cpp" />
@@ -329,6 +340,7 @@
     <ClInclude Include="..\Git\gittype.h" />
     <ClInclude Include="..\Git\MassiveGitTaskBase.h" />
     <ClInclude Include="..\Git\TGitPath.h" />
+    <ClInclude Include="..\Resources\TGitMergeHelpMapping.ini" />
     <ClInclude Include="..\Utils\CommonAppUtils.h" />
     <ClInclude Include="..\Utils\CreateProcessHelper.h" />
     <ClInclude Include="..\Utils\DarkModeHelper.h" />
@@ -410,6 +422,7 @@
     <ClInclude Include="..\Utils\MiscUI\WaterEffect.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Resources\explorer.ico" />
     <None Include="..\Resources\ignorecomments.txt" />
     <None Include="..\Resources\lineadded.ico" />
     <None Include="..\Resources\lineconflicted.ico" />
@@ -429,6 +442,7 @@
     <None Include="..\Resources\Toolbar.bmp" />
     <None Include="..\Resources\TortoiseMerge.ico" />
     <None Include="..\Resources\TortoiseMerge.rc2" />
+    <None Include="..\Resources\TortoiseGitMerge_Logo.svgz" />
     <None Include="..\Resources\tortoisemerge_logoflipped.bmp" />
     <None Include="..\Resources\ttf_glyph.bmp" />
   </ItemGroup>
@@ -436,6 +450,9 @@
     <ResourceCompile Include="..\Resources\TortoiseMergeENG.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\ext\build\Detours.vcxproj">
+      <Project>{e5af2264-b5a2-424c-9c5c-7e88375583ce}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\ext\build\editorconfig.vcxproj">
       <Project>{da843306-3d6d-4198-890e-25e6177e01c3}</Project>
     </ProjectReference>
@@ -470,6 +487,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\Resources\ribbon\Filter16.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="..\perMonitorV2DpiAware.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

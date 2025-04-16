@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2017, 2019 - TortoiseGit
+// Copyright (C) 2009-2017, 2019, 2023 - TortoiseGit
 // Copyright (C) 2003-2014, 2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -25,13 +25,11 @@
 #include "PathUtils.h"
 #include "CreateProcessHelper.h"
 
-CRemoteCacheLink::CRemoteCacheLink(void)
+CRemoteCacheLink::CRemoteCacheLink()
 {
-	SecureZeroMemory(&m_Overlapped, sizeof(m_Overlapped));
-	m_lastTimeout = 0;
 }
 
-CRemoteCacheLink::~CRemoteCacheLink(void)
+CRemoteCacheLink::~CRemoteCacheLink()
 {
 	ClosePipe();
 	CloseCommandPipe();
@@ -294,7 +292,7 @@ DWORD CRemoteCacheLink::GetProcessIntegrityLevel() const
 bool CRemoteCacheLink::RunTGitCacheProcess()
 {
 	const CString sCachePath = GetTGitCachePath();
-	if (!CCreateProcessHelper::CreateProcessDetached(sCachePath, static_cast<LPTSTR>(nullptr)))
+	if (!CCreateProcessHelper::CreateProcessDetached(sCachePath, static_cast<LPWSTR>(nullptr)))
 	{
 		// It's not appropriate to do a message box here, because there may be hundreds of calls
 		CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Failed to start cache\n");

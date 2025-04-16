@@ -41,10 +41,6 @@ Wins、网卡MAC地址等相关信息；还提供了SMTP协议解析类，该类
 #include <afxsock.h>
 
 #define SECURITY_WIN32
-#include <wincrypt.h>
-#include <wintrust.h>
-#include <schannel.h>
-#include <security.h>
 #include <sspi.h>
 #include "WindowsCredentialsStore.h"
 
@@ -67,29 +63,29 @@ class CHwSMTP
 public:
 	CString GetLastErrorText();
 	BOOL SendEmail (
-		LPCTSTR lpszSmtpSrvHost,
+		LPCWSTR lpszSmtpSrvHost,
 		CCredentials* credentials,
 		BOOL bMustAuth,
-		LPCTSTR lpszAddrFrom,
-		LPCTSTR lpszAddrTo,
-		LPCTSTR lpszSubject,
-		LPCTSTR lpszBody,
+		LPCWSTR lpszAddrFrom,
+		LPCWSTR lpszAddrTo,
+		LPCWSTR lpszSubject,
+		LPCWSTR lpszBody,
 		CStringArray* pStrAryAttach = nullptr,
-		LPCTSTR pStrAryCC = nullptr,
+		LPCWSTR pStrAryCC = nullptr,
 		UINT nSmtpSrvPort=25,
-		LPCTSTR pSend = nullptr,
-		LPCTSTR pToList = nullptr,
+		LPCWSTR pSend = nullptr,
+		LPCWSTR pToList = nullptr,
 		DWORD secLevel = SECURITY_LEVEL::none
 		);
 	BOOL SendSpeedEmail
 		(
-			LPCTSTR lpszAddrFrom,
-			LPCTSTR lpszAddrTo,
-			LPCTSTR lpszSubject,
-			LPCTSTR lpszBody,
+			LPCWSTR lpszAddrFrom,
+			LPCWSTR lpszAddrTo,
+			LPCWSTR lpszSubject,
+			LPCWSTR lpszBody,
 			CStringArray* pStrAryAttach = nullptr,
-			LPCTSTR pStrAryCC = nullptr,
-			LPCTSTR pSend = nullptr
+			LPCWSTR pStrAryCC = nullptr,
+			LPCWSTR pSend = nullptr
 		);
 	CHwSMTP();
 	virtual ~CHwSMTP();
@@ -108,11 +104,11 @@ private:
 	BOOL Send ( const CString &data );
 	BOOL SendBuffer(const char* buffer, int size = -1);
 	BOOL GetResponse(LPCSTR lpszVerifyCode);
-	BOOL m_bConnected;
+	BOOL m_bConnected = FALSE;
 	CSocket m_SendSock;
 	CStringArray m_StrAryAttach;
 	CString m_csSmtpSrvHost;
-	CCredentials* m_credentials;
+	CCredentials* m_credentials = nullptr;
 	CString m_csAddrFrom;
 	CString m_csAddrTo;
 	CString m_csFromName;
@@ -122,18 +118,18 @@ private:
 	CString m_csSender;
 	CString m_csToList;
 
-	CtxtHandle * hContext;
-	CredHandle * hCreds;
-	SecPkgContext_StreamSizes Sizes;
-	PBYTE pbIoBuffer;
-	DWORD cbIoBufferLength;
-	SECURITY_LEVEL m_iSecurityLevel;
+	CtxtHandle* hContext = nullptr;
+	CredHandle* hCreds = nullptr;
+	SecPkgContext_StreamSizes Sizes{};
+	PBYTE pbIoBuffer = nullptr;
+	DWORD cbIoBufferLength = 0;
+	SECURITY_LEVEL m_iSecurityLevel = none;
 
-	BOOL m_bMustAuth;
-	UINT m_nSmtpSrvPort;
+	BOOL m_bMustAuth = TRUE;
+	UINT m_nSmtpSrvPort = 25;
 
 	CString m_csLastError;
-	BOOL SendOnAttach(LPCTSTR lpszFileName);
+	BOOL SendOnAttach(LPCWSTR lpszFileName);
 	BOOL SendAttach();
 	BOOL SendBody();
 	CString m_csMIMEContentType;

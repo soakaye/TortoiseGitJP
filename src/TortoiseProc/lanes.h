@@ -1,6 +1,6 @@
 ﻿/*
 	Author: Marco Costalba (C) 2005-2007
-	Author: TortoiseGit (C) 2008-2013, 2017
+	Author: TortoiseGit (C) 2008-2013, 2017, 2021, 2023
 
 	Copyright: See COPYING file that comes with this distribution
 
@@ -10,14 +10,12 @@
 
 #include "githash.h"
 
-#define QVector std::vector
-
-typedef std::vector<CGitHash> CGitHashList ;
+using CGitHashList = std::vector<CGitHash>;
 
 class Lanes {
 public:
 	// graph elements
-	enum LaneType {
+	enum class LaneType {
 		EMPTY,
 		ACTIVE,
 		NOT_ACTIVE,
@@ -44,34 +42,27 @@ public:
 		BOUNDARY_C, // corresponds to MERGE_FORK
 		BOUNDARY_R, // corresponds to MERGE_FORK_R
 		BOUNDARY_L, // corresponds to MERGE_FORK_L
-
-		LANE_TYPES_NUM,
-		COLORS_NUM=8
 	};
 
-	// graph helpers
-	static inline bool isHead(int x) { return (x == HEAD || x == HEAD_R || x == HEAD_L); }
-	static inline bool isTail(int x) { return (x == TAIL || x == TAIL_R || x == TAIL_L); }
-	static inline bool isJoin(int x) { return (x == JOIN || x == JOIN_R || x == JOIN_L); }
-	static inline bool isFreeLane(int x) { return (x == NOT_ACTIVE || x == CROSS || isJoin(x)); }
-	static inline bool isBoundary(int x) { return (x == BOUNDARY || x == BOUNDARY_C || x == BOUNDARY_R || x == BOUNDARY_L); }
-	static inline bool isMerge(int x) { return (x == MERGE_FORK || x == MERGE_FORK_R || x == MERGE_FORK_L || isBoundary(x)); }
-	static inline bool isActive(int x) { return (x == ACTIVE || x == INITIAL || x == BRANCH || isMerge(x)); }
+	static constexpr int COLORS_NUM = 8;
 
-	Lanes() // init() will setup us later, when data is available
-		: activeLane(0)
-		, boundary(false)
-		, NODE(0)
-		, NODE_L(0)
-		, NODE_R(0)
-	{}
+	// graph helpers
+	static inline bool isHead(LaneType x) { return (x == LaneType::HEAD || x == LaneType::HEAD_R || x == LaneType::HEAD_L); }
+	static inline bool isTail(LaneType x) { return (x == LaneType::TAIL || x == LaneType::TAIL_R || x == LaneType::TAIL_L); }
+	static inline bool isJoin(LaneType x) { return (x == LaneType::JOIN || x == LaneType::JOIN_R || x == LaneType::JOIN_L); }
+	static inline bool isFreeLane(LaneType x) { return (x == LaneType::NOT_ACTIVE || x == LaneType::CROSS || isJoin(x)); }
+	static inline bool isBoundary(LaneType x) { return (x == LaneType::BOUNDARY || x == LaneType::BOUNDARY_C || x == LaneType::BOUNDARY_R || x == LaneType::BOUNDARY_L); }
+	static inline bool isMerge(LaneType x) { return (x == LaneType::MERGE_FORK || x == LaneType::MERGE_FORK_R || x == LaneType::MERGE_FORK_L || isBoundary(x)); }
+	static inline bool isActive(LaneType x) { return (x == LaneType::ACTIVE || x == LaneType::INITIAL || x == LaneType::BRANCH || isMerge(x)); }
+
+	Lanes() = default;
 	bool isEmpty() const { return typeVec.empty(); }
 	void init(const CGitHash& expectedSha);
 	void clear();
 	bool isFork(const CGitHash& sha, bool& isDiscontinuity);
 	void setBoundary(bool isBoundary, bool isInitial);
 	void setFork(const CGitHash& sha);
-	void setMerge(const CGitHashList& parents);
+	void setMerge(const CGitHashList& parents, bool onlyFirstParent);
 	void setInitial();
 	void setApplied();
 	void changeActiveLane(const CGitHash& sha);
@@ -81,18 +72,21 @@ public:
 	void afterBranch();
 	void afterApplied();
 	void nextParent(const CGitHash& sha);
-	void getLanes(QVector<int>& ln) const { ln = typeVec; } // O(1) vector is implicitly shared
+	void getLanes(std::vector<LaneType>& ln) const { ln = typeVec; } // O(1) vector is implicitly shared
 
 private:
 	int findNextSha(const CGitHash& next, int pos);
-	int findType(int type, int pos);
-	int add(int type, const CGitHash& next, int pos, bool& wasEmptyCross);
+	int findType(LaneType type, int pos);
+	int add(LaneType type, const CGitHash& next, int pos, bool& wasEmptyCross);
+	inline bool IS_NODE(LaneType x) { return x == NODE || x == NODE_R || x == NODE_L; }
 
-	int activeLane;
-	QVector<int> typeVec;
-	QVector<CGitHash> nextShaVec;
-	bool boundary;
-	int NODE, NODE_L, NODE_R;
+	int activeLane = 0;
+	std::vector<LaneType> typeVec;
+	std::vector<CGitHash> nextShaVec;
+	bool boundary = false;
+	LaneType NODE = LaneType::EMPTY;
+	LaneType NODE_L = LaneType::EMPTY;
+	LaneType NODE_R = LaneType::EMPTY;
 };
 
 #endif

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2020 - TortoiseGit
+// Copyright (C) 2009-2025 - TortoiseGit
 // Copyright (C) 2003-2013 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -92,12 +92,14 @@ public:
 			result = SortStrCmp(pLeft->m_sName, pRight->m_sName);
 			if (result != 0)
 				break;
+			[[fallthrough]];
 		case CRepositoryBrowser::eCol_Extension:
 			result = m_pList->GetItemText(static_cast<int>(lParam1), 1).CompareNoCase(m_pList->GetItemText(static_cast<int>(lParam2), 1));
 			if (result == 0)  // if extensions are the same, use the filename to sort
 				result = SortStrCmp(pRight->m_sName, pRight->m_sName);
 			if (result != 0)
 				break;
+			[[fallthrough]];
 		case CRepositoryBrowser::eCol_FileSize:
 			if (pLeft->m_iSize > pRight->m_iSize)
 				result = 1;
@@ -127,9 +129,9 @@ public:
 		return StrCmpI(left, right);
 	}
 
-	int m_col;
-	bool m_desc;
-	CListCtrl* m_pList;
+	int m_col = CRepositoryBrowser::eCol_Name;
+	bool m_desc = false;
+	CListCtrl* m_pList = nullptr;
 };
 
 // CRepositoryBrowser dialog
@@ -140,19 +142,8 @@ IMPLEMENT_DYNAMIC(CRepositoryBrowser, CResizableStandAloneDialog)
 
 CRepositoryBrowser::CRepositoryBrowser(CString rev, CWnd* pParent /*=nullptr*/)
 : CResizableStandAloneDialog(CRepositoryBrowser::IDD, pParent)
-, m_currSortCol(0)
-, m_currSortDesc(false)
 , m_sRevision(rev)
-, m_bHasWC(true)
 , m_ColumnManager(&m_RepoList)
-, m_nIconFolder(0)
-, m_nOpenIconFolder(0)
-, m_nExternalOvl(0)
-, m_nExecutableOvl(0)
-, m_nSymlinkOvl(0)
-, bDragMode(false)
-, oldy(0)
-, oldx(0)
 {
 }
 
@@ -209,7 +200,8 @@ BOOL CRepositoryBrowser::OnInitDialog()
 		CRepositoryBrowser::s_bSortLogical = !CRegDWORD(L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoStrCmpLogical", 0, false, HKEY_LOCAL_MACHINE);
 
 	static UINT columnNames[] = { IDS_STATUSLIST_COLFILENAME, IDS_STATUSLIST_COLEXT, IDS_LOG_SIZE };
-	static int columnWidths[] = { CDPIAware::Instance().ScaleX(150), CDPIAware::Instance().ScaleX(100), CDPIAware::Instance().ScaleX(100) };
+	static int columnWidths[] = { CDPIAware::Instance().ScaleX(GetSafeHwnd(), 150), CDPIAware::Instance().ScaleX(GetSafeHwnd(), 100), CDPIAware::Instance().ScaleX(GetSafeHwnd(), 100) };
+	static_assert(_countof(columnNames) == _countof(columnWidths));
 	DWORD dwDefaultColumns = (1 << eCol_Name) | (1 << eCol_Extension) | (1 << eCol_FileSize);
 	m_ColumnManager.SetNames(columnNames, _countof(columnNames));
 	constexpr int columnVersion = 6; // adjust when changing number/names/etc. of columns
@@ -236,9 +228,6 @@ BOOL CRepositoryBrowser::OnInitDialog()
 	m_nSymlinkOvl = SYS_IMAGE_LIST().AddIcon(CCommonAppUtils::LoadIconEx(IDI_SYMLINKOVL, 0, 0));
 	// set externaloverlay in SYS_IMAGE_LIST() in Refresh method, so that it is updated after every launch of the logdialog
 
-	SetWindowTheme(m_RepoTree.GetSafeHwnd(), L"Explorer", nullptr);
-	SetWindowTheme(m_RepoList.GetSafeHwnd(), L"Explorer", nullptr);
-
 	int borderWidth = 0;
 	if (IsAppThemed())
 	{
@@ -253,6 +242,7 @@ BOOL CRepositoryBrowser::OnInitDialog()
 	m_nOpenIconFolder = SYS_IMAGE_LIST().GetDirOpenIconIndex();
 
 	EnableSaveRestore(L"Reposbrowser");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	DWORD xPos = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RepobrowserDivider", 0);
 	if (xPos == 0)
@@ -261,11 +251,9 @@ BOOL CRepositoryBrowser::OnInitDialog()
 		GetDlgItem(IDC_REPOTREE)->GetClientRect(&rc);
 		xPos = rc.right - rc.left;
 	}
-	HandleDividerMove(CPoint(CDPIAware::Instance().ScaleX(xPos + 20), CDPIAware::Instance().ScaleY(10)), false);
+	HandleDividerMove(CPoint(CDPIAware::Instance().ScaleX(GetSafeHwnd(), xPos + 20), CDPIAware::Instance().ScaleY(GetSafeHwnd(), 10)), false);
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, g_Git.m_CurrentDir);
 
 	m_bHasWC = !GitAdminDir::IsBareRepo(g_Git.m_CurrentDir);
 
@@ -291,7 +279,7 @@ void CRepositoryBrowser::UpdateDiffWithFileFromReg()
 
 void CRepositoryBrowser::OnDestroy()
 {
-	int maxcol = m_ColumnManager.GetColumnCount();
+	const int maxcol = m_ColumnManager.GetColumnCount();
 	for (int col = 0; col < maxcol; ++col)
 		if (m_ColumnManager.IsVisible(col))
 			m_ColumnManager.ColumnResized(col);
@@ -377,7 +365,7 @@ void CRepositoryBrowser::Refresh()
 	tvinsert.hParent = TVI_ROOT;
 	tvinsert.hInsertAfter = TVI_ROOT;
 	tvinsert.itemex.mask = TVIF_DI_SETITEM | TVIF_PARAM | TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_STATE;
-	tvinsert.itemex.pszText = L"/";
+	tvinsert.itemex.pszText = const_cast<LPWSTR>(L"/");
 	tvinsert.itemex.lParam = reinterpret_cast<LPARAM>(&m_TreeRoot);
 	tvinsert.itemex.iImage = m_nIconFolder;
 	tvinsert.itemex.iSelectedImage = m_nOpenIconFolder;
@@ -392,7 +380,7 @@ void CRepositoryBrowser::Refresh()
 
 int CRepositoryBrowser::ReadTreeRecursive(git_repository& repo, const git_tree* tree, CShadowFilesTree* treeroot, bool recursive)
 {
-	size_t count = git_tree_entrycount(tree);
+	const size_t count = git_tree_entrycount(tree);
 	bool hasSubfolders = false;
 	treeroot->m_bLoaded = true;
 
@@ -549,7 +537,7 @@ int CRepositoryBrowser::ReadTree(CShadowFilesTree* treeroot, const CString& root
 		if (!map[hash].empty())
 			m_sRevision = map[hash].at(0);
 	}
-	this->GetDlgItem(IDC_BUTTON_REVISION)->SetWindowText(m_sRevision);
+	this->GetDlgItem(IDC_BUTTON_REVISION)->SetWindowText(CStringUtils::EscapeAccellerators(m_sRevision));
 
 	return 0;
 }
@@ -602,7 +590,7 @@ void CRepositoryBrowser::FillListCtrlForShadowTree(CShadowFilesTree* pTree)
 			icon = SYS_IMAGE_LIST().GetPathIconIndex((*itShadowTree).second.m_sName);
 		}
 
-		int indexItem = m_RepoList.InsertItem(m_RepoList.GetItemCount(), (*itShadowTree).second.m_sName, icon);
+		const int indexItem = m_RepoList.InsertItem(m_RepoList.GetItemCount(), (*itShadowTree).second.m_sName, icon);
 
 		if ((*itShadowTree).second.m_bSubmodule)
 		{
@@ -648,11 +636,11 @@ void CRepositoryBrowser::UpdateInfoLabel()
 			int index = m_RepoList.GetNextSelectedItem(pos);
 			auto item = GetListEntry(index);
 			if (item->m_bSubmodule)
-				temp.FormatMessage(IDS_REPOBROWSE_INFOEXT, static_cast<LPCTSTR>(m_RepoList.GetItemText(index, eCol_Name)), static_cast<LPCTSTR>(item->m_hash.ToString()));
+				temp.FormatMessage(IDS_REPOBROWSE_INFOEXT, static_cast<LPCWSTR>(m_RepoList.GetItemText(index, eCol_Name)), static_cast<LPCWSTR>(item->m_hash.ToString()));
 			else if (item->m_bFolder)
 				temp = m_RepoList.GetItemText(index, eCol_Name);
 			else
-				temp.FormatMessage(IDS_REPOBROWSE_INFOFILE, static_cast<LPCTSTR>(m_RepoList.GetItemText(index, eCol_Name)), static_cast<LPCTSTR>(m_RepoList.GetItemText(index, eCol_FileSize)));
+				temp.FormatMessage(IDS_REPOBROWSE_INFOFILE, static_cast<LPCWSTR>(m_RepoList.GetItemText(index, eCol_Name)), static_cast<LPCWSTR>(m_RepoList.GetItemText(index, eCol_FileSize)));
 		}
 	}
 	else
@@ -671,7 +659,7 @@ void CRepositoryBrowser::UpdateInfoLabel()
 					if ((*itShadowTree).second.m_bSubmodule)
 						++submodules;
 				}
-				temp.FormatMessage(IDS_REPOBROWSE_INFO, static_cast<LPCTSTR>(pTree->m_sName), files, submodules, pTree->m_ShadowTree.size() - files - submodules, pTree->m_ShadowTree.size());
+				temp.FormatMessage(IDS_REPOBROWSE_INFO, static_cast<LPCWSTR>(pTree->m_sName), files, submodules, pTree->m_ShadowTree.size() - files - submodules, pTree->m_ShadowTree.size());
 			}
 		}
 	}
@@ -778,7 +766,7 @@ void CRepositoryBrowser::ShowContextMenu(CPoint point, TShadowFilesTreeList &sel
 		popupMenu.AppendMenuIcon(eCmd_ViewLog, temp, IDI_LOG);
 		if (selectedLeafs[0]->m_bSubmodule)
 		{
-			temp.LoadString(IDS_MENULOGSUBMODULE);
+			temp.LoadString(IDS_LOG_SUBMODULE);
 			popupMenu.AppendMenuIcon(eCmd_ViewLogSubmodule, temp, IDI_LOG);
 		}
 
@@ -820,7 +808,7 @@ void CRepositoryBrowser::ShowContextMenu(CPoint point, TShadowFilesTreeList &sel
 					diffWith += L':' + m_sMarkForDiffVersion.ToString(g_Git.GetShortHASHLength());
 			}
 			CString menuEntry;
-			menuEntry.Format(IDS_MENUDIFFNOW, static_cast<LPCTSTR>(diffWith));
+			menuEntry.Format(IDS_MENUDIFFNOW, static_cast<LPCWSTR>(diffWith));
 			popupMenu.AppendMenuIcon(eCmd_PrepareDiff_Compare, menuEntry, IDI_DIFF);
 		}
 		popupMenu.AppendMenu(MF_SEPARATOR);
@@ -832,14 +820,14 @@ void CRepositoryBrowser::ShowContextMenu(CPoint point, TShadowFilesTreeList &sel
 		popupMenu.AppendMenuIcon(eCmd_CopyHash, IDS_COPY_COMMIT_HASH, IDI_COPYCLIP);
 	}
 
-	eCmd cmd = static_cast<eCmd>(popupMenu.TrackPopupMenuEx(TPM_LEFTALIGN | TPM_RETURNCMD, point.x, point.y, this, nullptr));
+	const eCmd cmd = static_cast<eCmd>(popupMenu.TrackPopupMenuEx(TPM_LEFTALIGN | TPM_RETURNCMD, point.x, point.y, this, nullptr));
 	switch(cmd)
 	{
 	case eCmd_ViewLog:
 	case eCmd_ViewLogSubmodule:
 		{
 			CString sCmd;
-			sCmd.Format(L"/command:log /path:\"%s\"", static_cast<LPCTSTR>(g_Git.CombinePath(selectedLeafs.at(0)->GetFullName())));
+			sCmd.Format(L"/command:log /path:\"%s\"", static_cast<LPCWSTR>(g_Git.CombinePath(selectedLeafs.at(0)->GetFullName())));
 			if (cmd == eCmd_ViewLog && selectedLeafs.at(0)->m_bSubmodule)
 				sCmd += L" /submodule";
 			if (cmd == eCmd_ViewLog)
@@ -870,7 +858,7 @@ void CRepositoryBrowser::ShowContextMenu(CPoint point, TShadowFilesTreeList &sel
 	case eCmd_CompareWC:
 		{
 			CTGitPath file(selectedLeafs.at(0)->GetFullName());
-			CGitDiff::Diff(GetSafeHwnd(), &file, &file, GIT_REV_ZERO, m_sRevision);
+			CGitDiff::Diff(GetSafeHwnd(), &file, &file, GitRev::GetWorkingCopyRef(), m_sRevision);
 		}
 		break;
 	case eCmd_Revert:
@@ -884,7 +872,7 @@ void CRepositoryBrowser::ShowContextMenu(CPoint point, TShadowFilesTreeList &sel
 					break;
 			}
 			CString msg;
-			msg.FormatMessage(IDS_STATUSLIST_FILESREVERTED, count, static_cast<LPCTSTR>(m_sRevision));
+			msg.FormatMessage(IDS_STATUSLIST_FILESREVERTED, count, static_cast<LPCWSTR>(m_sRevision));
 			MessageBox(msg, L"TortoiseGit", MB_OK);
 		}
 		break;
@@ -943,6 +931,15 @@ BOOL CRepositoryBrowser::PreTranslateMessage(MSG* pMsg)
 				Refresh();
 			}
 			break;
+		case L'A':
+			if (pMsg->hwnd == m_RepoList.m_hWnd && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+			{
+				// select all entries
+				for (int i = 0; i < m_RepoList.GetItemCount(); ++i)
+					m_RepoList.SetItemState(i, LVIS_SELECTED, LVIS_SELECTED);
+				return TRUE;
+			}
+			break;
 		}
 	}
 
@@ -997,7 +994,7 @@ void CRepositoryBrowser::SaveDividerPosition()
 	RECT rc;
 	GetDlgItem(IDC_REPOTREE)->GetClientRect(&rc);
 	CRegDWORD xPos(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RepobrowserDivider");
-	xPos = CDPIAware::Instance().UnscaleX(rc.right - rc.left);
+	xPos = CDPIAware::Instance().UnscaleX(GetSafeHwnd(), rc.right - rc.left);
 }
 
 void CRepositoryBrowser::HandleDividerMove(CPoint point, bool bDraw)
@@ -1015,7 +1012,7 @@ void CRepositoryBrowser::HandleDividerMove(CPoint point, bool bDraw)
 	GetClientRect(&rect);
 	ClientToScreen(&rect);
 
-	auto minWidth = CDPIAware::Instance().ScaleX(REPOBROWSER_CTRL_MIN_WIDTH);
+	auto minWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), REPOBROWSER_CTRL_MIN_WIDTH);
 	CPoint point2 = point;
 	if (point2.x < treelist.left + minWidth)
 		point2.x = treelist.left + minWidth;
@@ -1032,17 +1029,16 @@ void CRepositoryBrowser::HandleDividerMove(CPoint point, bool bDraw)
 	if (point.x > treelist.right - minWidth)
 		point.x = treelist.right - minWidth;
 
-	auto divWidth = CDPIAware::Instance().ScaleX(2);
+	const auto divWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
 
 	if (bDraw)
 	{
 		CDC * pDC = GetDC();
-		DrawXorBar(pDC, oldx - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - CDPIAware::Instance().ScaleY(2));
+		DrawXorBar(pDC, m_oldSliderXPos - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2));
 		ReleaseDC(pDC);
 	}
 
-	oldx = point.x;
-	oldy = point.y;
+	m_oldSliderXPos = point.x;
 
 	//position the child controls
 	GetDlgItem(IDC_REPOTREE)->GetWindowRect(&treelist);
@@ -1084,28 +1080,27 @@ void CRepositoryBrowser::OnMouseMove(UINT nFlags, CPoint point)
 	//same for the window coordinates - make them relative to 0,0
 	OffsetRect(&treelist, -treelist.left, -treelist.top);
 
-	auto minWidth = CDPIAware::Instance().ScaleX(REPOBROWSER_CTRL_MIN_WIDTH);
+	auto minWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), REPOBROWSER_CTRL_MIN_WIDTH);
 	if (point.x < treelist.left + minWidth)
 		point.x = treelist.left + minWidth;
 	if (point.x > treelist.right - minWidth)
 		point.x = treelist.right - minWidth;
 
-	if ((nFlags & MK_LBUTTON) && (point.x != oldx))
+	if ((nFlags & MK_LBUTTON) && (point.x != m_oldSliderXPos))
 	{
 		CDC * pDC = GetDC();
 
 		if (pDC)
 		{
-			auto divWidth = CDPIAware::Instance().ScaleX(2);
-			auto divHeight = CDPIAware::Instance().ScaleY(2);
-			DrawXorBar(pDC, oldx - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - divHeight);
+			const auto divWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
+			const auto divHeight = CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2);
+			DrawXorBar(pDC, m_oldSliderXPos - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - divHeight);
 			DrawXorBar(pDC, point.x - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - divHeight);
 
 			ReleaseDC(pDC);
 		}
 
-		oldx = point.x;
-		oldy = point.y;
+		m_oldSliderXPos = point.x;
 	}
 
 	CStandAloneDialogTmpl<CResizableDialog>::OnMouseMove(nFlags, point);
@@ -1133,16 +1128,16 @@ void CRepositoryBrowser::OnLButtonDown(UINT nFlags, CPoint point)
 	//same for the window coordinates - make them relative to 0,0
 	OffsetRect(&treelist, -treelist.left, -treelist.top);
 
-	auto minWidth = CDPIAware::Instance().ScaleX(REPOBROWSER_CTRL_MIN_WIDTH);
+	const auto minWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), REPOBROWSER_CTRL_MIN_WIDTH);
 
 	if (point.x < treelist.left + minWidth)
 		return CStandAloneDialogTmpl < CResizableDialog>::OnLButtonDown(nFlags, point);
-	if (point.x > treelist.right - CDPIAware::Instance().ScaleX(3))
+	if (point.x > treelist.right - CDPIAware::Instance().ScaleX(GetSafeHwnd(), 3))
 		return CStandAloneDialogTmpl < CResizableDialog>::OnLButtonDown(nFlags, point);
 	if (point.x > treelist.right - minWidth)
 		point.x = treelist.right - minWidth;
 
-	auto divHeight = CDPIAware::Instance().ScaleY(3);
+	const auto divHeight = CDPIAware::Instance().ScaleY(GetSafeHwnd(), 3);
 	if ((point.y < treelist.top + divHeight) || (point.y > treelist.bottom - divHeight))
 		return CStandAloneDialogTmpl<CResizableDialog>::OnLButtonDown(nFlags, point);
 
@@ -1150,13 +1145,12 @@ void CRepositoryBrowser::OnLButtonDown(UINT nFlags, CPoint point)
 
 	SetCapture();
 
-	auto divWidth = CDPIAware::Instance().ScaleX(2);
+	const auto divWidth = CDPIAware::Instance().ScaleX(GetSafeHwnd(), 2);
 	CDC * pDC = GetDC();
-	DrawXorBar(pDC, point.x - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - CDPIAware::Instance().ScaleY(2));
+	DrawXorBar(pDC, point.x - divWidth, treelistclient.top, 2 * divWidth, treelistclient.bottom - treelistclient.top - CDPIAware::Instance().ScaleY(GetSafeHwnd(), 2));
 	ReleaseDC(pDC);
 
-	oldx = point.x;
-	oldy = point.y;
+	m_oldSliderXPos = point.x;
 
 	CStandAloneDialogTmpl<CResizableDialog>::OnLButtonDown(nFlags, point);
 }
@@ -1220,7 +1214,7 @@ BOOL CRepositoryBrowser::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 			ClientToScreen(&pt);
 			// are we right of the tree control?
 			GetDlgItem(IDC_REPOTREE)->GetWindowRect(&rect);
-			auto divHeight = CDPIAware::Instance().ScaleY(3);
+			const auto divHeight = CDPIAware::Instance().ScaleY(GetSafeHwnd(), 3);
 			if ((pt.x > rect.right) && (pt.y >= rect.top + divHeight) && (pt.y <= rect.bottom - divHeight))
 			{
 				// but left of the list control?
@@ -1249,14 +1243,14 @@ void CRepositoryBrowser::FileSaveAs(const CString path)
 	}
 
 	CString filename;
-	filename.Format(L"%s\\%s-%s%s", static_cast<LPCTSTR>(g_Git.CombinePath(gitPath.GetContainingDirectory())), static_cast<LPCTSTR>(gitPath.GetBaseFilename()), static_cast<LPCTSTR>(hash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCTSTR>(gitPath.GetFileExtension()));
+	filename.Format(L"%s\\%s-%s%s", static_cast<LPCWSTR>(g_Git.CombinePath(gitPath.GetContainingDirectory())), static_cast<LPCWSTR>(gitPath.GetBaseFilename()), static_cast<LPCWSTR>(hash.ToString(g_Git.GetShortHASHLength())), static_cast<LPCWSTR>(gitPath.GetFileExtension()));
 	if (!CAppUtils::FileOpenSave(filename, nullptr, 0, 0, false, GetSafeHwnd()))
 		return;
 
 	if (g_Git.GetOneFile(m_sRevision, gitPath, filename))
 	{
 		CString out;
-		out.FormatMessage(IDS_STATUSLIST_CHECKOUTFILEFAILED, static_cast<LPCTSTR>(gitPath.GetGitPathString()), static_cast<LPCTSTR>(m_sRevision), static_cast<LPCTSTR>(filename));
+		out.FormatMessage(IDS_STATUSLIST_CHECKOUTFILEFAILED, static_cast<LPCWSTR>(gitPath.GetGitPathString()), static_cast<LPCWSTR>(m_sRevision), static_cast<LPCWSTR>(filename));
 		MessageBox(g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", MB_ICONERROR);
 	}
 }
@@ -1284,18 +1278,18 @@ void CRepositoryBrowser::OpenFile(const CString path, eOpenType mode, bool isSub
 			if (!repo || git_commit_lookup(commit.GetPointer(), repo, itemHash))
 			{
 				CString out;
-				out.FormatMessage(IDS_REPOBROWSEASKSUBMODULEUPDATE, static_cast<LPCTSTR>(itemHash.ToString()), static_cast<LPCTSTR>(gitPath.GetGitPathString()));
+				out.FormatMessage(IDS_REPOBROWSEASKSUBMODULEUPDATE, static_cast<LPCWSTR>(itemHash.ToString()), static_cast<LPCWSTR>(gitPath.GetGitPathString()));
 				if (MessageBox(out, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION) != IDYES)
 					return;
 
 				CString sCmd;
-				sCmd.Format(L"/command:subupdate /bkpath:\"%s\" /selectedpath:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir), static_cast<LPCTSTR>(gitPath.GetGitPathString()));
+				sCmd.Format(L"/command:subupdate /bkpath:\"%s\" /selectedpath:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir), static_cast<LPCWSTR>(gitPath.GetGitPathString()));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 				return;
 			}
 
 			CString cmd;
-			cmd.Format(L"/command:repobrowser /path:\"%s\" /rev:%s", static_cast<LPCTSTR>(g_Git.CombinePath(path)), static_cast<LPCTSTR>(itemHash.ToString()));
+			cmd.Format(L"/command:repobrowser /path:\"%s\" /rev:%s", static_cast<LPCWSTR>(g_Git.CombinePath(path)), static_cast<LPCWSTR>(itemHash.ToString()));
 			CAppUtils::RunTortoiseGitProc(cmd);
 			return;
 		}
@@ -1308,7 +1302,7 @@ void CRepositoryBrowser::OpenFile(const CString path, eOpenType mode, bool isSub
 	else if (g_Git.GetOneFile(m_sRevision, gitPath, file))
 	{
 		CString out;
-		out.FormatMessage(IDS_STATUSLIST_CHECKOUTFILEFAILED, static_cast<LPCTSTR>(gitPath.GetGitPathString()), static_cast<LPCTSTR>(m_sRevision), static_cast<LPCTSTR>(file));
+		out.FormatMessage(IDS_STATUSLIST_CHECKOUTFILEFAILED, static_cast<LPCWSTR>(gitPath.GetGitPathString()), static_cast<LPCWSTR>(m_sRevision), static_cast<LPCWSTR>(file));
 		MessageBox(g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", MB_ICONERROR);
 		return;
 	}
@@ -1328,8 +1322,11 @@ void CRepositoryBrowser::OpenFile(const CString path, eOpenType mode, bool isSub
 }
 bool CRepositoryBrowser::RevertItemToVersion(const CString &path)
 {
+	CString endOfOptions;
+	if (CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 43, 1))
+		endOfOptions = L" --end-of-options";
 	CString cmd, out;
-	cmd.Format(L"git.exe checkout %s -- \"%s\"", static_cast<LPCTSTR>(m_sRevision), static_cast<LPCTSTR>(path));
+	cmd.Format(L"git.exe checkout%s %s -- \"%s\"", static_cast<LPCWSTR>(endOfOptions), static_cast<LPCWSTR>(m_sRevision), static_cast<LPCWSTR>(path));
 	if (g_Git.Run(cmd, &out, CP_UTF8))
 	{
 		if (MessageBox(out, L"TortoiseGit", MB_ICONEXCLAMATION | MB_OKCANCEL) == IDCANCEL)
@@ -1426,7 +1423,7 @@ void CRepositoryBrowser::OnTvnBegindragRepotree(NMHDR* pNMHDR, LRESULT* pResult)
 	CTGitPathList toExport;
 	RecursivelyAdd(toExport, pTree);
 
-	BeginDrag(m_RepoTree, toExport, pTree->m_pParent ? pTree->m_pParent->GetFullName() : L"", pNMTreeView->ptDrag);
+	BeginDrag(m_RepoTree, toExport, pTree->m_pParent ? pTree->m_pParent->GetFullName() : CString(), pNMTreeView->ptDrag);
 }
 
 void CRepositoryBrowser::BeginDrag(const CWnd& window, CTGitPathList& files, const CString& root, POINT& point)

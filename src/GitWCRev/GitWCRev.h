@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2017-2018 - TortoiseGit
+// Copyright (C) 2017-2018, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -39,12 +39,11 @@ struct GitWCRev_t
 		, HeadTime(0)
 		, NumCommits(0)
 	{
-		HeadHash[0] = '\0';
 		HeadHashReadable[0] = '\0';
 	}
 
-	char HeadHash[GIT_OID_RAWSZ];
-	char HeadHashReadable[GIT_OID_HEXSZ + 1];
+	static_assert(GIT_OID_MAX_SIZE == GIT_OID_SHA1_SIZE, "SHA2 is not available");
+	char HeadHashReadable[GIT_OID_SHA1_HEXSIZE + 1];
 	std::string HeadAuthor;
 	std::string HeadEmail;
 	__time64_t HeadTime;

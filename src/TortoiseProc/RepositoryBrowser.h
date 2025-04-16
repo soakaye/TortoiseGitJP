@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2014, 2016-2017, 2020 - TortoiseGit
+// Copyright (C) 2009-2014, 2016-2017, 2020-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,47 +16,39 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-#pragma once
 
+#pragma once
 #include <map>
 #include "StandAloneDlg.h"
 #include "GitHash.h"
-#include "GitStatusListCtrl.h"
 #include "GestureEnabledControl.h"
+#include "TGitPath.h"
+#include "ColumnManager.h"
 
 #define REPOBROWSER_CTRL_MIN_WIDTH	20
 
 class CShadowFilesTree;
 
-typedef std::map<CString, CShadowFilesTree> TShadowFilesTreeMap;
+using TShadowFilesTreeMap = std::map<CString, CShadowFilesTree>;
 
 class CShadowFilesTree
 {
 public:
-	CShadowFilesTree()
-	: m_hTree(nullptr)
-	, m_pParent(nullptr)
-	, m_bFolder(false)
-	, m_bLoaded(true)
-	, m_bSubmodule(false)
-	, m_bExecutable(false)
-	, m_bSymlink(false)
-	, m_iSize(0)
-	{}
+	CShadowFilesTree() = default;
 
 	CString				m_sName;
 	CGitHash			m_hash;
-	git_off_t			m_iSize;
-	bool				m_bFolder;
-	bool				m_bLoaded;
-	bool				m_bSubmodule;
-	bool				m_bExecutable;
-	bool				m_bSymlink;
+	git_off_t			m_iSize = 0;
+	bool				m_bFolder = false;
+	bool				m_bLoaded = true;
+	bool				m_bSubmodule = false;
+	bool				m_bExecutable = false;
+	bool				m_bSymlink = false;
 
-	HTREEITEM			m_hTree;
+	HTREEITEM			m_hTree = nullptr;
 
 	TShadowFilesTreeMap	m_ShadowTree;
-	CShadowFilesTree*	m_pParent;
+	CShadowFilesTree*	m_pParent = nullptr;
 
 	CString	GetFullName() const
 	{
@@ -70,7 +62,7 @@ public:
 			return m_pParent->GetFullName() + L'/' + m_sName;
 	}
 };
-typedef std::vector<CShadowFilesTree *> TShadowFilesTreeList;
+using TShadowFilesTreeList = std::vector<CShadowFilesTree*>;
 
 class CRepositoryBrowser : public CResizableStandAloneDialog
 {
@@ -125,36 +117,36 @@ public:
 	};
 
 private:
-	virtual void DoDataExchange(CDataExchange* pDX) override;	// DDX/DDV support
+	void DoDataExchange(CDataExchange* pDX) override;	// DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 
-	afx_msg void			OnOK();
-	afx_msg void			OnCancel();
+	afx_msg void			OnOK() override;
+	afx_msg void			OnCancel() override;
 	afx_msg void			OnDestroy();
-	virtual BOOL			OnInitDialog() override;
+	BOOL					OnInitDialog() override;
 
 	CGestureEnabledControlTmpl<CTreeCtrl>	m_RepoTree;
 	CGestureEnabledControlTmpl<CListCtrl>	m_RepoList;
 	ColumnManager			m_ColumnManager;
 
 	afx_msg void			OnLvnColumnclickRepoList(NMHDR *pNMHDR, LRESULT *pResult);
-	int						m_currSortCol;
-	bool					m_currSortDesc;
+	int						m_currSortCol = 0;
+	bool					m_currSortDesc = false;
 
 	CShadowFilesTree		m_TreeRoot;
 	int						ReadTreeRecursive(git_repository& repo, const git_tree* tree, CShadowFilesTree* treeroot, bool recursive);
 	int						ReadTree(CShadowFilesTree* treeroot, const CString& root = L"", bool recursive = false);
-	int						m_nIconFolder;
-	int						m_nOpenIconFolder;
-	int						m_nExternalOvl;
-	int						m_nExecutableOvl;
-	int						m_nSymlinkOvl;
+	int						m_nIconFolder = 0;
+	int						m_nOpenIconFolder = 0;
+	int						m_nExternalOvl = 0;
+	int						m_nExecutableOvl = 0;
+	int						m_nSymlinkOvl = 0;
 
 	CShadowFilesTree*		GetListEntry(int index);
 	CShadowFilesTree*		GetTreeEntry(HTREEITEM treeItem);
 
-	bool					m_bHasWC;
+	bool					m_bHasWC = true;
 
 	void					Refresh();
 	CString					m_sRevision;
@@ -177,7 +169,7 @@ private:
 
 	afx_msg void			OnBnClickedButtonRevision();
 
-	virtual BOOL			PreTranslateMessage(MSG* pMsg) override;
+	BOOL					PreTranslateMessage(MSG* pMsg) override;
 
 	void					UpdateDiffWithFileFromReg();
 	CString					m_sMarkForDiffFilename;
@@ -185,9 +177,9 @@ private:
 
 	/// resizes the control so that the divider is at position 'point'
 	void					HandleDividerMove(CPoint point, bool bDraw);
-	bool					bDragMode;
+	bool					bDragMode = false;
 	void					SaveDividerPosition();
-	int						oldy, oldx;
+	int						m_oldSliderXPos = 0;
 	/// draws the bar when the tree and list control are resized
 	void					DrawXorBar(CDC * pDC, int x1, int y1, int width, int height);
 	afx_msg BOOL			OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);

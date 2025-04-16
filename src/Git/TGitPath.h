@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2020 - TortoiseGit
+// Copyright (C) 2008-2025 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -27,16 +27,23 @@
 class CTGitPath
 {
 public:
-	CTGitPath(void);
-#ifdef GMOCK_INCLUDE_GMOCK_GMOCK_H_
-	virtual ~CTGitPath(void);
+	CTGitPath();
+#ifdef GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_H_
+	virtual ~CTGitPath();
 #else
-	~CTGitPath(void);
+	~CTGitPath();
 #endif
 	CTGitPath(const CString& sUnknownPath);
 	CTGitPath(const CString& sUnknownPath, bool bIsDirectory);
-	int m_Stage;
-	int m_ParentNo;
+	int m_ParentNo = 0;
+
+	enum class StagingStatus
+	{
+		DontCare,
+		TotallyStaged,
+		PartiallyStaged,
+		TotallyUnstaged
+	};
 
 	enum Actions : unsigned int
 	{
@@ -60,13 +67,15 @@ public:
 
 	CString m_StatAdd;
 	CString m_StatDel;
+	StagingStatus m_stagingStatus = StagingStatus::DontCare;
 #ifdef TGIT_LFS
 	CString m_LFSLockOwner;
 #endif
-	unsigned int		m_Action;
-	bool    m_Checked;
-	unsigned int ParserAction(BYTE action);
-	unsigned int ParserAction(git_delta_t action);
+	unsigned int m_Action = 0;
+	bool m_Checked = false;
+	static unsigned ParseStatus(const char status);
+	inline void ParseAndUpdateStatus(const char status) { m_Action |= ParseStatus(status); }
+	unsigned int ParseAndUpdateStatus(git_delta_t status);
 	CString GetActionName() const;
 	static CString GetActionName(unsigned int action);
 	/**
@@ -74,15 +83,15 @@ public:
 	 */
 	void SetFromGit(const char* pPath);
 	void SetFromGit(const char* pPath, bool bIsDirectory);
-	void SetFromGit(const TCHAR* pPath, bool bIsDirectory);
+	void SetFromGit(const wchar_t* pPath, bool bIsDirectory);
 	void SetFromGit(const CString& sPath, CString* oldPath = nullptr, int* bIsDirectory = nullptr);
 
 	/**
 	 * Set the path as UNICODE with backslashes
 	 */
-	void SetFromWin(LPCTSTR pPath);
+	void SetFromWin(LPCWSTR pPath);
 	void SetFromWin(const CString& sPath);
-	void SetFromWin(LPCTSTR pPath, bool bIsDirectory);
+	void SetFromWin(LPCWSTR pPath, bool bIsDirectory);
 	void SetFromWin(const CString& sPath, bool bIsDirectory);
 	/**
 	 * Set the path from an unknown source.
@@ -91,7 +100,7 @@ public:
 	/**
 	 * Returns the path in Windows format, i.e. with backslashes
 	 */
-	LPCTSTR GetWinPath() const;
+	LPCWSTR GetWinPath() const;
 	/**
 	 * Returns the path in Windows format, i.e. with backslashes
 	 */
@@ -124,7 +133,7 @@ public:
 	 */
 	CTGitPath GetDirectory() const;
 	/**
-	* Returns the the directory which contains the item the path refers to.
+	* Returns the directory which contains the item the path refers to.
 	* If the path is a directory, then this returns the directory above it.
 	* If the path is to a file, then this returns the directory which contains the path
 	* parent directory is returned.
@@ -240,9 +249,12 @@ public:
 	bool HasSubmodules() const;
 	bool HasGitSVNDir() const;
 	bool IsBisectActive() const;
+	bool IsRebaseActive() const;
+	bool IsCherryPickActive() const;
 	bool IsMergeActive() const;
 	bool HasStashDir() const;
 	bool HasRebaseApply() const;
+	bool HasLFS() const;
 
 	bool IsWCRoot() const;
 
@@ -286,6 +298,11 @@ public:
 	 * Used while diffing commits where a submodule changed to a file
 	 */
 	void UnsetDirectoryStatus() { m_bIsDirectory = false; }
+	/**
+	 * Marks a path as a directory by setting the cached IsDirectory status
+	 * Used while diffing commits where a file changed to a submodule
+	 */
+	void SetDirectoryStatus() { m_bIsDirectory = true; }
 
 private:
 	/**
@@ -293,7 +310,7 @@ private:
 	 */
 	void SanitizeRootPath(CString& sPath, bool bIsForwardPath) const;
 
-#ifdef GMOCK_INCLUDE_GMOCK_GMOCK_H_
+#ifdef GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_H_
 protected:
 	virtual void UpdateAttributes() const;
 private:
@@ -314,22 +331,22 @@ private:
 	mutable CString m_sOldFwdslashPath;
 
 	// Have we yet determined if this is a directory or not?
-	mutable bool m_bDirectoryKnown;
-	mutable bool m_bIsDirectory;
-	mutable bool m_bLastWriteTimeKnown;
-	mutable __int64 m_lastWriteTime;
-	mutable __int64 m_fileSize;
-	mutable bool m_bIsReadOnly;
-	mutable bool m_bHasAdminDirKnown;
-	mutable bool m_bHasAdminDir;
-	mutable bool m_bIsValidOnWindowsKnown;
-	mutable bool m_bIsValidOnWindows;
-	mutable bool m_bIsAdminDirKnown;
-	mutable bool m_bIsAdminDir;
-	mutable bool m_bIsWCRootKnown;
-	mutable bool m_bIsWCRoot;
-	mutable bool m_bExists;
-	mutable bool m_bExistsKnown;
+	mutable bool m_bDirectoryKnown = false;
+	mutable bool m_bIsDirectory = false;
+	mutable bool m_bLastWriteTimeKnown = false;
+	mutable __int64 m_lastWriteTime = 0;
+	mutable __int64 m_fileSize = 0;
+	mutable bool m_bIsReadOnly = false;
+	mutable bool m_bHasAdminDirKnown = false;
+	mutable bool m_bHasAdminDir = false;
+	mutable bool m_bIsValidOnWindowsKnown = false;
+	mutable bool m_bIsValidOnWindows = false;
+	mutable bool m_bIsAdminDirKnown = false;
+	mutable bool m_bIsAdminDir = false;
+	mutable bool m_bIsWCRootKnown = false;
+	mutable bool m_bIsWCRoot = false;
+	mutable bool m_bExists = false;
+	mutable bool m_bExistsKnown = false;
 
 	friend bool operator<(const CTGitPath& left, const CTGitPath& right);
 };
@@ -352,19 +369,22 @@ public:
 	CTGitPathList();
 	// A constructor which allows a path list to be easily built with one initial entry in
 	explicit CTGitPathList(const CTGitPath& firstEntry);
-	unsigned int m_Action;
+	unsigned int m_Action = 0;
 
 public:
 	void AddPath(const CTGitPath& newPath);
 	bool LoadFromFile(const CTGitPath& filename);
 	bool WriteToFile(const CString& sFilename, bool bUTF8 = false) const;
+	bool WriteToPathSpecFile(const CString& sFilename) const;
 	const CTGitPath* LookForGitPath(const CString& path) const;
-	int	ParserFromLog(BYTE_VECTOR &log, bool parseDeletes = false);
-	int ParserFromLsFile(BYTE_VECTOR &out,bool staged=true);
+	int	ParserFromLog(const BYTE_VECTOR& log);
+	int ParserFromLsFileSimple(const BYTE_VECTOR& out, unsigned int action, bool clear = true);
+	int ParserFromLsFile(const BYTE_VECTOR& out);
+	void UpdateStagingStatusFromPath(const CString& path, CTGitPath::StagingStatus status);
 	int FillUnRev(unsigned int Action, const CTGitPathList* filterlist = nullptr, CString* err = nullptr);
 #ifdef TGIT_LFS
 	int FillLFSLocks(unsigned int action, CString* err = nullptr);
-#ifndef GTEST_INCLUDE_GTEST_GTEST_H_
+#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_H_
 private:
 #endif
 	int ParserFromLFSLocks(unsigned int action, const CString& output, CString* err = nullptr);
@@ -407,7 +427,7 @@ public:
 	 * \param bShowErrorUI if true, show error dialog box when error occurs.
 	 */
 	void DeleteAllFiles(bool bTrash, bool bFilesOnly = true, bool bShowErrorUI = false);
-	static bool DeleteViaShell(LPCTSTR path, bool useTrashbin, bool bShowErrorUI);
+	static bool DeleteViaShell(LPCWSTR path, bool useTrashbin, bool bShowErrorUI);
 	/** Remove duplicate entries from the list (sorts the list as a side-effect */
 	void RemoveDuplicates();
 	/** Removes all paths which are on or in a git admin directory */
@@ -424,9 +444,16 @@ public:
 	/** Checks if two CTGitPathLists are the same */
 	bool IsEqual(const CTGitPathList& list);
 
-	typedef std::vector<CTGitPath> PathVector;
+	using PathVector = std::vector<CTGitPath>;
 	PathVector m_paths;
 	// If the list contains just files in one directory, then
 	// this contains the directory name
 	mutable CTGitPath m_commonBaseDirectory;
+
+	auto begin() noexcept { return m_paths.begin(); }
+	auto begin() const noexcept { return m_paths.cbegin(); }
+	auto cbegin() const noexcept { return m_paths.cbegin(); }
+	auto end() noexcept { return m_paths.end(); }
+	auto end() const noexcept { return m_paths.cend(); }
+	auto cend() const noexcept { return m_paths.cend(); }
 };

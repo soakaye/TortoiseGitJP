@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2016, 2019 - TortoiseGit
+// Copyright (C) 2011-2016, 2019, 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2006, 2008, 2014, 2016, 2019 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -20,13 +20,11 @@
 
 #include "stdafx.h"
 #include <fstream>
-#include <codecvt>
 #include "PersonalDictionary.h"
 #include "PathUtils.h"
 
 CPersonalDictionary::CPersonalDictionary(LONG lLanguage /* = 0*/)
-	: m_bLoaded(false)
-	, m_lLanguage(lLanguage)
+	: m_lLanguage(lLanguage)
 {
 }
 
@@ -37,8 +35,8 @@ CPersonalDictionary::~CPersonalDictionary()
 template<class T>
 static void OpenFileStream(T& file, LONG lLanguage, std::ios_base::openmode openmode = 0)
 {
-	TCHAR path[MAX_PATH] = { 0 };		//MAX_PATH ok here.
-	swprintf_s(path, L"%s%ld.dic", static_cast<LPCTSTR>(CPathUtils::GetAppDataDirectory()), !lLanguage ? GetUserDefaultLCID() : lLanguage);
+	wchar_t path[MAX_PATH] = { 0 };		//MAX_PATH ok here.
+	swprintf_s(path, L"%s%ld.dic", static_cast<LPCWSTR>(CPathUtils::GetAppDataDirectory()), !lLanguage ? GetUserDefaultLCID() : lLanguage);
 
 	char filepath[MAX_PATH + 1] = { 0 };
 	WideCharToMultiByte(CP_ACP, 0, path, -1, filepath, _countof(filepath) - 1, nullptr, nullptr);

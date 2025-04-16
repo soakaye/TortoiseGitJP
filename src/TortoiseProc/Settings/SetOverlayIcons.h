@@ -1,5 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2003-2007 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,9 +17,9 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
 #include "SettingsPropPage.h"
-#include "StandAloneDlg.h"
 #include "registry.h"
 
 /**
@@ -39,9 +40,9 @@ public:
 	enum { IDD = IDD_SETOVERLAYICONS };
 
 protected:
-	virtual void	DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL	OnInitDialog() override;
-	virtual BOOL	OnApply() override;
+	void	DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL	OnInitDialog() override;
+	BOOL	OnApply() override;
 	afx_msg void	OnBnClickedListradio();
 	afx_msg void	OnBnClickedSymbolradio();
 	afx_msg void	OnCbnSelchangeIconsetcombo();
@@ -50,7 +51,7 @@ protected:
 	void			AddFileTypeGroup(CString sFileType, bool bSmallIcons);
 	DECLARE_MESSAGE_MAP()
 
-	int				m_selIndex;
+	int				m_selIndex = CB_ERR;
 	CString			m_sIconSet;
 	CComboBox		m_cIconSet;
 	CListCtrl		m_cIconList;

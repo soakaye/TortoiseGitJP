@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2017, 2019 - TortoiseGit
+// Copyright (C) 2012-2017, 2019, 2022, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -20,8 +20,11 @@
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "SubmoduleUpdateDlg.h"
+#include "TGitPath.h"
 #include "AppUtils.h"
 #include "UnicodeUtils.h"
+#include "StringUtils.h"
+#include "Git.h"
 
 IMPLEMENT_DYNAMIC(CSubmoduleUpdateDlg, CResizableStandAloneDialog)
 
@@ -37,6 +40,7 @@ CSubmoduleUpdateDlg::CSubmoduleUpdateDlg(CWnd* pParent /*=nullptr*/)
 	, m_bRebase(FALSE)
 	, m_bRemote(FALSE)
 	, m_bWholeProject(FALSE)
+	, m_bAllSubmodulesSelected(false)
 {
 	s_bSortLogical = !CRegDWORD(L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoStrCmpLogical", 0, false, HKEY_CURRENT_USER);
 	if (s_bSortLogical)
@@ -166,6 +170,7 @@ BOOL CSubmoduleUpdateDlg::OnInitDialog()
 	SetDlgTitle();
 
 	EnableSaveRestore(L"SubmoduleUpdateDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	Refresh();
 	UpdateData(FALSE);
@@ -206,6 +211,7 @@ void CSubmoduleUpdateDlg::OnBnClickedOk()
 			selected.Append(text);
 		}
 	}
+	m_bAllSubmodulesSelected = (static_cast<size_t>(m_PathListBox.GetCount()) == m_PathList.size());
 	m_regPath = selected;
 
 	m_regInit = m_bInit;

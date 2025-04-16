@@ -1,5 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // Copyright (C) 2003-2006. 2011, 2017 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -34,11 +35,11 @@
 #define CW_BOTTOMALIGN 4
 #define SPS_VERTICAL 1
 #define SPS_HORIZONTAL 2
-typedef struct SPC_NMHDR
+struct SPC_NMHDR
 {
 	NMHDR hdr;
 	int delta;
-} SPC_NMHDR;
+};
 
 class CSplitterControl : public CStatic
 {
@@ -56,7 +57,7 @@ public:
 
 protected:
 	void			MoveWindowTo(CPoint pt);
-	virtual void	PreSubclassWindow();
+	void			PreSubclassWindow() override;
 	afx_msg void	OnPaint();
 	afx_msg void	OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg BOOL	OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
@@ -67,12 +68,14 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
-	bool		m_bIsPressed;
-	int			m_nType;
-	int			m_nX, m_nY;
-	int			m_nMin, m_nMax;
-	int			m_nSavePos;
-	bool		m_bMouseOverControl;
-	ULONG_PTR	m_gdiPlusToken;
+	bool		m_bIsPressed  = false;
+	int			m_nType = 0;
+	int			m_nX = 0;
+	int			m_nY = 0;
+	int			m_nMin = -1;
+	int			m_nMax = -1;
+	int			m_nSavePos = 0;
+	bool		m_bMouseOverControl = false;
+	ULONG_PTR	m_gdiPlusToken = 0;
 	IUIAnimationVariablePtr m_AnimVarHot;
 };

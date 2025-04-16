@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017 - TortoiseGit
+// Copyright (C) 2008-2017, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@ class CGitRefCompareList : public CHintCtrl<CListCtrl>
 {
 	DECLARE_DYNAMIC(CGitRefCompareList);
 
-	enum ChangeType
+	enum class ChangeType
 	{
 		Unknown,
 		New,
@@ -43,10 +43,10 @@ class CGitRefCompareList : public CHintCtrl<CListCtrl>
 	struct RefEntry
 	{
 		CString fullName;
-		CGit::REF_TYPE refType;
+		CGit::REF_TYPE refType = CGit::REF_TYPE::UNKNOWN;
 		CString shortName;
 		CString change;
-		ChangeType changeType;
+		ChangeType changeType = ChangeType::Unknown;
 		CString oldHash;
 		CString oldMessage;
 		CString newHash;
@@ -72,7 +72,7 @@ protected:
 	afx_msg void OnContextMenu(CWnd *pWnd, CPoint point);
 	void OnContextMenuList(CWnd *pWnd, CPoint point);
 	void OnContextMenuHeader(CWnd *pWnd, CPoint point);
-	virtual ULONG GetGestureStatus(CPoint ptTouch) override;
+	ULONG GetGestureStatus(CPoint ptTouch) override;
 
 	DECLARE_MESSAGE_MAP()
 
@@ -83,14 +83,14 @@ private:
 	BOOL					m_bHideUnchanged;
 	static BOOL 			m_bSortLogical;
 
-	int colRef;
-	int colRefType;
-	int colChange;
-	int colOldHash;
-	int colOldMessage;
-	int colNewHash;
-	int colNewMessage;
+	int colRef = 0;
+	int colRefType = 0;
+	int colChange = 0;
+	int colOldHash = 0;
+	int colOldMessage = 0;
+	int colNewHash = 0;
+	int colNewMessage = 0;
 
-	bool	m_bAscending;		///< sort direction
-	int		m_nSortedColumn;	///< which column to sort
+	bool	m_bAscending = false;		///< sort direction
+	int		m_nSortedColumn = -1;	///< which column to sort
 };

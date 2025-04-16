@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2017 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2017, 2022, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,7 +25,7 @@
 #include "MessageBox.h"
 #include "AppUtils.h"
 #include "PatchListCtrl.h"
-#include "SendMailPatch.h"
+#include "SendMail.h"
 
 // CSendMailDlg dialog
 
@@ -94,10 +94,9 @@ BOOL CSendMailDlg::OnInitDialog()
 	this->AddOthersToAnchor();
 
 	EnableSaveRestore(L"SendMailDlg");
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
-	CString sWindowTitle;
-	GetWindowText(sWindowTitle);
-	CAppUtils::SetWindowTitle(m_hWnd, m_PathList.GetCommonRoot().GetUIPathString(), sWindowTitle);
+	CAppUtils::SetWindowTitle(*this, m_PathList.GetCommonRoot().GetUIPathString());
 
 	m_ctrlCC.Init();
 	m_ctrlTO.Init();
@@ -221,14 +220,19 @@ void CSendMailDlg::OnLvnItemchangedSendmailPatchs(NMHDR * /*pNMHDR*/, LRESULT *p
 void CSendMailDlg::OnNMDblclkSendmailPatchs(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	*pResult = 0;
+
+	CPoint point(pNMItemActivate->ptAction);
+	UINT uFlags = 0;
+	m_ctrlList.HitTest(point, &uFlags);
+	if (uFlags == LVHT_ONITEMSTATEICON)
+		return;
 
 	CString path=this->m_ctrlList.GetItemText(pNMItemActivate->iItem,0);
 	CTGitPath gitpath;
 	gitpath.SetFromWin(path);
 
 	CAppUtils::StartUnifiedDiffViewer(path,gitpath.GetFilename());
-
-	*pResult = 0;
 }
 
 void CSendMailDlg::OnEnChangeSendmailSubject()

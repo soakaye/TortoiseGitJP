@@ -13,7 +13,7 @@
 <simplesect id="git-fast-export(1)__synopsis">
 <title>SYNOPSIS</title>
 <blockquote>
-<literallayout><emphasis>git fast-export [&lt;options&gt;]</emphasis> | <emphasis>git fast-import</emphasis></literallayout>
+<literallayout><emphasis>git fast-export</emphasis> [&lt;options&gt;] | <emphasis>git fast-import</emphasis></literallayout>
 </blockquote>
 </simplesect>
 <simplesect id="git-fast-export(1)__description">
@@ -71,7 +71,7 @@ warning.</simpara>
 when encountering such a tag.  With <emphasis>drop</emphasis> it will omit such tags from
 the output.  With <emphasis>rewrite</emphasis>, if the tagged object is a commit, it will
 rewrite the tag to tag an ancestor commit (via parent rewriting; see
-<xref linkend="git-rev-list(1)" />)</simpara>
+<xref linkend="git-rev-list(1)" />).</simpara>
 </listitem>
 </varlistentry>
 <varlistentry>

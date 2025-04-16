@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2011, 2014-2017, 2019-2020 - TortoiseGit
+// Copyright (C) 2008-2011, 2014-2017, 2019-2020, 2023 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -20,6 +20,8 @@
 #include "StandAloneDlg.h"
 #include "SciEdit.h"
 #include "FindBar.h"
+#include "StagingOperations.h"
+#include "EnableStagingTypes.h"
 
 class IHasPatchView
 {
@@ -36,19 +38,20 @@ class CPatchViewDlg : public CStandAloneDialog, public CSciEditContextMenuInterf
 public:
 	CPatchViewDlg(CWnd* pParent = nullptr);   // standard constructor
 	virtual ~CPatchViewDlg();
-	IHasPatchView	*m_ParentDlg;
+	IHasPatchView* m_ParentDlg = nullptr;
 	void SetText(const CString& text);
 	void ClearView();
 	void ShowAndAlignToParent();
 	void ParentOnMoving(HWND parentHWND, LPRECT pRect);
 	void ParentOnSizing(HWND parentHWND, LPRECT pRect);
+	void EnableStaging(EnableStagingTypes enableStagingType);
 
 // Dialog Data
 	enum { IDD = IDD_PATCH_VIEW };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
-	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
+	BOOL PreTranslateMessage(MSG* pMsg) override;
 
 public:
 	CSciEdit			m_ctrlPatchView;
@@ -56,7 +59,7 @@ public:
 protected:
 	DECLARE_MESSAGE_MAP()
 
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnMoving(UINT fwSide, LPRECT pRect);
 	afx_msg void OnClose();
@@ -68,19 +71,34 @@ protected:
 	afx_msg void OnFindReset();
 	afx_msg void OnFindExit();
 	afx_msg void OnEscape();
+	afx_msg void OnStageLines();
+	afx_msg void OnStageHunks();
+	afx_msg void OnUnstageLines();
+	afx_msg void OnUnstageHunks();
 	LRESULT OnFindNextMessage(WPARAM, LPARAM);
 	LRESULT OnFindPrevMessage(WPARAM, LPARAM);
 	LRESULT OnFindResetMessage(WPARAM, LPARAM);
 	LRESULT OnFindExitMessage(WPARAM, LPARAM);
+	static UINT WM_PARTIALSTAGINGREFRESHPATCHVIEW;
 
 	void				DoSearch(bool reverse);
 	CFindBar            m_FindBar;
-	bool                m_bShowFindBar;
+	bool				m_bShowFindBar = false;
 
-	HACCEL				m_hAccel;
+	HACCEL				m_hAccel = nullptr;
+
+	EnableStagingTypes	m_nEnableStagingType = EnableStagingTypes::None;
 
 	// CSciEditContextMenuInterface
-	virtual void		InsertMenuItems(CMenu& mPopup, int& nCmd) override;
-	virtual bool		HandleMenuItemClick(int cmd, CSciEdit* pSciEdit) override;
-	int					m_nPopupSave;
+	void				InsertMenuItems(CMenu& mPopup, int& nCmd) override;
+	bool				HandleMenuItemClick(int cmd, CSciEdit* pSciEdit) override;
+	int					m_nPopupSave = 0;
+	int					m_nStageHunks = 0;
+	int					m_nStageLines = 0;
+	int					m_nUnstageHunks = 0;
+	int					m_nUnstageLines = 0;
+
+	int GetFirstLineNumberSelected();
+	int GetLastLineNumberSelected();
+	void StageOrUnstageSelectedLinesOrHunks(StagingType stagingType);
 };

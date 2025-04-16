@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2019, 2021-2025 - TortoiseGit
 // Copyright (C) 2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -17,16 +17,15 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "CloneCommand.h"
-
 #include "GitProgressDlg.h"
 #include "StringUtils.h"
 #include "CloneDlg.h"
 #include "ProgressDlg.h"
 #include "AppUtils.h"
 #include "UnicodeUtils.h"
-#include "SysProgressDlg.h"
 #include "ProgressCommands/CloneProgressCommand.h"
 
 static CString GetExistingDirectoryForClone(CString path)
@@ -60,7 +59,7 @@ static void StorePuttyKey(const CString& repoRoot, const CString& remote, const 
 	if (git_repository_config(config.GetPointer(), repo))
 		goto error;
 
-	configName.Format(L"remote.%s.puttykeyfile", static_cast<LPCTSTR>(remote));
+	configName.Format(L"remote.%s.puttykeyfile", static_cast<LPCWSTR>(remote));
 
 	if (git_config_set_string(config, CUnicodeUtils::GetUTF8(configName), CUnicodeUtils::GetUTF8(keyFile)))
 		goto error;
@@ -80,7 +79,7 @@ bool CloneCommand::Execute()
 		{
 			cloneDirectory.SetFromWin(sOrigCWD, true);
 			DWORD len = ::GetTempPath(0, nullptr);
-			auto tszPath = std::make_unique<TCHAR[]>(len);
+			auto tszPath = std::make_unique<wchar_t[]>(len);
 			::GetTempPath(len, tszPath.get());
 			if (_wcsnicmp(cloneDirectory.GetWinPath(), tszPath.get(), len - 2 /* \\ and \0 */) == 0)
 			{
@@ -154,16 +153,15 @@ bool CloneCommand::Execute()
 			depth.Format(L" --depth %d", dlg.m_nDepth);
 
 		CString cmd;
-		cmd.Format(L"git.exe %sclone --progress%s%s%s%s%s -v%s \"%s\" \"%s\"",
-						dlg.m_bUseLFS ? L"lfs " : L"",
-						static_cast<LPCTSTR>(nocheckoutStr),
-						static_cast<LPCTSTR>(recursiveStr),
-						static_cast<LPCTSTR>(bareStr),
-						static_cast<LPCTSTR>(branchStr),
-						static_cast<LPCTSTR>(originStr),
-						static_cast<LPCTSTR>(depth),
-						static_cast<LPCTSTR>(url),
-						static_cast<LPCTSTR>(dir));
+		cmd.Format(L"git.exe clone --progress%s%s%s%s%s -v%s -- \"%s\" \"%s\"",
+						static_cast<LPCWSTR>(nocheckoutStr),
+						static_cast<LPCWSTR>(recursiveStr),
+						static_cast<LPCWSTR>(bareStr),
+						static_cast<LPCWSTR>(branchStr),
+						static_cast<LPCWSTR>(originStr),
+						static_cast<LPCWSTR>(depth),
+						static_cast<LPCWSTR>(url),
+						static_cast<LPCWSTR>(dir));
 
 		bool retry = false;
 		auto postCmdCallback = [&](DWORD status, PostCmdList& postCmdList)
@@ -180,7 +178,7 @@ bool CloneCommand::Execute()
 			// After cloning, change current directory to the cloned directory
 			g_Git.m_CurrentDir = dlg.m_Directory;
 			if (dlg.m_bAutoloadPuttyKeyFile) // do this here, since it might be needed for actions performed in Log
-				StorePuttyKey(dlg.m_Directory, dlg.m_bOrigin && !dlg.m_strOrigin.IsEmpty() ? dlg.m_strOrigin : L"origin", dlg.m_strPuttyKeyFile);
+				StorePuttyKey(dlg.m_Directory, dlg.m_bOrigin && !dlg.m_strOrigin.IsEmpty() ? dlg.m_strOrigin : CString(L"origin"), dlg.m_strPuttyKeyFile);
 
 			postCmdList.emplace_back(IDI_LOG, IDS_MENULOG, [&]
 			{
@@ -211,16 +209,14 @@ bool CloneCommand::Execute()
 			}
 
 			//g_Git.m_CurrentDir=dlg.m_Directory;
-			cmd.Format(L"git.exe svn clone \"%s\" \"%s\"",
-				static_cast<LPCTSTR>(url), static_cast<LPCTSTR>(dlg.m_Directory));
-
+			cmd = L"git.exe svn clone";
 			if (dlg.m_bOrigin)
 			{
 				CString str;
 				if (dlg.m_strOrigin.IsEmpty())
 					str = L" --prefix \"\"";
 				else
-					str.Format(L" --prefix \"%s/\"", static_cast<LPCTSTR>(dlg.m_strOrigin));
+					str.Format(L" --prefix \"%s/\"", static_cast<LPCWSTR>(dlg.m_strOrigin));
 				cmd += str;
 			}
 
@@ -241,10 +237,12 @@ bool CloneCommand::Execute()
 				cmd += L" --username ";
 				cmd+=dlg.m_strUserName;
 			}
+
+			cmd.AppendFormat(L" -- \"%s\" \"%s\"", static_cast<LPCWSTR>(url), static_cast<LPCWSTR>(dlg.m_Directory));
 		}
 		else
 		{
-			if (g_Git.UsingLibGit2(CGit::GIT_CMD_CLONE) && !dlg.m_bUseLFS)
+			if (g_Git.UsingLibGit2(CGit::GIT_CMD_CLONE))
 			{
 				while (true)
 				{

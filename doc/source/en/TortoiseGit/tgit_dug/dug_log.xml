@@ -18,6 +18,7 @@
 		<primary>revision log dialog</primary>
 	</indexterm>
 	<?dbhh topicname="HIDD_LOGMESSAGE"?>
+	<?dbhh topicname="HIDD_LOGORDERING"?>
 	<para>
 		For every change you make and commit, you should provide
 		a log message for that change. That way you can later find out
@@ -152,10 +153,13 @@
 			The boxes with rounded corners for local branches indicate that it has an associated remote tracking. The boxes with rounded corners for remote tracking branches are used to indicate which of (possible several remote branches) is the corresponding remote tracking branch (e.g., master and origin/master).
 		</para>
 		<para>
-			The stash has a dark grey rectangle.
+			The stash has a dark gray rectangle.
 		</para>
 		<para>
-			There are also rectangles to indicate the bad versions (light red) on bisecting, blue for known good and grey for skip.
+			There are also rectangles to indicate the bad versions (light red) on bisecting, blue for known good and gray for skip.
+		</para>
+		<para>
+			Depending on what branch/tag label you open the context menu, it is optimized for that ref it was opened on (e.g., a local branch offers directly to switch to it and to push it whereas a remote branch has no push option).
 		</para>
 		<para>
 			The colors are configurable (cf. <xref linkend="tgit-dug-settings-colours2"/>). Also, the labels can be configured to be a the right side of the commit message or the displayed text to contain the whole of the commit message (cf. <xref linkend="tgit-dug-settings-dialogs"/>).
@@ -171,7 +175,7 @@
 			The top pane of the Log dialog has a context menu that allows you to
 			access much more information. <!-- Some of these menu entries appear only
 			when the log is shown for a file, and some only when the log is shown
-			for a folder. --> You can press the <keycap>Shift</keycap> key to see the extended menu with some more options.
+			for a folder. --> You can press the <keycap>Shift</keycap> key to see the extended menu with some more options (e.g., pushing and opening the log from every commit).
 			<variablelist>
 				<varlistentry>
 					<term>Compare with working tree</term>
@@ -293,6 +297,37 @@
 					</listitem>
 				</varlistentry>
 				<varlistentry>
+					<term>Collapse revisions</term>
+					<listitem>
+						<para>
+							Do not show parent commits up to a merge or branch point or a commit
+							marked with a branch or tag. This is similar to
+							<menuchoice>
+								<guimenu>Walk Behavior</guimenu>
+								<guimenuitem>Compressed Graph</guimenuitem>
+							</menuchoice>,
+							but only for selected revisions.
+						</para>
+						<para>
+							Collapsed items are displayed in the graph with hollow circles and squares.
+							In the following screenshot the commits of the merged branch in which issue 3764 was fixed and also all commits starting from the libgit2 update commit until the next merge commit were collapsed.
+							<figure id="tgit-dug-showlog-collapsed-dia-1">
+								<title>Collapsed revisions</title>
+								<graphic fileref="../images/LogCollapsedRevs.png"/>
+							</figure>
+						</para>
+					</listitem>
+				</varlistentry>
+				<varlistentry>
+					<term>Expand hidden revisions</term>
+					<listitem>
+						<para>
+							This is shown for collapsed items instead of <guilabel>Collapse revisions</guilabel>
+							and reverts the action.
+						</para>
+					</listitem>
+				</varlistentry>
+				<varlistentry>
 					<term>Cherry Pick this commit</term>
 					<listitem>
 						<para>
@@ -352,8 +387,7 @@
 						<para>
 							Search log messages for the text you enter. This searches
 							the log messages that you entered and also the action summaries
-							created by Git (shown in the bottom pane). The search
-							is not case sensitive.
+							created by Git (shown in the bottom pane).
 						</para>
 						<tip>
 							<para>
@@ -361,6 +395,9 @@
 							</para>
 							<para>
 								If you press <keycap>SHIFT</keycap> while clicking on a ref or on <guibutton>Find</guibutton> you can navigate to the commit w/o selecting it.
+							</para>
+							<para>
+								The Search Log Messages dialog is complementary to the Log Filter which is implemented using the controls at the top of the Log dialog (cf. <xref linkend="tgit-dug-showlog-filter"/>).
 							</para>
 						</tip>
 					</listitem>
@@ -637,7 +674,7 @@
 		</para>
 		<para>
 			The first element is the branch/revision filter.
-			Clicking on on opens the Reference Browser (see <xref linkend="tgit-dug-browse-ref"/>).
+			Clicking on it opens the Reference Browser (see <xref linkend="tgit-dug-browse-ref"/>).
 			There you can select single or multiple references. If you select exactly two references,
 			you can choose how to combine them (showing especially both A and B "A B"; showing
 			differences "A...B" or all commits between A and B "A..B").
@@ -649,11 +686,18 @@
 			The start and end date controls allow you
 			to restrict the output to a known date range. The search
 			box allows you to show only messages which contain a
-			particular phrase. A default limitation for <guilabel>From</guilabel> can be configured in the settings dialog on the <guilabel>Dialogs 1</guilabel> page (cf. <xref linkend="tgit-dug-settings-dialogs"/>).
+			particular phrase. A default limitation for <guilabel>From</guilabel> or the number of log entries displayed can be configured in the settings dialog on the <guilabel>Dialogs 1</guilabel> page (cf. <xref linkend="tgit-dug-settings-dialogs"/>). When a default limitation is active, the <guilabel>From</guilabel> has a blueish background. By opening the context menu on the date picker, you can configure the default limit or disable the default limit for the current dialogue.
 		</para>
 		<para>
-			Click on the search icon to select which information you want
-			to search in, and to choose <emphasis>regex</emphasis> mode.
+			Click on the search icon (the magnifier glass) to select which information you want
+			to search in, to choose <emphasis>regex</emphasis> mode, and to toggle case sensitivity.
+			Deselecting "Paths" can significantly speed up the filter.
+
+			<figure id="tgit-dug-showlog-filter-dia-1">
+				<title>Option Menu for the Log Filter</title>
+				<graphic fileref="../images/LogFilterOptions.png"/>
+			</figure>
+
 			Normally you will only need a simple sub-string search, but if you
 			need to more flexible search terms, you can use regular expressions.
 			If you hover the mouse over the box, a tooltip will give hints
@@ -728,7 +772,7 @@ Alice -Bob +Eve
 			Related paths are those which contain the path used to display
 			the log. If you fetch the log for a folder, that means anything
 			in that folder or below it. For a file it means just that one file.
-			If you want to grey out the unrelated ones, check
+			If you want to gray out the unrelated ones, check
 			<menuchoice>
 				<guimenu>View</guimenu>
 				<guimenuitem>Gray unrelated changed paths</guimenuitem>
@@ -769,21 +813,21 @@ Alice -Bob +Eve
 		</para>
 		<para>
 			<menuchoice>
-				<guimenu>Walk Behaviour</guimenu>
+				<guimenu>Walk Behavior</guimenu>
 				<guimenuitem>First Parent</guimenuitem>
 			</menuchoice>
 			just follow up first parent commit. This will help understand the overall history.
 		</para>
 		<para>
 			<menuchoice>
-				<guimenu>Walk Behaviour</guimenu>
+				<guimenu>Walk Behavior</guimenu>
 				<guimenuitem>No merges</guimenuitem>
 			</menuchoice>
 			Skips all merge points.
 		</para>
 		<para>
 			<menuchoice>
-				<guimenu>Walk Behaviour</guimenu>
+				<guimenu>Walk Behavior</guimenu>
 				<guimenuitem>Follow renames</guimenuitem>
 			</menuchoice>
 			This is available to a single file only, which tracks renames.
@@ -791,15 +835,15 @@ Alice -Bob +Eve
 		</para>
 		<para>
 			<menuchoice>
-				<guimenu>Walk Behaviour</guimenu>
+				<guimenu>Walk Behavior</guimenu>
 				<guimenuitem>Compressed Graph</guimenuitem>
 			</menuchoice>
 			The log graph is simplified to include merge points, commits with references, and possibly other commits.
 		</para>
 		<para>
 			<menuchoice>
-				<guimenu>Walk Behaviour</guimenu>
-				<guimenuitem>Show labelled commits only</guimenuitem>
+				<guimenu>Walk Behavior</guimenu>
+				<guimenuitem>Show labeled commits only</guimenuitem>
 			</menuchoice>
 			The log graph is simplified to include commits with references only.
 		</para>
@@ -934,7 +978,7 @@ Alice -Bob +Eve
 		</para>
 		<para>
 			The statistics dialog also honors the <filename>.mailmap</filename> file
-			(see <xref linkend="git-blame(1)__mapping_authors"/>).
+			(see <gitdoclink cmd="gitmailmap" section="5"/>).
 		</para>
 		<para>
 			Note that the statistics cover the same period as the

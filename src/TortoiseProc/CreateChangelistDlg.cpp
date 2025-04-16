@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseGit
+// Copyright (C) 2020, 2024 - TortoiseGit
 // Copyright (C) 2003-2006 - Stefan Kueng
 
 // This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 #include "stdafx.h"
 #include "TortoiseProc.h"
 #include "CreateChangelistDlg.h"
-
 
 // CCreateChangelistDlg dialog
 
@@ -50,6 +49,8 @@ END_MESSAGE_MAP()
 BOOL CCreateChangelistDlg::OnInitDialog()
 {
 	CStandAloneDialog::OnInitDialog();
+
+	SetTheme(CTheme::Instance().IsDarkTheme());
 
 	GetDlgItem(IDOK)->EnableWindow(FALSE);
 	GetDlgItem(IDC_NAME)->SetFocus();

@@ -1,5 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
+// Copyright (C) 2023, 2025 - TortoiseGit
 // Copyright (C) 2011, 2013, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -16,11 +17,10 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
 #include "TortoiseMerge.h"
 #include "GotoLineDlg.h"
-#include <afxdialogex.h>
-
 
 // CGotoLineDlg dialog
 
@@ -28,9 +28,6 @@ IMPLEMENT_DYNAMIC(CGotoLineDlg, CStandAloneDialog)
 
 CGotoLineDlg::CGotoLineDlg(CWnd* pParent /*=nullptr*/)
 	: CStandAloneDialog(CGotoLineDlg::IDD, pParent)
-	, m_nLine(0)
-	, m_nLow(-1)
-	, m_nHigh(-1)
 {
 }
 

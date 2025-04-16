@@ -9,7 +9,6 @@
 //////////////////////////////////////////////////////////////////////
 #include "stdafx.h"
 #include <shlobj.h>
-#include <atlbase.h>
 #include "DragDropImpl.h"
 #include <new>
 #include <Strsafe.h>
@@ -18,8 +17,8 @@
 // CIDataObject Class
 //////////////////////////////////////////////////////////////////////
 
-CIDataObject::CIDataObject(CIDropSource* pDropSource):
-m_cRefCount(0), m_pDropSource(pDropSource)
+CIDataObject::CIDataObject(CIDropSource* pDropSource)
+	: m_pDropSource(pDropSource)
 {
 }
 
@@ -269,7 +268,7 @@ HRESULT STDMETHODCALLTYPE CIDataObject::EnumDAdvise(
 }
 
 
-HRESULT CIDataObject::SetDropDescription(DROPIMAGETYPE image, LPCTSTR format, LPCTSTR insert)
+HRESULT CIDataObject::SetDropDescription(DROPIMAGETYPE image, LPCWSTR format, LPCWSTR insert)
 {
 	if (!format || !insert)
 		return E_INVALIDARG;
@@ -388,16 +387,14 @@ STDMETHODIMP CIDropSource::GiveFeedback(
 // CEnumFormatEtc Class
 //////////////////////////////////////////////////////////////////////
 
-CEnumFormatEtc::CEnumFormatEtc(const CSimpleArray<FORMATETC>& ArrFE):
-m_cRefCount(0),m_iCur(0)
+CEnumFormatEtc::CEnumFormatEtc(const CSimpleArray<FORMATETC>& ArrFE)
 {
 	ATLTRACE("CEnumFormatEtc::CEnumFormatEtc()\n");
 	for(int i = 0; i < ArrFE.GetSize(); ++i)
 		m_pFmtEtc.Add(ArrFE[i]);
 }
 
-CEnumFormatEtc::CEnumFormatEtc(const CSimpleArray<FORMATETC*>& ArrFE):
-m_cRefCount(0),m_iCur(0)
+CEnumFormatEtc::CEnumFormatEtc(const CSimpleArray<FORMATETC*>& ArrFE)
 {
 	for(int i = 0; i < ArrFE.GetSize(); ++i)
 		m_pFmtEtc.Add(*ArrFE[i]);
@@ -417,12 +414,12 @@ STDMETHODIMP CEnumFormatEtc::QueryInterface(REFIID refiid, void FAR* FAR* ppv)
 	return S_OK;
 }
 
-STDMETHODIMP_(ULONG) CEnumFormatEtc::AddRef(void)
+STDMETHODIMP_(ULONG) CEnumFormatEtc::AddRef()
 {
 	return ++m_cRefCount;
 }
 
-STDMETHODIMP_(ULONG) CEnumFormatEtc::Release(void)
+STDMETHODIMP_(ULONG) CEnumFormatEtc::Release()
 {
 	long nTemp = --m_cRefCount;
 	ATLASSERT(nTemp >= 0);
@@ -466,7 +463,7 @@ STDMETHODIMP CEnumFormatEtc::Skip(ULONG celt)
 	return S_OK;
 }
 
-STDMETHODIMP CEnumFormatEtc::Reset(void)
+STDMETHODIMP CEnumFormatEtc::Reset()
 {
 	m_iCur = 0;
 	return S_OK;
@@ -489,12 +486,8 @@ STDMETHODIMP CEnumFormatEtc::Clone(IEnumFORMATETC FAR * FAR*ppCloneEnumFormatEtc
 //////////////////////////////////////////////////////////////////////
 // CIDropTarget Class
 //////////////////////////////////////////////////////////////////////
-CIDropTarget::CIDropTarget(HWND hTargetWnd):
-	m_hTargetWnd(hTargetWnd),
-	m_cRefCount(0), m_bAllowDrop(false),
-	m_pDropTargetHelper(nullptr),
-	m_pSupportedFrmt(nullptr),
-	m_pIDataObject(nullptr)
+CIDropTarget::CIDropTarget(HWND hTargetWnd)
+	: m_hTargetWnd(hTargetWnd)
 {
 	if (FAILED(CoCreateInstance(CLSID_DragDropHelper, nullptr, CLSCTX_INPROC_SERVER, IID_IDropTargetHelper, reinterpret_cast<LPVOID*>(&m_pDropTargetHelper))))
 		m_pDropTargetHelper = nullptr;
@@ -665,7 +658,7 @@ HRESULT STDMETHODCALLTYPE CIDropTarget::Drop(
 	return S_OK;
 }
 
-HRESULT CIDropTarget::SetDropDescription(DROPIMAGETYPE image, LPCTSTR format, LPCTSTR insert)
+HRESULT CIDropTarget::SetDropDescription(DROPIMAGETYPE image, LPCWSTR format, LPCWSTR insert)
 {
 	HRESULT hr = E_OUTOFMEMORY;
 

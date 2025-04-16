@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+ï»¿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (c) 2003 by Andreas Kapust <info@akinstaller.de>; <http://www.codeproject.com/Articles/2607/AutoComplete-without-IAutoComplete>
-// Copyright (C) 2009, 2012-2013, 2015, 2018 - TortoiseGit
+// Copyright (C) 2009, 2012-2013, 2015, 2018, 2023, 2025 - TortoiseGit
 
 // Licensed under: The Code Project Open License (CPOL); <http://www.codeproject.com/info/cpol10.aspx>
 
@@ -23,7 +23,6 @@
 *
 *********************************************************************/
 
-#include <afxtempl.h>		// CArray
 #define ENAC_UPDATE        WM_USER + 1200
 /////////////////////////////////////////////////////////////////////////////
 // Fenster CACListWnd
@@ -36,11 +35,11 @@ public:
 	void Init(CWnd *pWnd);
 	bool EnsureVisible(int item,bool m_bWait);
 	bool SelectItem(int item);
-	int FindString(int nStartAfter, LPCTSTR lpszString, bool m_bDisplayOnly = false);
-	int FindStringExact( int nIndexStart, LPCTSTR lpszFind );
-	int SelectString(LPCTSTR lpszString );
+	int FindString(int nStartAfter, LPCWSTR lpszString, bool m_bDisplayOnly = false);
+	int FindStringExact(int nIndexStart, LPCWSTR lpszFind);
+	int SelectString(LPCWSTR lpszString);
 	bool GetText(int item, CString& m_Text);
-	void AddSearchString(LPCTSTR lpszString){m_SearchList.Add(lpszString);}
+	void AddSearchString(LPCWSTR lpszString){ m_SearchList.Add(lpszString); }
 	void RemoveAll(){m_SearchList.RemoveAll(); m_DisplayList.RemoveAll();}
 	CString GetString();
 	CString GetNextString(int m_iChar);
@@ -51,13 +50,13 @@ public:
 public:
 	CListCtrl m_List;
 	CString m_DisplayStr;
-	TCHAR m_PrefixChar;
-	long m_lMode;
+	wchar_t m_PrefixChar = L'\0';
+	long m_lMode = 0;
 	// Operationen
 public:
 	CStringArray m_SearchList;
-	// Überschreibungen
-	// Vom Klassen-Assistenten generierte virtuelle Funktionsüberschreibungen
+	// Ãœberschreibungen
+	// Vom Klassen-Assistenten generierte virtuelle FunktionsÃ¼berschreibungen
 	//{{AFX_VIRTUAL(CACListWnd)
 	//}}AFX_VIRTUAL
 
@@ -92,14 +91,18 @@ protected:
 	CStringArray m_DisplayList;
 	CScrollBar m_VertBar, m_HoriBar;
 	CRect m_LastSize, m_ParentRect;
-	CFont *pFontDC;
+	CFont* pFontDC = nullptr;
 	CFont fontDC, boldFontDC;
-	CEdit *m_pEditParent;
+	CEdit* m_pEditParent = nullptr;
 	CFont m_uiFont;
-	LOGFONT logfont;
+	LOGFONT logfont{};
 
-	int m_nIDTimer;
-	long m_lTopIndex,m_lCount,m_ItemHeight,m_VisibleItems,m_lSelItem;
+	int m_nIDTimer = 0;
+	long m_lTopIndex = 0;
+	long m_lCount = 0;
+	long m_ItemHeight = 16;
+	long m_VisibleItems = 0;
+	long m_lSelItem = -1;
 
 	int HitTest(CPoint point);
 	void SetScroller();
@@ -116,6 +119,6 @@ public:
 /////////////////////////////////////////////////////////////////////////////
 
 //{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ fügt unmittelbar vor der vorhergehenden Zeile zusätzliche Deklarationen ein.
+// Microsoft Visual C++ fÃ¼gt unmittelbar vor der vorhergehenden Zeile zusÃ¤tzliche Deklarationen ein.
 
 #endif // AFX_ACWND_H__5CED9BF8_C1CB_4A74_B022_ABA25680CC42__INCLUDED_

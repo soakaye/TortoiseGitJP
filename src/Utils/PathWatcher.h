@@ -1,5 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2023 - TortoiseGit
 // External Cache Copyright (C) 2007-2008, 2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -23,7 +24,7 @@
 #define READ_DIR_CHANGE_BUFFER_SIZE 4096
 #define MAX_CHANGED_PATHS  4000
 
-typedef CComCritSecLock<CComCriticalSection> AutoLocker;
+using AutoLocker = CComCritSecLock<CComCriticalSection>;
 
 /**
  * \ingroup Utils
@@ -39,8 +40,8 @@ typedef CComCritSecLock<CComCriticalSection> AutoLocker;
 class CPathWatcher
 {
 public:
-	CPathWatcher(void);
-	~CPathWatcher(void);
+	CPathWatcher();
+	~CPathWatcher();
 
 	/**
 	 * Adds a new path to be watched. The path \b must point to a directory.
@@ -96,11 +97,11 @@ private:
 	CComAutoCriticalSection	m_critSec;
 	CAutoGeneralHandle		m_hThread;
 	CAutoGeneralHandle		m_hCompPort;
-	volatile LONG			m_bRunning;
+	volatile LONG			m_bRunning = TRUE;
 
 	CTGitPathList			watchedPaths;	///< list of watched paths.
 	CTGitPathList			m_changedPaths;	///< list of paths which got changed
-	bool					m_bLimitReached;
+	bool					m_bLimitReached = false;
 
 	/**
 	 * Helper class: provides information about watched directories.
@@ -111,7 +112,7 @@ private:
 		CDirWatchInfo();	// private & not implemented
 		CDirWatchInfo & operator=(const CDirWatchInfo & rhs);//so that they're aren't accidentally used. -- you'll get a linker error
 	public:
-		CDirWatchInfo(HANDLE hDir, const CTGitPath& DirectoryName);
+		CDirWatchInfo(CAutoFile&& hDir, const CTGitPath& DirectoryName);
 		~CDirWatchInfo();
 
 	protected:
@@ -119,14 +120,11 @@ private:
 		bool		CloseDirectoryHandle();
 
 		CAutoFile	m_hDir;			///< handle to the directory that we're watching
-		CTGitPath	m_DirName;		///< the directory that we're watching
-		CHAR		m_Buffer[READ_DIR_CHANGE_BUFFER_SIZE]; ///< buffer for ReadDirectoryChangesW
-		OVERLAPPED  m_Overlapped;
-		CString		m_DirPath;		///< the directory name we're watching with a backslash at the end
-		//HDEVNOTIFY	m_hDevNotify;	///< Notification handle
+		CTGitPath	m_dirName;		///< the directory that we're watching
+		CHAR		m_buffer[READ_DIR_CHANGE_BUFFER_SIZE]; ///< buffer for ReadDirectoryChangesW
+		OVERLAPPED	m_overlapped{};
+		CString		m_dirPath;		///< the directory name we're watching with a backslash at the end
 	};
 
 	std::map<HANDLE, CDirWatchInfo *> watchInfoMap;
-
-	HDEVNOTIFY		m_hdev;
 };

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2016, 2020 - TortoiseGit
+// Copyright (C) 2008-2013, 2016, 2020, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2011 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ public:
 		delete page;
 	}
 	CSettingsPage(const CSettingsPage&) = delete;
-	CSettingsPage(CSettingsPage&& t)
+	CSettingsPage(CSettingsPage&& t) noexcept
 	{
 		this->pageName = t.pageName;
 		this->page = t.page;
@@ -48,7 +48,7 @@ public:
 	};
 
 public:
-	ISettingsPropPage* page;
+	ISettingsPropPage* page = nullptr;
 	CString pageName;
 };
 
@@ -96,5 +96,6 @@ public:
 
 protected:
 	DECLARE_MESSAGE_MAP()
-	virtual BOOL OnInitDialog() override;
+	BOOL OnInitDialog() override;
+	void HtmlHelp(DWORD_PTR dwData, UINT nCmd = 0x000F) override;
 };

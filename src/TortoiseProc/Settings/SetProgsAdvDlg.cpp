@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016, 2019 - TortoiseGit
+// Copyright (C) 2016, 2019, 2023-2024 - TortoiseGit
 // Copyright (C) 2003-2011 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -28,7 +28,6 @@ CSetProgsAdvDlg::CSetProgsAdvDlg(const CString& type, CWnd* pParent /*=nullptr*/
 	: CResizableStandAloneDialog(CSetProgsAdvDlg::IDD, pParent)
 	, m_sType(type)
 	, m_regToolKey(L"Software\\TortoiseGit\\" + type + L"Tools")
-	, m_ToolsValid(false)
 {
 }
 
@@ -96,7 +95,7 @@ void CSetProgsAdvDlg::DoDataExchange(CDataExchange* pDX)
 	if (pDX->m_bSaveAndValidate)
 	{
 		m_Tools.clear();
-		int count = m_ToolListCtrl.GetItemCount();
+		const int count = m_ToolListCtrl.GetItemCount();
 		for (int i = 0; i < count; i++)
 		{
 			CString ext = m_ToolListCtrl.GetItemText(i, 0);
@@ -137,8 +136,6 @@ BOOL CSetProgsAdvDlg::OnInitDialog()
 	int c = m_ToolListCtrl.GetHeaderCtrl()->GetItemCount() - 1;
 	while (c>=0)
 		m_ToolListCtrl.DeleteColumn(c--);
-
-	SetWindowTheme(m_ToolListCtrl.GetSafeHwnd(), L"Explorer", nullptr);
 
 	CString temp;
 	temp.LoadString(IDS_PROGS_EXTCOL);
@@ -181,7 +178,7 @@ int CSetProgsAdvDlg::AddExtension(const CString& ext, const CString& tool)
 
 int CSetProgsAdvDlg::FindExtension(const CString& ext)
 {
-	int count = m_ToolListCtrl.GetItemCount();
+	const int count = m_ToolListCtrl.GetItemCount();
 
 	for (int i = 0; i < count; i++)
 	{

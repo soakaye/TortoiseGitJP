@@ -1,4 +1,4 @@
-/***************************************************************************
+﻿/***************************************************************************
  *   Copyright (C) 2009-2010 by Stefan Fuhrmann                            *
  *   stefanfuhrmann@alice-dsl.de                                           *
  *                                                                         *
@@ -90,7 +90,7 @@ private:
 
     /// jobs
 
-    typedef std::pair<IJob*, bool> TJob;
+    using TJob = std::pair<IJob*, bool>;
 
     /**
      * Very low-overhead job queue class.
@@ -224,7 +224,7 @@ private:
      *
      * Job schedulers will borrow from this pool via \ref TryAlloc
      * and release (not necessarily the same) threads via
-     * \ref Release as as they are no longer used.
+     * \ref Release as they are no longer used.
      *
      * The number of threads handed out to job scheudulers
      * (\ref allocCount) plus the number of threads still in the
@@ -251,15 +251,15 @@ private:
         /// number of shared threads currently to job schedulers
         /// (hence, not in \ref pool at the moment).
 
-        size_t allocCount;
+        size_t allocCount = 0;
 
         /// maximum number of entries in \ref pool
 
-        mutable size_t maxCount;
+        mutable size_t maxCount = 0;
 
         /// number of threads that may still be created (lazily)
 
-        size_t yetToCreate;
+        size_t yetToCreate = 0;
 
         /// access sync. object
 
@@ -346,33 +346,33 @@ private:
 
         /// for speed, cache size() value from the vectors
 
-        size_t runningCount;
-        size_t suspendedCount;
+        size_t runningCount = 0;
+        size_t suspendedCount = 0;
 
         /// number of private threads that may still be created.
         /// (used to start threads lazily).
 
-        size_t yetToCreate;
+        size_t yetToCreate = 0;
 
         /// how many of the \ref running threads have been allocated
         /// from \ref CThreadPool. Must be 0, if \ref suspended is
         /// not empty.
 
-        size_t fromShared;
+        size_t fromShared = 0;
 
         /// how many of the \ref running threads have been allocated
         /// from \ref CThreadPool.
 
-        size_t maxFromShared;
+        size_t maxFromShared = 0;
 
         /// suspendedCount + maxFromShared - fromShared
-        size_t unusedCount;
+        size_t unusedCount = 0;
 
         /// if set, we registered at shared pool as "starved"
-        volatile bool starved;
+        volatile bool starved = false;
 
         /// if > 0, queued jobs won't get assigned execution threads
-        volatile long stopCount;
+        volatile long stopCount = 0;
     };
 
     SThreads threads;
@@ -383,7 +383,7 @@ private:
 
     /// number of threads in \ref WaitForSomeJobs
 
-    volatile LONG waitingThreads;
+    volatile LONG waitingThreads = 0;
 
     /// this will be signalled when a thread gets suspended
 
@@ -439,7 +439,7 @@ public:
 
     /// End threads. Job queue must have run empty before calling this.
 
-    ~CJobScheduler(void);
+    ~CJobScheduler();
 
     /// This one will be used for jobs that have not been
     /// assigned to other job schedulers explicitly.

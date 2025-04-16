@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2019 - TortoiseGit
+// Copyright (C) 2009-2019, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,31 +16,31 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #pragma once
-#include "LogDlg.h"
 #include "BrowseRefsDlg.h"
 #include "HistoryCombo.h"
 #include "LoglistUtils.h"
-#include "UnicodeUtils.h"
 #include "Tooltip.h"
+#include "GitRev.h"
+#include "LoglistCommonResource.h"
 
 class CBranchCombox
 {
 public:
-	CBranchCombox()
-		: m_LocalBranchFilter(gPickRef_Head)
-		, m_RemoteBranchFilter(gPickRef_Remote)
-		, m_DialogName(L"sync")
-		, m_pTooltip(nullptr)
+	CBranchCombox(CString dialogName)
+
+		: m_DialogName(dialogName)
 	{
 	}
+
 protected:
 	CHistoryCombo m_ctrlLocalBranch;
 	CHistoryCombo m_ctrlRemoteBranch;
-	int m_LocalBranchFilter;
-	int m_RemoteBranchFilter;
+	int m_LocalBranchFilter = gPickRef_Head;
+	int m_RemoteBranchFilter = gPickRef_Remote;
 
-	CToolTips *m_pTooltip;
+	CToolTips* m_pTooltip = nullptr;
 
 	CString m_DialogName;
 
@@ -55,7 +55,7 @@ protected:
 		this->SetRemote(pullRemote);
 
 		CString defaultUpstream;
-		defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCTSTR>(pullRemote), static_cast<LPCTSTR>(pullBranch));
+		defaultUpstream.Format(L"remotes/%s/%s", static_cast<LPCWSTR>(pullRemote), static_cast<LPCWSTR>(pullBranch));
 		int found = m_ctrlRemoteBranch.FindStringExact(0, defaultUpstream);
 		if(found >= 0)
 			m_ctrlRemoteBranch.SetCurSel(found);
@@ -147,16 +147,16 @@ protected:
 
 		CString tooltip;
 		tooltip.Format(L"%s: %s\n%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",
-						static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_REVISION))),
-						static_cast<LPCTSTR>(rev.m_CommitHash.ToString()),
-						static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_AUTHOR))),
-						static_cast<LPCTSTR>(rev.GetAuthorName()),
-						static_cast<LPCTSTR>(rev.GetAuthorEmail()),
-						static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_DATE))),
-						static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(rev.GetAuthorDate(), DATE_LONGDATE)),
-						static_cast<LPCTSTR>(CString(MAKEINTRESOURCE(IDS_LOG_MESSAGE))),
-						static_cast<LPCTSTR>(rev.GetSubject()),
-						static_cast<LPCTSTR>(rev.GetBody()));
+						static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_REVISION))),
+						static_cast<LPCWSTR>(rev.m_CommitHash.ToString()),
+						static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_AUTHOR))),
+						static_cast<LPCWSTR>(rev.GetAuthorName()),
+						static_cast<LPCWSTR>(rev.GetAuthorEmail()),
+						static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_DATE))),
+						static_cast<LPCWSTR>(CLoglistUtils::FormatDateAndTime(rev.GetAuthorDate(), DATE_LONGDATE)),
+						static_cast<LPCWSTR>(CString(MAKEINTRESOURCE(IDS_LOG_MESSAGE))),
+						static_cast<LPCWSTR>(rev.GetSubject()),
+						static_cast<LPCWSTR>(rev.GetBody()));
 
 		if (tooltip.GetLength() > 8000)
 		{
@@ -190,7 +190,7 @@ protected:
 		else
 		{
 			m_ctrlRemoteBranch.Reset();
-			m_ctrlRemoteBranch.LoadHistory(m_RegKeyRemoteBranch, L"sync");
+			m_ctrlRemoteBranch.LoadHistory(m_RegKeyRemoteBranch, m_DialogName);
 		}
 
 		if(!this->m_strLocalBranch.IsEmpty())

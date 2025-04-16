@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019-2021 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2021, 2024-2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -91,7 +91,7 @@ BOOL CCreateBranchTagDlg::OnInitDialog()
 	{
 		sWindowTitle = CString(MAKEINTRESOURCE(IDS_PROGS_TITLE_CREATEBRANCH));
 		this->GetDlgItem(IDC_LABEL_BRANCH)->SetWindowText(CString(MAKEINTRESOURCE(IDS_PROC_BRANCH)));
-		this->GetDlgItem(IDC_CHECK_SIGN)->ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_CHECK_SIGN)->ShowWindow(SW_HIDE); // deactivated by default
 		GetDlgItem(IDC_GROUP_MESSAGE)->SetWindowText(CString(MAKEINTRESOURCE(IDS_DESCRIPTION)));
 		if (!!m_regNewBranch)
 		{
@@ -103,7 +103,9 @@ BOOL CCreateBranchTagDlg::OnInitDialog()
 	CAppUtils::SetWindowTitle(m_hWnd, g_Git.m_CurrentDir, sWindowTitle);
 
 	// show the switch checkbox if we are a create branch dialog
-	this->GetDlgItem(IDC_CHECK_SWITCH)->ShowWindow(!m_bIsTag && !GitAdminDir::IsBareRepo(g_Git.m_CurrentDir));
+	bool canSwitch = !m_bIsTag && !GitAdminDir::IsBareRepo(g_Git.m_CurrentDir);
+	GetDlgItem(IDC_CHECK_SWITCH)->ShowWindow(canSwitch ? SW_SHOW : SW_HIDE);
+	DialogEnableWindow(IDC_CHECK_SWITCH, canSwitch);
 	CWnd* pHead = GetDlgItem(IDC_RADIO_HEAD);
 	CString HeadText;
 	pHead->GetWindowText( HeadText );
@@ -184,7 +186,7 @@ void CCreateBranchTagDlg::OnBnClickedOk()
 			msg.LoadString(IDS_T_SAMEBRANCHNAMEEXISTS);
 		else
 			msg.LoadString(IDS_B_SAMETAGNAMEEXISTS);
-		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", 2, IDI_EXCLAMATION, CString(MAKEINTRESOURCE(IDS_CONTINUEBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+		if (CMessageBox::Show(GetSafeHwnd(), msg, IDS_APPNAME, 2, IDI_EXCLAMATION, IDS_CONTINUEBUTTON, IDS_ABORTBUTTON) == 2)
 			return;
 	}
 	if (!m_bIsTag)

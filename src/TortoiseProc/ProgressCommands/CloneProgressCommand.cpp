@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2015, 2019 - TortoiseGit
+// Copyright (C) 2013-2015, 2019, 2021, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "stdafx.h"
+#include "TortoiseProc.h"
 #include "CloneProgressCommand.h"
 #include "AppUtils.h"
 #include "../TGitCache/CacheInterface.h"
@@ -43,7 +44,7 @@ bool CloneProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, in
 
 	git_clone_options cloneOpts = GIT_CLONE_OPTIONS_INIT;
 	git_remote_callbacks& callbacks = cloneOpts.fetch_opts.callbacks;
-	callbacks.update_tips = RemoteUpdatetipsCallback;
+	callbacks.reserved_update_tips = RemoteUpdatetipsCallback;
 	callbacks.sideband_progress = RemoteProgressCallback;
 	callbacks.completion = RemoteCompletionCallback;
 	callbacks.transfer_progress = FetchCallback;
@@ -54,11 +55,15 @@ bool CloneProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, in
 
 	CSmartAnimation animate(list->m_pAnimate);
 	cloneOpts.bare = m_bBare;
-	cloneOpts.repository_cb = [](git_repository** out, const char* path, int bare, void* /*payload*/) -> int
+	CStringA envTemplateDir = CUnicodeUtils::GetUTF8(g_Git.m_Environment.GetEnv(L"GIT_TEMPLATE_DIR"));
+	if (!envTemplateDir.IsEmpty())
+		cloneOpts.repository_cb_payload = const_cast<char*>(static_cast<LPCSTR>(envTemplateDir));
+	cloneOpts.repository_cb = [](git_repository** out, const char* path, int bare, void* payload) -> int
 	{
 		git_repository_init_options init_options = GIT_REPOSITORY_INIT_OPTIONS_INIT;
 		init_options.flags = GIT_REPOSITORY_INIT_MKPATH | GIT_REPOSITORY_INIT_EXTERNAL_TEMPLATE;
 		init_options.flags |= bare ? GIT_REPOSITORY_INIT_BARE : 0;
+		init_options.template_path = static_cast<const char*>(payload);
 
 		return git_repository_init_ext(out, path, &init_options);
 	};
@@ -80,7 +85,7 @@ bool CloneProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, in
 		return 0;
 	};
 	remote_cb_payload remote_cb_payloadData;
-	remote_cb_payloadData.remoteName = m_remote.IsEmpty() ? "origin" : CUnicodeUtils::GetUTF8(m_remote);
+	remote_cb_payloadData.remoteName = m_remote.IsEmpty() ? CStringA("origin") : CUnicodeUtils::GetUTF8(m_remote);
 	cloneOpts.remote_cb_payload = &remote_cb_payloadData;
 
 	CStringA checkout_branch = CUnicodeUtils::GetUTF8(m_RefSpec);

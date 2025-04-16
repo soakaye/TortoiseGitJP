@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2019, 2021-2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -19,12 +19,9 @@
 
 #include "stdafx.h"
 #include "registry.h"
-#include "../TortoiseShell/resource.h"
 #include "GitStatus.h"
-#include "UnicodeUtils.h"
 #include "gitindex.h"
 #include "ShellCache.h"
-#include "SysInfo.h"
 #include "SmartHandle.h"
 
 extern CGitAdminDirMap g_AdminDirMap;
@@ -33,10 +30,7 @@ CGitHeadFileMap g_HeadFileMap;
 CGitIgnoreList  g_IgnoreList;
 
 GitStatus::GitStatus()
-	: status(nullptr)
 {
-	m_status.assumeValid = m_status.skipWorktree = false;
-	m_status.status = git_wc_status_none;
 }
 
 // static method
@@ -60,7 +54,7 @@ int GitStatus::GetAllStatus(const CTGitPath& path, bool bIsRecursive, git_wc_sta
 			sSubPath = s.Right(s.GetLength() - sProjectRoot.GetLength() - 1/*otherwise it gets initial slash*/);
 	}
 
-	bool isfull = (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\CacheType", GetSystemMetrics(SM_REMOTESESSION)) ? ShellCache::dll : ShellCache::exe) == ShellCache::dllFull);
+	const bool isfull = (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\CacheType", GetSystemMetrics(SM_REMOTESESSION)) ? ShellCache::dll : ShellCache::exe) == ShellCache::dllFull);
 
 	if(isDir)
 	{
@@ -115,11 +109,11 @@ void GitStatus::GetStatus(const CTGitPath& path, bool /*update*/ /* = false */, 
 	if ( !path.HasAdminDir(&sProjectRoot) )
 		return;
 
-	bool isfull = (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\CacheType", GetSystemMetrics(SM_REMOTESESSION)) ? ShellCache::dll : ShellCache::exe) == ShellCache::dllFull);
+	const bool isfull = (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\CacheType", GetSystemMetrics(SM_REMOTESESSION)) ? ShellCache::dll : ShellCache::exe) == ShellCache::dllFull);
 
 	int err = 0;
 
-	LPCTSTR lpszSubPath = nullptr;
+	LPCWSTR lpszSubPath = nullptr;
 	CString sSubPath;
 	CString s = path.GetWinPathString();
 	if (s.GetLength() > sProjectRoot.GetLength())
@@ -154,13 +148,13 @@ void GitStatus::GetStatus(const CTGitPath& path, bool /*update*/ /* = false */, 
 }
 #endif
 
-typedef CComCritSecLock<CComCriticalSection> CAutoLocker;
+using CAutoLocker = CComCritSecLock<CComCriticalSection>;
 
-typedef struct CGitRepoLists
+struct CGitRepoLists
 {
 	SHARED_INDEX_PTR pIndex;
 	SHARED_TREE_PTR pTree;
-} CGitRepoLists;
+};
 
 static int GetFileStatus_int(const CString& gitdir, CGitRepoLists& repolists, const CString& path, git_wc_status2_t& status, BOOL IsFull, BOOL IsIgnore, BOOL update)
 {
@@ -185,10 +179,9 @@ static int GetFileStatus_int(const CString& gitdir, CGitRepoLists& repolists, co
 			if (!repolists.pTree)
 			{
 				if (update)
-					g_HeadFileMap.CheckHeadAndUpdate(gitdir, repolists.pIndex->IsIgnoreCase());
-
-				// Check Head Tree Hash
-				repolists.pTree = g_HeadFileMap.SafeGet(gitdir);
+					repolists.pTree = g_HeadFileMap.CheckHeadAndUpdate(gitdir, repolists.pIndex->IsIgnoreCase());
+				else
+					repolists.pTree = g_HeadFileMap.SafeGet(gitdir);
 			}
 			// broken HEAD
 			if (!repolists.pTree)
@@ -223,10 +216,9 @@ static int GetFileStatus_int(const CString& gitdir, CGitRepoLists& repolists, co
 		if (!repolists.pTree)
 		{
 			if (update)
-				g_HeadFileMap.CheckHeadAndUpdate(gitdir, repolists.pIndex->IsIgnoreCase());
-
-			// Check Head Tree Hash
-			repolists.pTree = g_HeadFileMap.SafeGet(gitdir);
+				repolists.pTree = g_HeadFileMap.CheckHeadAndUpdate(gitdir, repolists.pIndex->IsIgnoreCase());
+			else
+				repolists.pTree = g_HeadFileMap.SafeGet(gitdir);
 		}
 		// broken HEAD
 		if (!repolists.pTree)
@@ -240,7 +232,7 @@ static int GetFileStatus_int(const CString& gitdir, CGitRepoLists& repolists, co
 		if (start == NPOS)
 		{
 			status.status = git_wc_status_added;
-			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": File miss in head tree %s", static_cast<LPCTSTR>(path));
+			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": File miss in head tree %s", static_cast<LPCWSTR>(path));
 			return 0;
 		}
 
@@ -263,8 +255,9 @@ int GitStatus::GetFileStatus(const CString& gitdir, CString path, git_wc_status2
 
 	CGitRepoLists sharedRepoLists;
 	if (update)
-		g_IndexFileMap.CheckAndUpdate(gitdir);
-	sharedRepoLists.pIndex = g_IndexFileMap.SafeGet(gitdir);
+		sharedRepoLists.pIndex = g_IndexFileMap.CheckAndUpdate(gitdir);
+	else
+		sharedRepoLists.pIndex = g_IndexFileMap.SafeGet(gitdir);
 	if (!sharedRepoLists.pIndex)
 	{
 		// git working tree has broken index
@@ -339,16 +332,12 @@ int GitStatus::EnumDirStatus(const CString& gitdir, const CString& subpath, git_
 	if (!path.IsEmpty() && path[path.GetLength() - 1] != L'/')
 		path += L'/'; // Add trail / to show it is directory, not file name.
 
-	g_IndexFileMap.CheckAndUpdate(gitdir);
-
-	SHARED_INDEX_PTR indexptr = g_IndexFileMap.SafeGet(gitdir);
+	SHARED_INDEX_PTR indexptr = g_IndexFileMap.CheckAndUpdate(gitdir);
 	// there was an error loading the index
 	if (!indexptr)
 		return -1;
 
-	g_HeadFileMap.CheckHeadAndUpdate(gitdir, indexptr->IsIgnoreCase());
-
-	SHARED_TREE_PTR treeptr = g_HeadFileMap.SafeGet(gitdir);
+	SHARED_TREE_PTR treeptr = g_HeadFileMap.CheckHeadAndUpdate(gitdir, indexptr->IsIgnoreCase());
 	// there was an error loading the HEAD commit/tree
 	if (!treeptr)
 		return -1;
@@ -467,7 +456,7 @@ int GitStatus::EnumDirStatus(const CString& gitdir, const CString& subpath, git_
 		for (auto it = indexptr->cbegin() + start, itlast = indexptr->cbegin() + end; it <= itlast; ++it)
 		{
 			auto& entry = *it;
-			int commonPrefixLength = path.GetLength();
+			const int commonPrefixLength = path.GetLength();
 			int index = entry.m_FileName.Find(L'/', commonPrefixLength);
 			if (index < 0)
 				index = entry.m_FileName.GetLength();
@@ -478,8 +467,8 @@ int GitStatus::EnumDirStatus(const CString& gitdir, const CString& subpath, git_
 			if (oldstring != filename)
 			{
 				oldstring = filename;
-				int length = filename.GetLength();
-				bool isDir = filename[length - 1] == L'/';
+				const int length = filename.GetLength();
+				const bool isDir = filename[length - 1] == L'/';
 				if (SearchInSortVector(filelist, filename, isDir ? length : -1, indexptr->IsIgnoreCase()) == NPOS) // do full match for filenames and only prefix-match ending with "/" for folders
 				{
 					git_wc_status2_t status = { (!isDir || IsDirectSubmodule(entry.m_FileName, commonPrefixLength)) ? git_wc_status_deleted : git_wc_status_modified, false, false }; // only report deleted submodules and files as deletedy
@@ -516,7 +505,7 @@ int GitStatus::EnumDirStatus(const CString& gitdir, const CString& subpath, git_
 		for (auto it = treeptr->cbegin() + start, itlast = treeptr->cbegin() + end; it <= itlast; ++it)
 		{
 			auto& entry = *it;
-			int commonPrefixLength = path.GetLength();
+			const int commonPrefixLength = path.GetLength();
 			int index = entry.m_FileName.Find(L'/', commonPrefixLength);
 			if (index < 0)
 				index = entry.m_FileName.GetLength();
@@ -527,8 +516,8 @@ int GitStatus::EnumDirStatus(const CString& gitdir, const CString& subpath, git_
 			if (oldstring != filename && alreadyReported.find(filename) == alreadyReported.cend())
 			{
 				oldstring = filename;
-				int length = filename.GetLength();
-				bool isDir = filename[length - 1] == L'/';
+				const int length = filename.GetLength();
+				const bool isDir = filename[length - 1] == L'/';
 				if (SearchInSortVector(filelist, filename, isDir ? length : -1, indexptr->IsIgnoreCase()) == NPOS) // do full match for filenames and only prefix-match ending with "/" for folders
 				{
 					git_wc_status2_t status = { (!isDir || IsDirectSubmodule(entry.m_FileName, commonPrefixLength)) ? git_wc_status_deleted : git_wc_status_modified, false, false };
@@ -552,10 +541,8 @@ int GitStatus::GetDirStatus(const CString& gitdir, const CString& subpath, git_w
 	if (!path.IsEmpty() && path[path.GetLength() - 1] != L'/')
 		path += L'/'; //Add trail / to show it is directory, not file name.
 
-	g_IndexFileMap.CheckAndUpdate(gitdir);
-
 	CGitRepoLists sharedRepoLists;
-	sharedRepoLists.pIndex = g_IndexFileMap.SafeGet(gitdir);
+	sharedRepoLists.pIndex = g_IndexFileMap.CheckAndUpdate(gitdir);
 
 	// broken index
 	if (!sharedRepoLists.pIndex)
@@ -581,9 +568,7 @@ int GitStatus::GetDirStatus(const CString& gitdir, const CString& subpath, git_w
 			return 0;
 		}
 
-		g_HeadFileMap.CheckHeadAndUpdate(gitdir, sharedRepoLists.pIndex->IsIgnoreCase());
-
-		sharedRepoLists.pTree = g_HeadFileMap.SafeGet(gitdir);
+		sharedRepoLists.pTree = g_HeadFileMap.CheckHeadAndUpdate(gitdir, sharedRepoLists.pIndex->IsIgnoreCase());
 		// broken HEAD
 		if (!sharedRepoLists.pTree)
 		{
@@ -638,12 +623,10 @@ int GitStatus::GetDirStatus(const CString& gitdir, const CString& subpath, git_w
 
 	if (IsFul)
 	{
-		g_HeadFileMap.CheckHeadAndUpdate(gitdir, sharedRepoLists.pIndex->IsIgnoreCase());
-
 		// Check Add
 		{
 			// Check if new init repository
-			sharedRepoLists.pTree = g_HeadFileMap.SafeGet(gitdir);
+			sharedRepoLists.pTree = g_HeadFileMap.CheckHeadAndUpdate(gitdir, sharedRepoLists.pIndex->IsIgnoreCase());
 			// broken HEAD
 			if (!sharedRepoLists.pTree)
 			{
@@ -735,7 +718,7 @@ bool GitStatus::IsExistIndexLockFile(CString sDirName)
 {
 	if (!PathIsDirectory(sDirName))
 	{
-		int x = sDirName.ReverseFind(L'\\');
+		const int x = sDirName.ReverseFind(L'\\');
 		if (x < 2)
 			return false;
 
@@ -752,7 +735,7 @@ bool GitStatus::IsExistIndexLockFile(CString sDirName)
 			return false;
 		}
 
-		int x = sDirName.ReverseFind(L'\\');
+		const int x = sDirName.ReverseFind(L'\\');
 		if (x < 2)
 			return false;
 

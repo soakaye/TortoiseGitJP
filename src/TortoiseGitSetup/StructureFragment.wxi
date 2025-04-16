@@ -7,7 +7,7 @@
 	<?if $(var.Platform) = "x86" ?>
 	<?define cf="CommonFilesFolder" ?>
 	<?endif ?>
-	<?if $(var.Platform) = "x64" ?>
+	<?if $(var.Platform) = "x64" or $(var.Platform) = "ARM64" ?>
 	<?define cf="CommonFiles64Folder" ?>
 	<?endif ?>
 <!--
@@ -20,16 +20,21 @@
 			<Directory Id="INSTALLDIR" Name="TortoiseGit">
 
 				<?if $(var.Platform) = "x86" ?>
-				<Merge Id="Ovlays" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.4.26626-win32.msm" DiskId="1" />
+				<Merge Id="Ovlays" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.5.29440-win32.msm" DiskId="1" />
 				<?endif ?>
 
 				<?if $(var.Platform) = "x64" ?>
-				<Merge Id="Ovlays" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.4.26626-x64.msm" DiskId="1" />
-				<Merge Id="Ovlays32" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.4.26626-win32.msm" DiskId="1" />
+				<Merge Id="Ovlays" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.5.29440-x64.msm" DiskId="1" />
+				<Merge Id="Ovlays32" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.5.29440-win32.msm" DiskId="1" />
+				<?endif ?>
+
+				<?if $(var.Platform) = "ARM64" ?>
+				<Merge Id="Ovlays" Language="0" SourceFile="..\..\ext\TortoiseOverlays\TortoiseOverlays-1.1.5.29440-arm64.msm" DiskId="1" />
 				<?endif ?>
 
 				<Component Id="C__infofiles" Guid="$(var.GuidInfoFiles)" Win64="$(var.Win64YesNo)">
 					<File Id="F__changelog" Name="Changelog.txt" DiskId="1" Source="..\Changelog.txt" KeyPath="yes" />
+					<File Id="F__changelog_pre2.0" Name="Changelog-pre2.0.txt" DiskId="1" Source="..\Changelog-pre2.0.txt" />
 					<File Id="F__changelog_pre1.8" Name="Changelog-pre1.8.txt" DiskId="1" Source="..\Changelog-pre1.8.txt" />
 					<File Id="F__tortoisegitlicense" Name="TortoiseGit License.txt" DiskId="1" Source="..\..\LICENSE" />
 					<File Id="F__aprlicense" Name="apr License.txt" DiskId="1" Source="..\..\ext\apr\LICENSE" />
@@ -91,7 +96,7 @@
 					<RegistryValue Root="HKCR" Key="*\shellex\PropertySheetHandlers\TortoiseGit" Value="{$(var.GuidUncontrolled)}" Type="string" />
 					<RegistryValue Root="HKCR" Key="Directory\shellex\CopyHookHandlers\TortoiseGit" Value="{$(var.GuidUncontrolled)}" Type="string" />
 					<?endif ?>
-					<?if $(var.Platform) = "x64" ?>
+					<?if $(var.Platform) = "x64" or $(var.Platform) = "ARM64" ?>
 					<RegistryValue Root="HKCR" Key="Drive\shellex\ContextMenuHandlers\TortoiseGit" KeyPath="yes" Value="{$(var.GuidUncontrolled)}" Type="string" />
 					<RegistryValue Root="HKCR" Key="Drive\shellex\PropertySheetHandlers\TortoiseGit" Value="{$(var.GuidUncontrolled)}" Type="string" />
 					<RegistryValue Root="HKCR" Key="Directory\shellex\ContextMenuHandlers\TortoiseGit" Value="{$(var.GuidUncontrolled)}" Type="string" />
@@ -283,19 +288,13 @@
 					</Component>
 					<?endif ?>
 
-					<Component Id="C__help_en" Guid="$(var.GuidHelpEN)" Win64="$(var.Win64YesNo)">
-						<File Id="F_TortoiseGit_en" Name="TortoiseGit_en.chm" DiskId="1" Source="..\..\doc\output\TortoiseGit_en.chm" KeyPath="yes" />
-						<File Id="F__TortoiseMerge_en" Name="TortoiseMerge_en.chm" DiskId="1" Source="..\..\doc\output\TortoiseMerge_en.chm" />
-						<RemoveFile Id="F__Tortoise_lang" Name="*.chm" On="uninstall" />
-					</Component>
-
 					<Component Id="C__gitlibs" Guid="$(var.GuidGitLibs)" Win64="$(var.Win64YesNo)">
 						<?if $(var.Platform) = "x86" ?>
 						<File Id="F__gitdll32" Name="gitdll32.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath32)\bin\gitdll32.dll" KeyPath="yes" />
 						<File Id="F__zlib32" Name="zlib132_tgit.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath32)\bin\zlib132_tgit.dll" />
 						<File Id="F__libgit232" Name="libgit232_tgit.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath32)\bin\libgit232_tgit.dll" />
 						<?endif ?>
-						<?if $(var.Platform) = "x64" ?>
+						<?if $(var.Platform) = "x64" or $(var.Platform) = "ARM64" ?>
 						<File Id="F__gitdll" Name="gitdll.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\gitdll.dll" KeyPath="yes" />
 						<File Id="F__zlib" Name="zlib1_tgit.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\zlib1_tgit.dll" />
 						<File Id="F__libgit2" Name="libgit2_tgit.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\libgit2_tgit.dll" />
@@ -310,15 +309,19 @@
 					<?endif ?>
 
 					<Component Id="C__TortoiseGitTools" Guid="$(var.GuidTortoiseGitTools)" Win64="$(var.Win64YesNo)">
-						<File Id="F__TortoisePlinkold" Name="TortoisePlink.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\TortoiseGitPlink.exe" KeyPath="yes" />
-						<File Id="F__TortoisePlink" Name="TortoiseGitPlink.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\TortoiseGitPlink.exe" />
-						<File Id="F__PuttyGen" Name="puttygen.exe" DiskId="1" Source="..\..\ext\putty\puttygen.exe" />
-						<File Id="F__pageant" Name="pageant.exe" DiskId="1" Source="..\..\ext\putty\pageant.exe" />
+						<File Id="F__TortoiseGitPlink" Name="TortoiseGitPlink.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\TortoiseGitPlink.exe" KeyPath="yes" />
+						<CopyFile Id="F__TortoisePlink" FileId="F__TortoiseGitPlink" DestinationName="TortoisePlink.exe" />
 						<?if $(var.Platform) = "x86" ?>
-						<File Id="F__notepad2x86" Name="notepad2.exe" DiskId="1" Source="..\..\ext\tools\notepad2-x86.exe" />
+						<File Id="F__PuttyGenx86" Name="puttygen.exe" DiskId="1" Source="..\..\ext\putty\puttygen-x86.exe" />
+						<File Id="F__pageantx86" Name="pageant.exe" DiskId="1" Source="..\..\ext\putty\pageant-x86.exe" />
 						<?endif ?>
 						<?if $(var.Platform) = "x64" ?>
-						<File Id="F__notepad2x64" Name="notepad2.exe" DiskId="1" Source="..\..\ext\tools\notepad2-x64.exe" />
+						<File Id="F__PuttyGenx64" Name="puttygen.exe" DiskId="1" Source="..\..\ext\putty\puttygen-x64.exe" />
+						<File Id="F__pageantx64" Name="pageant.exe" DiskId="1" Source="..\..\ext\putty\pageant-x64.exe" />
+						<?endif ?>
+						<?if $(var.Platform) = "ARM64" ?>
+						<File Id="F__PuttyGenarm64" Name="puttygen.exe" DiskId="1" Source="..\..\ext\putty\puttygen-arm64.exe" />
+						<File Id="F__pageantarm64" Name="pageant.exe" DiskId="1" Source="..\..\ext\putty\pageant-arm64.exe" />
 						<?endif ?>
 						<File Id="F__askpass" Name="sshaskpass.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\sshaskpass.exe" />
 					</Component>
@@ -378,9 +381,12 @@
 						<File Id="F__TortoiseGitStub32" Name="TortoiseGitStub32.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath32)\bin\TortoiseGitStub32.dll" />
 						<File Id="F__TortoiseShell32" Name="TortoiseGit32.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath32)\bin\TortoiseGit32.dll" KeyPath="yes" />
 						<?endif ?>
-						<?if $(var.Platform) = "x64" ?>
+						<?if $(var.Platform) = "x64" or $(var.Platform) = "ARM64" ?>
 						<File Id="F__TortoiseGitStub" Name="TortoiseGitStub.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\TortoiseGitStub.dll" />
 						<File Id="F__TortoiseShell" Name="TortoiseGit.dll" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\TortoiseGit.dll" KeyPath="yes" />
+						<?endif ?>
+						<?if ($(var.Platform) = "x64" OR $(var.Platform) = "ARM64") AND $(var.BuildWindows11ContextmenuExtension) = "1" ?>
+						<File Id="F__packagemsix" Name="package.msix" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\package.msix" />
 						<?endif ?>
 					</Component>
 					<?if $(var.Platform) = "x64" ?>
@@ -396,7 +402,6 @@
 						<Shortcut Id="S__TortoiseProc" Directory="D_TortoisePrgMenu" Name="Help" Advertise="no" Target="[INSTALLDIR]bin\TortoiseGitProc.exe" Description="Documentation about TortoiseGit" Arguments="/command:help" Show="normal" />
 						<Shortcut Id="S__puttykeygen" Directory="D_TortoisePrgMenu" Name="PuTTYgen" Advertise="no" Target="[INSTALLDIR]bin\puttygen.exe" Description="PuTTY key generator" Show="normal" />
 						<Shortcut Id="S__pageant" Directory="D_TortoisePrgMenu" Name="Pageant" Advertise="no" Target="[INSTALLDIR]bin\pageant.exe" Description="PuTTY SSH authentication agent" Show="normal" />
-						<Shortcut Id="S__notepad2" Directory="D_TortoisePrgMenu" Name="Notepad2e" Advertise="no" Target="[INSTALLDIR]bin\notepad2.exe" Description="A fast and light-weight Notepad-like text editor with syntax highlighting" Show="normal" />
 					</Component>
 
 					<Component Id="C__TortoiseMerge" Guid="$(var.GuidTortoiseMerge)" Win64="$(var.Win64YesNo)">
@@ -450,67 +455,24 @@
 						<Shortcut Id="S__PlatformConfig" Directory="D_TortoisePrgMenu" Name="Settings" Advertise="no" Target="[INSTALLDIR]bin\TortoiseGitProc.exe" Description="TortoiseGit" Arguments="/command:settings" Show="normal" />
 					</Component>
 
-					<Component Id="C__ucrt" Guid="$(var.GuidUCRT)" Win64="$(var.Win64YesNo)">
-						<File Id="F__ucrtdll1" Name="api-ms-win-core-console-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-console-l1-1-0.dll" />
-						<File Id="F__ucrtdll2" Name="api-ms-win-core-datetime-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-datetime-l1-1-0.dll" />
-						<File Id="F__ucrtdll3" Name="api-ms-win-core-debug-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-debug-l1-1-0.dll" />
-						<File Id="F__ucrtdll4" Name="api-ms-win-core-errorhandling-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-errorhandling-l1-1-0.dll" />
-						<File Id="F__ucrtdll5" Name="api-ms-win-core-file-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-file-l1-1-0.dll" />
-						<File Id="F__ucrtdll6" Name="api-ms-win-core-file-l1-2-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-file-l1-2-0.dll" />
-						<File Id="F__ucrtdll7" Name="api-ms-win-core-file-l2-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-file-l2-1-0.dll" />
-						<File Id="F__ucrtdll8" Name="api-ms-win-core-handle-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-handle-l1-1-0.dll" />
-						<File Id="F__ucrtdll9" Name="api-ms-win-core-heap-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-heap-l1-1-0.dll" />
-						<File Id="F__ucrtdll10" Name="api-ms-win-core-interlocked-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-interlocked-l1-1-0.dll" />
-						<File Id="F__ucrtdll11" Name="api-ms-win-core-libraryloader-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-libraryloader-l1-1-0.dll" />
-						<File Id="F__ucrtdll12" Name="api-ms-win-core-localization-l1-2-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-localization-l1-2-0.dll" />
-						<File Id="F__ucrtdll13" Name="api-ms-win-core-memory-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-memory-l1-1-0.dll" />
-						<File Id="F__ucrtdll14" Name="api-ms-win-core-namedpipe-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-namedpipe-l1-1-0.dll" />
-						<File Id="F__ucrtdll15" Name="api-ms-win-core-processenvironment-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-processenvironment-l1-1-0.dll" />
-						<File Id="F__ucrtdll16" Name="api-ms-win-core-processthreads-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-processthreads-l1-1-0.dll" />
-						<File Id="F__ucrtdll17" Name="api-ms-win-core-processthreads-l1-1-1.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-processthreads-l1-1-1.dll" />
-						<File Id="F__ucrtdll18" Name="api-ms-win-core-profile-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-profile-l1-1-0.dll" />
-						<File Id="F__ucrtdll19" Name="api-ms-win-core-rtlsupport-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-rtlsupport-l1-1-0.dll" />
-						<File Id="F__ucrtdll20" Name="api-ms-win-core-string-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-string-l1-1-0.dll" />
-						<File Id="F__ucrtdll21" Name="api-ms-win-core-synch-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-synch-l1-1-0.dll" />
-						<File Id="F__ucrtdll22" Name="api-ms-win-core-synch-l1-2-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-synch-l1-2-0.dll" />
-						<File Id="F__ucrtdll23" Name="api-ms-win-core-sysinfo-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-sysinfo-l1-1-0.dll" />
-						<File Id="F__ucrtdll24" Name="api-ms-win-core-timezone-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-timezone-l1-1-0.dll" />
-						<File Id="F__ucrtdll25" Name="api-ms-win-core-util-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-core-util-l1-1-0.dll" />
-						<File Id="F__ucrtdll26" Name="api-ms-win-crt-conio-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-conio-l1-1-0.dll" />
-						<File Id="F__ucrtdll27" Name="api-ms-win-crt-convert-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-convert-l1-1-0.dll" />
-						<File Id="F__ucrtdll28" Name="api-ms-win-crt-environment-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-environment-l1-1-0.dll" />
-						<File Id="F__ucrtdll29" Name="api-ms-win-crt-filesystem-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-filesystem-l1-1-0.dll" />
-						<File Id="F__ucrtdll30" Name="api-ms-win-crt-heap-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-heap-l1-1-0.dll" />
-						<File Id="F__ucrtdll31" Name="api-ms-win-crt-locale-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-locale-l1-1-0.dll" />
-						<File Id="F__ucrtdll32" Name="api-ms-win-crt-math-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-math-l1-1-0.dll" />
-						<File Id="F__ucrtdll33" Name="api-ms-win-crt-multibyte-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-multibyte-l1-1-0.dll" />
-						<File Id="F__ucrtdll34" Name="api-ms-win-crt-private-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-private-l1-1-0.dll" />
-						<File Id="F__ucrtdll35" Name="api-ms-win-crt-process-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-process-l1-1-0.dll" />
-						<File Id="F__ucrtdll36" Name="api-ms-win-crt-runtime-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-runtime-l1-1-0.dll" />
-						<File Id="F__ucrtdll37" Name="api-ms-win-crt-stdio-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-stdio-l1-1-0.dll" />
-						<File Id="F__ucrtdll38" Name="api-ms-win-crt-string-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-string-l1-1-0.dll" />
-						<File Id="F__ucrtdll39" Name="api-ms-win-crt-time-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-time-l1-1-0.dll" />
-						<File Id="F__ucrtdll40" Name="api-ms-win-crt-utility-l1-1-0.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\api-ms-win-crt-utility-l1-1-0.dll" />
-						<File Id="F__ucrtdll41" Name="ucrtbase.dll" DiskId="1" Source="$(var.WindowsSdkDir_10)Redist\$(var.Win10SDKVer)\ucrt\DLLs\$(var.PackagePlatforms)\ucrtbase.dll" />
-					</Component>
 					<Component Id="C__crtmfc" Guid="$(var.GuidCRTMFC)" Win64="$(var.Win64YesNo)">
 						<File Id="F__concrt140" Name="concrt140.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\concrt140.dll" />
 						<File Id="F__msvcp140" Name="msvcp140.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\msvcp140.dll" />
 						<File Id="F__msvcp140_1" Name="msvcp140_1.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\msvcp140_1.dll" />
 						<File Id="F__msvcp140_2" Name="msvcp140_2.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\msvcp140_2.dll" />
-						<?if $(var.PlatformToolsetVersion) >= 142 ?>
 						<File Id="F__msvcp140_codecvt_ids" Name="msvcp140_codecvt_ids.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\msvcp140_codecvt_ids.dll" />
-						<?endif ?>
 						<?if $(var.VCToolsRedistVersionCheck) >= 1428 ?>
 						<File Id="F__msvcp140_atomic_wait" Name="msvcp140_atomic_wait.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\msvcp140_atomic_wait.dll" />
 						<?endif ?>
 						<File Id="F__vccorlib140" Name="vccorlib140.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\vccorlib140.dll" />
 						<File Id="F__vcruntime140" Name="vcruntime140.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\vcruntime140.dll" />
-						<?if $(var.Platform) = "x64" and $(var.PlatformToolsetVersion) >= 142 ?>
+						<?if ($(var.Platform) = "x64" OR $(var.Platform) = "ARM64") ?>
 						<File Id="F__vcruntime140_1" Name="vcruntime140_1.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\vcruntime140_1.dll" />
 						<?endif ?>
+						<?if $(var.VCToolsRedistVersionCheck) >= 1438 ?>
+						<File Id="F__vcruntime140_threads" Name="vcruntime140_threads.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).CRT\vcruntime140_threads.dll" />
+						<?endif ?>
 						<File Id="F__mfc140u" Name="mfc140u.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).MFC\mfc140u.dll" />
-						<File Id="F__mfcm140u" Name="mfcm140u.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).MFC\mfcm140u.dll" />
 						<File Id="F__mfc140chs" Name="mfc140chs.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).MFCLOC\mfc140chs.dll" />
 						<File Id="F__mfc140cht" Name="mfc140cht.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).MFCLOC\mfc140cht.dll" />
 						<File Id="F__mfc140deu" Name="mfc140deu.dll" DiskId="1" Source="$(var.VCInstallDir)Redist\MSVC\$(var.VCToolsRedistVersion)\$(var.PackagePlatforms)\Microsoft.VC$(var.PlatformToolsetVersion).MFCLOC\mfc140deu.dll" />
@@ -551,6 +513,7 @@
 						<File Id="F__mergeods" Name="merge-ods.vbs" Source="..\..\contrib\diff-scripts\merge-ods.vbs" DiskId="1" />
 						<File Id="F__diffnb" Name="diff-nb.vbs" Source="..\..\contrib\diff-scripts\diff-nb.vbs" DiskId="1" />
 						<File Id="F__diffdll" Name="diff-dll.vbs" Source="..\..\contrib\diff-scripts\diff-dll.vbs" DiskId="1" />
+						<File Id="F__diffzip" Name="diff-zip.js" Source="..\..\contrib\diff-scripts\diff-zip.js" DiskId="1" />
 					</Component>
 				</Directory>
 

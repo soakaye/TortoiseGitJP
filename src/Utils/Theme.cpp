@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2020 - TortoiseGit
-// Copyright (C) 2020 - TortoiseSVN
+// Copyright (C) 2020, 2023 - TortoiseGit
+// Copyright (C) 2020-2021, 2024 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -33,6 +33,58 @@
 #pragma warning(pop)
 #include "SmartHandle.h"
 
+#define WM_MENUBAR_DRAWMENU 0x0091 // lParam is MENUBAR_MENU
+#define WM_MENUBAR_DRAWMENUITEM 0x0092 // lParam is MENUBAR_DRAWMENUITEM
+
+// describes the sizes of the menu bar or menu item
+union MenubarMenuitemmetrics
+{
+	struct
+	{
+		DWORD cx;
+		DWORD cy;
+	} rgSizeBar[2];
+	struct
+	{
+		DWORD cx;
+		DWORD cy;
+	} rgSizePopup[4];
+};
+
+struct MenubarMenupopupmetrics
+{
+	DWORD rgCx[4];
+	DWORD fUpdateMaxWidths : 2;
+};
+
+struct MenubarMenu
+{
+	HMENU hMenu; // main window menu
+	HDC hdc;
+	DWORD dwFlags;
+};
+
+struct MenubarMenuitem
+{
+	int iPosition; // 0-based position
+	MenubarMenuitemmetrics umIm;
+	MenubarMenupopupmetrics umpm;
+};
+
+struct MenubarDrawmenuitem
+{
+	DRAWITEMSTRUCT dis; // itemID looks uninitialized
+	MenubarMenu um;
+	MenubarMenuitem umi;
+};
+
+struct MenubarMeasuremenuitem
+{
+	MEASUREITEMSTRUCT mis;
+	MenubarMenu um;
+	MenubarMenuitem umi;
+};
+
 constexpr auto SubclassID = 1234;
 
 static int GetStateFromBtnState(LONG_PTR dwStyle, BOOL bHot, BOOL bFocus, LRESULT dwCheckState, int iPartId, BOOL bHasMouseCapture);
@@ -44,15 +96,10 @@ static BOOL DetermineGlowSize(int* piSize, LPCWSTR pszClassIdList = nullptr);
 static BOOL GetEditBorderColor(HWND hWnd, COLORREF* pClr);
 
 HBRUSH CTheme::s_backBrush = nullptr;
+HBRUSH CTheme::s_backHotBrush = nullptr;
 
 CTheme::CTheme()
-	: m_bLoaded(false)
-	, m_dark(false)
-	, m_lastThemeChangeCallbackId(0)
-	, m_regDarkTheme(REGSTRING_DARKTHEME, 0) // define REGSTRING_DARKTHEME on app level as e.g. L"Software\\TortoiseMerge\\DarkTheme"
-	, m_bDarkModeIsAllowed(false)
-	, m_isHighContrastMode(false)
-	, m_isHighContrastModeDark(false)
+	: m_regDarkTheme(REGSTRING_DARKTHEME, 0) // define REGSTRING_DARKTHEME on app level as e.g. L"Software\\TortoiseMerge\\DarkTheme"
 {
 }
 
@@ -60,6 +107,8 @@ CTheme::~CTheme()
 {
 	if (s_backBrush)
 		DeleteObject(s_backBrush);
+	if (s_backHotBrush)
+		DeleteObject(s_backHotBrush);
 }
 
 CTheme& CTheme::Instance()
@@ -144,12 +193,16 @@ bool CTheme::SetThemeForDialog(HWND hWnd, bool bDark)
 {
 	ASSERT(hWnd);
 	DarkModeHelper::Instance().AllowDarkModeForWindow(hWnd, bDark);
+	if (bDark && !DarkModeHelper::Instance().CanHaveDarkMode())
+		return false;
 	if (bDark)
 		SetWindowSubclass(hWnd, MainSubclassProc, SubclassID, reinterpret_cast<DWORD_PTR>(&s_backBrush));
 	else
 		RemoveWindowSubclass(hWnd, MainSubclassProc, SubclassID);
+	AdjustThemeForChildrenProc(hWnd, bDark ? TRUE : FALSE);
 	EnumChildWindows(hWnd, AdjustThemeForChildrenProc, bDark ? TRUE : FALSE);
 	EnumThreadWindows(GetCurrentThreadId(), AdjustThemeForChildrenProc, bDark ? TRUE : FALSE);
+	DarkModeHelper::Instance().RefreshTitleBarThemeColor(hWnd, bDark);
 	::RedrawWindow(hWnd, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
 	DarkModeHelper::Instance().RefreshTitleBarThemeColor(hWnd, bDark);
 	return true;
@@ -158,26 +211,16 @@ bool CTheme::SetThemeForDialog(HWND hWnd, bool bDark)
 BOOL CTheme::AdjustThemeForChildrenProc(HWND hwnd, LPARAM lParam)
 {
 	DarkModeHelper::Instance().AllowDarkModeForWindow(hwnd, static_cast<BOOL>(lParam));
-	TCHAR szWndClassName[MAX_PATH] = { 0 };
+	wchar_t szWndClassName[MAX_PATH] = { 0 };
 	GetClassName(hwnd, szWndClassName, _countof(szWndClassName));
 	if (lParam)
 	{
 		if ((wcscmp(szWndClassName, WC_LISTVIEW) == 0) || (wcscmp(szWndClassName, WC_LISTBOX) == 0))
 		{
-			// theme "Explorer" also gets the scrollbars with dark mode, but the hover color
-			// is the blueish from the bright mode.
-			// theme "ItemsView" has the hover color the same as the windows explorer (grayish),
-			// but then the scrollbars are not drawn for dark mode.
-			// theme "DarkMode_Explorer" doesn't paint a hover color at all.
-			//
-			// Also, the group headers are not affected in dark mode and therefore the group texts are
-			// hardly visible.
-			//
-			// so use "Explorer" for now. The downside of the bluish hover color isn't that bad,
-			// except in situations where both a treeview and a listview are on the same dialog
-			// at the same time (e.g. repobrowser) - then the difference is unfortunately very
-			// noticeable...
-			SetWindowTheme(hwnd, L"Explorer", nullptr);
+			// the theme "ItemsView" draws the scrollbars not in dark mode.
+			// but with the Detours lib we can intercept opening the theme and force
+			// "explorer" for the scrollbars, which then will be drawn in dark mode
+			SetWindowTheme(hwnd, L"ItemsView", nullptr);
 			auto header = ListView_GetHeader(hwnd);
 			DarkModeHelper::Instance().AllowDarkModeForWindow(header, static_cast<BOOL>(lParam));
 			SetWindowTheme(header, L"Explorer", nullptr);
@@ -232,7 +275,6 @@ BOOL CTheme::AdjustThemeForChildrenProc(HWND hwnd, LPARAM lParam)
 
 					SetWindowTheme(info.hwndList, L"Explorer", nullptr);
 					SetWindowTheme(info.hwndItem, L"Explorer", nullptr);
-					SetWindowTheme(info.hwndCombo, L"Explorer", nullptr);
 					SetWindowTheme(info.hwndCombo, L"CFD", nullptr);
 				}
 			}
@@ -257,14 +299,16 @@ BOOL CTheme::AdjustThemeForChildrenProc(HWND hwnd, LPARAM lParam)
 			format.crTextColor = darkTextColor;
 			format.crBackColor = darkBkColor;
 			SendMessage(hwnd, EM_SETCHARFORMAT, SCF_ALL, reinterpret_cast<LPARAM>(&format));
-			SendMessage(hwnd, EM_SETBKGNDCOLOR, 0, format.crBackColor);
+			SendMessage(hwnd, EM_SETBKGNDCOLOR, 0, static_cast<LPARAM>(format.crBackColor));
 		}
 		else if (wcscmp(szWndClassName, PROGRESS_CLASS) == 0)
 		{
 			SetWindowTheme(hwnd, L"", L"");
-			SendMessage(hwnd, PBM_SETBKCOLOR, 0, darkBkColor);
-			SendMessage(hwnd, PBM_SETBARCOLOR, 0, RGB(50, 50, 180));
+			SendMessage(hwnd, PBM_SETBKCOLOR, 0, static_cast<LPARAM>(darkBkColor));
+			SendMessage(hwnd, PBM_SETBARCOLOR, 0, static_cast<LPARAM>(RGB(50, 50, 180)));
 		}
+		else if (wcscmp(szWndClassName, REBARCLASSNAME) == 0)
+			SetWindowTheme(hwnd, L"DarkModeNavBar", nullptr);
 		else if (wcscmp(szWndClassName, L"Auto-Suggest Dropdown") == 0)
 		{
 			SetWindowTheme(hwnd, L"Explorer", nullptr);
@@ -369,10 +413,12 @@ BOOL CTheme::AdjustThemeForChildrenProc(HWND hwnd, LPARAM lParam)
 			format.crTextColor = CTheme::Instance().GetThemeColor(GetSysColor(COLOR_WINDOWTEXT));
 			format.crBackColor = CTheme::Instance().GetThemeColor(GetSysColor(COLOR_WINDOW));
 			SendMessage(hwnd, EM_SETCHARFORMAT, SCF_ALL, reinterpret_cast<LPARAM>(&format));
-			SendMessage(hwnd, EM_SETBKGNDCOLOR, 0, format.crBackColor);
+			SendMessage(hwnd, EM_SETBKGNDCOLOR, 0, static_cast<LPARAM>(format.crBackColor));
 		}
 		else if (wcscmp(szWndClassName, PROGRESS_CLASS) == 0)
 			SetWindowTheme(hwnd, nullptr, nullptr);
+		else if (wcscmp(szWndClassName, REBARCLASSNAME) == 0)
+			SetWindowTheme(hwnd, L"Explorer", nullptr);
 		else if (wcscmp(szWndClassName, L"Auto-Suggest Dropdown") == 0)
 		{
 			SetWindowTheme(hwnd, L"Explorer", nullptr);
@@ -428,14 +474,12 @@ LRESULT CTheme::ComboBoxSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		{
 			auto hbrBkgnd = reinterpret_cast<HBRUSH*>(dwRefData);
 			HDC hdc = reinterpret_cast<HDC>(wParam);
-			SetBkMode(hdc, TRANSPARENT);
 			SetTextColor(hdc, darkTextColor);
 			SetBkColor(hdc, darkBkColor);
 			if (!*hbrBkgnd)
 				*hbrBkgnd = CreateSolidBrush(darkBkColor);
 			return reinterpret_cast<LRESULT>(*hbrBkgnd);
 		}
-		break;
 	case WM_DRAWITEM:
 		{
 			auto pDIS = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
@@ -481,7 +525,7 @@ LRESULT CTheme::ComboBoxSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		break;
 	case WM_DESTROY:
 	case WM_NCDESTROY:
-		RemoveWindowSubclass(hWnd, ListViewSubclassProc, SubclassID);
+		RemoveWindowSubclass(hWnd, ComboBoxSubclassProc, SubclassID);
 		break;
 	}
 	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -500,17 +544,17 @@ LRESULT CTheme::MainSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 		{
 			auto hbrBkgnd = reinterpret_cast<HBRUSH*>(dwRefData);
 			HDC hdc = reinterpret_cast<HDC>(wParam);
-			SetBkMode(hdc, TRANSPARENT);
 			SetTextColor(hdc, darkTextColor);
 			SetBkColor(hdc, darkBkColor);
 			if (!*hbrBkgnd)
 				*hbrBkgnd = CreateSolidBrush(darkBkColor);
 			return reinterpret_cast<LRESULT>(*hbrBkgnd);
 		}
-		break;
 	case WM_DESTROY:
 	case WM_NCDESTROY:
-		RemoveWindowSubclass(hWnd, ListViewSubclassProc, SubclassID);
+		RemoveWindowSubclass(hWnd, MainSubclassProc, SubclassID);
+		break;
+	default:
 		break;
 	}
 	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -568,7 +612,6 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			InvalidateRgn(hWnd, nullptr, FALSE);
 			return res;
 		}
-		break;
 	case WM_PAINT:
 		{
 			PAINTSTRUCT ps;
@@ -596,7 +639,7 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 						// into the DC and fake a drawing operation:
 						auto hFontOld = reinterpret_cast<HFONT>(SendMessage(hWnd, WM_GETFONT, 0L, 0));
 						if (hFontOld)
-							hFontOld = reinterpret_cast<HFONT>(SelectObject(hdc, hFontOld));
+							hFontOld = static_cast<HFONT>(SelectObject(hdc, hFontOld));
 
 						RECT rcDraw = rcClient;
 						DWORD dwFlags = DT_SINGLELINE;
@@ -624,7 +667,7 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 							// the buffered DC:
 							hFontOld = reinterpret_cast<HFONT>(SendMessage(hWnd, WM_GETFONT, 0L, 0));
 							if (hFontOld)
-								hFontOld = reinterpret_cast<HFONT>(SelectObject(hdcPaint, hFontOld));
+								hFontOld = static_cast<HFONT>(SelectObject(hdcPaint, hFontOld));
 
 							::SetBkColor(hdcPaint, darkBkColor);
 							::ExtTextOut(hdcPaint, 0, 0, ETO_OPAQUE, &rcClient, nullptr, 0, nullptr);
@@ -657,7 +700,7 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 							if (iLen)
 							{
 								iLen += 5; // 1 for terminating zero, 4 for DT_MODIFYSTRING
-								auto szText = reinterpret_cast<LPWSTR>(LocalAlloc(LPTR, sizeof(WCHAR) * iLen));
+								auto szText = static_cast<LPWSTR>(LocalAlloc(LPTR, sizeof(WCHAR) * iLen));
 								if (szText)
 								{
 									iLen = GetWindowTextW(hWnd, szText, iLen);
@@ -700,7 +743,7 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 						BP_PAINTPARAMS params = { sizeof(BP_PAINTPARAMS) };
 						params.dwFlags = BPPF_ERASE;
 						HPAINTBUFFER hBufferedPaint = BeginBufferedPaint(hdc, &rcClient, BPBF_TOPDOWNDIB, &params, &hdcPaint);
-						if (hdcPaint)
+						if (hdcPaint && hBufferedPaint)
 						{
 							::SetBkColor(hdcPaint, darkBkColor);
 							::ExtTextOut(hdcPaint, 0, 0, ETO_OPAQUE, &rcClient, nullptr, 0, nullptr);
@@ -721,7 +764,7 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 
 							int iState = GetStateFromBtnState(dwStyle, bHot, bFocus, dwCheckState, iPartId, FALSE);
 
-							int bmWidth = int(ceil(13.0 * CDPIAware::Instance().GetDPIX() / 96.0));
+							int bmWidth = int(ceil(13.0 * CDPIAware::Instance().GetDPIX(hWnd) / 96.0));
 
 							UINT uiHalfWidth = (RECTWIDTH(rcClient) - bmWidth) / 2;
 
@@ -780,13 +823,13 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 
 							HFONT hFontOld = reinterpret_cast<HFONT>(SendMessage(hWnd, WM_GETFONT, 0L, 0));
 							if (hFontOld)
-								hFontOld = reinterpret_cast<HFONT>(SelectObject(hdcPaint, hFontOld));
+								hFontOld = static_cast<HFONT>(SelectObject(hdcPaint, hFontOld));
 							int iLen = GetWindowTextLength(hWnd);
 
 							if (iLen)
 							{
 								iLen += 5; // 1 for terminating zero, 4 for DT_MODIFYSTRING
-								LPWSTR szText = reinterpret_cast<LPWSTR>(LocalAlloc(LPTR, sizeof(WCHAR) * iLen));
+								LPWSTR szText = static_cast<LPWSTR>(LocalAlloc(LPTR, sizeof(WCHAR) * iLen));
 								if (szText)
 								{
 									iLen = GetWindowTextW(hWnd, szText, iLen);
@@ -885,7 +928,6 @@ LRESULT CTheme::ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			EndPaint(hWnd, &ps);
 			return 0;
 		}
-		break;
 	case WM_DESTROY:
 	case WM_NCDESTROY:
 		RemoveWindowSubclass(hWnd, ButtonSubclassProc, SubclassID);
@@ -923,13 +965,13 @@ bool CTheme::IsDarkModeAllowed()
 	// because on earlier versions it would look really, really ugly!
 	m_bDarkModeIsAllowed = false;
 	auto version = CPathUtils::GetVersionFromFile(L"uiribbon.dll");
-	std::vector<std::wstring> tokens;
+	std::vector<long> tokens;
 	stringtok(tokens, version, false, L".");
 	if (tokens.size() == 4)
 	{
-		auto major = std::stol(tokens[0]);
-		auto minor = std::stol(tokens[1]);
-		auto micro = std::stol(tokens[2]);
+		auto major = tokens[0];
+		auto minor = tokens[1];
+		auto micro = tokens[2];
 
 		// the windows 10 update 1809 has the version
 		// number as 10.0.17763.1
@@ -990,70 +1032,70 @@ void CTheme::RGBToHSB(COLORREF rgb, BYTE& hue, BYTE& saturation, BYTE& brightnes
 	if (maxRGB)
 		s = (255.0 * delta) / maxRGB;
 
-	if (BYTE(s) != 0)
+	if (static_cast<BYTE>(s) != 0)
 	{
 		if (r == maxRGB)
-			h = 0 + 43 * double(g - b) / delta;
+			h = 0 + 43 * static_cast<double>(g - b) / delta;
 		else if (g == maxRGB)
-			h = 85 + 43 * double(b - r) / delta;
+			h = 85 + 43 * static_cast<double>(b - r) / delta;
 		else if (b == maxRGB)
-			h = 171 + 43 * double(r - g) / delta;
+			h = 171 + 43 * static_cast<double>(r - g) / delta;
 	}
 	else
 		h = 0.0;
 
-	hue = BYTE(h);
-	saturation = BYTE(s);
-	brightness = BYTE(l);
+	hue = static_cast<BYTE>(h);
+	saturation = static_cast<BYTE>(s);
+	brightness = static_cast<BYTE>(l);
 }
 
 void CTheme::RGBtoHSL(COLORREF color, float& h, float& s, float& l)
 {
-	const float r_percent = float(GetRValue(color)) / 255;
-	const float g_percent = float(GetGValue(color)) / 255;
-	const float b_percent = float(GetBValue(color)) / 255;
+	const float rPercent = static_cast<float>(GetRValue(color)) / 255;
+	const float gPercent = static_cast<float>(GetGValue(color)) / 255;
+	const float bPercent = static_cast<float>(GetBValue(color)) / 255;
 
-	float max_color = 0;
-	if ((r_percent >= g_percent) && (r_percent >= b_percent))
-		max_color = r_percent;
-	else if ((g_percent >= r_percent) && (g_percent >= b_percent))
-		max_color = g_percent;
-	else if ((b_percent >= r_percent) && (b_percent >= g_percent))
-		max_color = b_percent;
+	float maxColor = 0;
+	if ((rPercent >= gPercent) && (rPercent >= bPercent))
+		maxColor = rPercent;
+	else if ((gPercent >= rPercent) && (gPercent >= bPercent))
+		maxColor = gPercent;
+	else if ((bPercent >= rPercent) && (bPercent >= gPercent))
+		maxColor = bPercent;
 
-	float min_color = 0;
-	if ((r_percent <= g_percent) && (r_percent <= b_percent))
-		min_color = r_percent;
-	else if ((g_percent <= r_percent) && (g_percent <= b_percent))
-		min_color = g_percent;
-	else if ((b_percent <= r_percent) && (b_percent <= g_percent))
-		min_color = b_percent;
+	float minColor = 0;
+	if ((rPercent <= gPercent) && (rPercent <= bPercent))
+		minColor = rPercent;
+	else if ((gPercent <= rPercent) && (gPercent <= bPercent))
+		minColor = gPercent;
+	else if ((bPercent <= rPercent) && (bPercent <= gPercent))
+		minColor = bPercent;
 
 	float L = 0, S = 0, H = 0;
 
-	L = (max_color + min_color) / 2;
+	L = (maxColor + minColor) / 2;
 
-	if (max_color == min_color)
+	if (maxColor == minColor)
 	{
 		S = 0;
 		H = 0;
 	}
 	else
 	{
-		auto d = max_color - min_color;
+		auto d = maxColor - minColor;
 		if (L < .50)
-			S = d / (max_color + min_color);
+			S = d / (maxColor + minColor);
 		else
-			S = d / ((2.0f - max_color) - min_color);
+			S = d / ((2.0f - maxColor) - minColor);
 
-		if (max_color == r_percent)
-			H = (g_percent - b_percent) / d;
+		if (maxColor == rPercent)
+			H = (gPercent - bPercent) / d;
 
-		else if (max_color == g_percent)
-			H = 2.0f + (b_percent - r_percent) / d;
+		else if (maxColor == gPercent)
+			H = 2.0f + (bPercent - rPercent) / d;
 
-		else if (max_color == b_percent)
-			H = 4.0f + (r_percent - g_percent) / d;
+		else if (maxColor == bPercent)
+			H = 4.0f + (rPercent - gPercent) / d;
 	}
 	H = H * 60;
 	if (H < 0)
@@ -1079,7 +1121,7 @@ COLORREF CTheme::HSLtoRGB(float h, float s, float l)
 {
 	if (s == 0)
 	{
-		BYTE t = BYTE(l / 100 * 255);
+		BYTE t = static_cast<BYTE>(l / 100 * 255);
 		return RGB(t, t, t);
 	}
 	const float L = l / 100;
@@ -1098,10 +1140,121 @@ COLORREF CTheme::HSLtoRGB(float h, float s, float l)
 	if (temp3 < 0)
 		temp3 += 1;
 	const float pcb = HSLtoRGB_Subfunction(temp1, temp2, temp3);
-	BYTE r = BYTE(pcr / 100 * 255);
-	BYTE g = BYTE(pcg / 100 * 255);
-	BYTE b = BYTE(pcb / 100 * 255);
+	BYTE r = static_cast<BYTE>(pcr / 100 * 255);
+	BYTE g = static_cast<BYTE>(pcg / 100 * 255);
+	BYTE b = static_cast<BYTE>(pcb / 100 * 255);
 	return RGB(r, g, b);
+}
+
+std::optional<LRESULT> CTheme::HandleMenuBar(HWND hWnd, UINT msg, WPARAM /*wParam*/, LPARAM lParam)
+{
+	static CAutoThemeData sMenuTheme = OpenThemeData(hWnd, L"Menu");
+
+	if (!CTheme::Instance().IsDarkTheme())
+		return {};
+	switch (msg)
+	{
+		case WM_MENUBAR_DRAWMENU:
+		{
+			auto* pMbm = reinterpret_cast<MenubarMenu*>(lParam);
+			RECT rc = { 0 };
+
+			// get the menubar rect
+			MENUBARINFO mbi = { sizeof(mbi) };
+			GetMenuBarInfo(hWnd, OBJID_MENU, 0, &mbi);
+
+			RECT rcWindow;
+			GetWindowRect(hWnd, &rcWindow);
+
+			// the rcBar is offset by the window rect
+			rc = mbi.rcBar;
+			OffsetRect(&rc, -rcWindow.left, -rcWindow.top);
+			if (!s_backBrush)
+				s_backBrush = CreateSolidBrush(darkBkColor);
+
+			FillRect(pMbm->hdc, &rc, s_backBrush);
+
+			return FALSE;
+		}
+		case WM_MENUBAR_DRAWMENUITEM:
+		{
+			if (!s_backBrush)
+				s_backBrush = CreateSolidBrush(darkBkColor);
+			if (!s_backHotBrush)
+				s_backHotBrush = CreateSolidBrush(darkBkHotColor);
+
+			auto* pMdi = reinterpret_cast<MenubarDrawmenuitem*>(lParam);
+
+			// get the menu item string
+			wchar_t menuString[256] = { 0 };
+			MENUITEMINFO mii = { sizeof(mii), MIIM_STRING };
+			{
+				mii.dwTypeData = menuString;
+				mii.cch = (sizeof(menuString) / 2) - 1;
+
+				GetMenuItemInfo(pMdi->um.hMenu, pMdi->umi.iPosition, TRUE, &mii);
+			}
+
+			// get the item state for drawing
+
+			DWORD dwFlags = DT_CENTER | DT_SINGLELINE | DT_VCENTER;
+
+			int iTextStateID = MPI_NORMAL;
+			int iBackgroundStateID = MPI_NORMAL;
+			{
+				if ((pMdi->dis.itemState & ODS_INACTIVE) | (pMdi->dis.itemState & ODS_DEFAULT))
+				{
+					// normal display
+					iTextStateID = MPI_NORMAL;
+					iBackgroundStateID = MPI_NORMAL;
+				}
+				if (pMdi->dis.itemState & ODS_HOTLIGHT)
+				{
+					// hot tracking
+					iTextStateID = MPI_HOT;
+					iBackgroundStateID = MPI_HOT;
+				}
+				if (pMdi->dis.itemState & ODS_SELECTED)
+				{
+					// clicked
+					iTextStateID = MPI_HOT;
+					iBackgroundStateID = MPI_HOT;
+				}
+				if ((pMdi->dis.itemState & ODS_GRAYED) || (pMdi->dis.itemState & ODS_DISABLED))
+				{
+					// disabled / grey text
+					iTextStateID = MPI_DISABLED;
+					iBackgroundStateID = MPI_DISABLED;
+				}
+				if (pMdi->dis.itemState & ODS_NOACCEL)
+					dwFlags |= DT_HIDEPREFIX;
+			}
+
+			if (!sMenuTheme)
+				sMenuTheme = OpenThemeData(hWnd, L"Menu");
+
+			if (iBackgroundStateID == MPI_NORMAL || iBackgroundStateID == MPI_DISABLED)
+				FillRect(pMdi->um.hdc, &pMdi->dis.rcItem, s_backBrush);
+			else if (iBackgroundStateID == MPI_HOT || iBackgroundStateID == MPI_DISABLEDHOT)
+				FillRect(pMdi->um.hdc, &pMdi->dis.rcItem, s_backHotBrush);
+			else
+				DrawThemeBackground(sMenuTheme, pMdi->um.hdc, MENU_POPUPITEM, iBackgroundStateID, &pMdi->dis.rcItem, nullptr);
+
+			DTTOPTS dttopts = { sizeof(dttopts) };
+			if (iTextStateID == MPI_NORMAL || iTextStateID == MPI_HOT)
+			{
+				dttopts.dwFlags |= DTT_TEXTCOLOR;
+				dttopts.crText = CTheme::Instance().GetThemeColor(GetSysColor(COLOR_WINDOWTEXT));
+			}
+			DrawThemeTextEx(sMenuTheme, pMdi->um.hdc, MENU_POPUPITEM, iTextStateID, menuString, mii.cch, dwFlags, &pMdi->dis.rcItem, &dttopts);
+
+			return TRUE;
+		}
+		case WM_THEMECHANGED:
+			sMenuTheme = OpenThemeData(hWnd, L"Menu");
+			break;
+	}
+	return {};
 }
 
 int GetStateFromBtnState(LONG_PTR dwStyle, BOOL bHot, BOOL bFocus, LRESULT dwCheckState, int iPartId, BOOL bHasMouseCapture)
@@ -1238,7 +1391,7 @@ void DrawRect(LPRECT prc, HDC hdcPaint, Gdiplus::DashStyle dashStyle, Gdiplus::C
 	myPen->SetDashStyle(dashStyle);
 	auto myGraphics = std::make_unique<Gdiplus::Graphics>(hdcPaint);
 
-	myGraphics->DrawRectangle(myPen.get(), prc->left, prc->top, prc->right - 1 - prc->left, prc->bottom - 1 - prc->top);
+	myGraphics->DrawRectangle(myPen.get(), static_cast<INT>(prc->left), static_cast<INT>(prc->top), static_cast<INT>(prc->right - 1 - prc->left), static_cast<INT>(prc->bottom - 1 - prc->top));
 }
 
 void DrawFocusRect(LPRECT prcFocus, HDC hdcPaint)
@@ -1253,7 +1406,7 @@ void PaintControl(HWND hWnd, HDC hdc, RECT* prc, bool bDrawBorder)
 	if (bDrawBorder)
 		InflateRect(prc, 1, 1);
 	HPAINTBUFFER hBufferedPaint = BeginBufferedPaint(hdc, prc, BPBF_TOPDOWNDIB, nullptr, &hdcPaint);
-	if (hdcPaint)
+	if (hdcPaint && hBufferedPaint)
 	{
 		RECT rc;
 		GetWindowRect(hWnd, &rc);
@@ -1274,7 +1427,7 @@ void PaintControl(HWND hWnd, HDC hdc, RECT* prc, bool bDrawBorder)
 		if (bDrawBorder)
 		{
 			InflateRect(prc, 1, 1);
-			FrameRect(hdcPaint, prc, reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+			FrameRect(hdcPaint, prc, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
 		}
 
 		// don't make a possible border opaque, only the inner part of the control

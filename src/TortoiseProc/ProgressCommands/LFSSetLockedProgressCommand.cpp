@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2019-2020 - TortoiseGit
+// Copyright (C) 2019-2021, 2023, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,11 +16,14 @@
 // along with this program; if not, write to the Free Software Foundation,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
+
 #include "stdafx.h"
+#include "TortoiseProc.h"
 #include "LFSSetLockedProgressCommand.h"
-#include "MassiveGitTask.h"
 #include "AppUtils.h"
 #include "TempFile.h"
+
+using Git_WC_Notify_Action = CGitProgressList::WC_File_NotificationData::Git_WC_Notify_Action;
 
 bool LFSSetLockedProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int& m_itemCountTotal, int& m_itemCount)
 {
@@ -31,14 +34,12 @@ bool LFSSetLockedProgressCommand::Run(CGitProgressList* list, CString& sWindowTi
 	list->SetBackgroundImage(m_bIsLock ? IDI_LOCK_BKG : IDI_UNLOCK_BKG);
 	list->ReportCmd(CString(MAKEINTRESOURCE(m_bIsLock ? IDS_PROGRS_CMD_LFS_LOCK : IDS_PROGRS_CMD_LFS_UNLOCK)));
 
-	CGitProgressList::WC_File_NotificationData::git_wc_notify_action_t notifyAction =
-		m_bIsLock ?	CGitProgressList::WC_File_NotificationData::git_wc_notify_lfs_lock :
-					CGitProgressList::WC_File_NotificationData::git_wc_notify_lfs_unlock;
+	Git_WC_Notify_Action notifyAction = m_bIsLock ? Git_WC_Notify_Action::LFS_Lock : Git_WC_Notify_Action::LFS_Unlock;
 
 	CString cmdBase = L"git.exe lfs ";
 	cmdBase += m_bIsLock ? L"lock " : L"unlock ";
 	cmdBase += m_bIsForce ? L"--force " : L"";
-	cmdBase += L'"';
+	cmdBase += L"-- \"";
 
 	bool hasError = false;
 
@@ -51,16 +52,22 @@ bool LFSSetLockedProgressCommand::Run(CGitProgressList* list, CString& sWindowTi
 				CString tempfilename = CTempFiles::Instance().GetTempFilePath(false).GetWinPathString();
 				VERIFY(m_targetPathList.WriteToFile(tempfilename));
 				CString sCmd;
-				sCmd.Format(L"/command:lfsunlock /force /pathfile:\"%s\" /deletepathfile", static_cast<LPCTSTR>(tempfilename));
+				sCmd.Format(L"/command:lfsunlock /force /pathfile:\"%s\" /deletepathfile", static_cast<LPCWSTR>(tempfilename));
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
+		}
+		if (!status && m_bIsLock)
+		{
+			CString sCmd;
+			sCmd.Format(L"/command:pull /path:\"%s\"", static_cast<LPCWSTR>(g_Git.m_CurrentDir));
+			CAppUtils::RunTortoiseGitProc(sCmd);
 		}
 	};
 
 	for (int i = 0; i < m_targetPathList.GetCount(); ++i)
 	{
 		CString out;
-		CString cmd = cmdBase + m_targetPathList[i].GetGitPathString() + "\"";
+		CString cmd = cmdBase + m_targetPathList[i].GetGitPathString() + L"\"";
 
 		list->AddNotify(new CGitProgressList::WC_File_NotificationData(m_targetPathList[i], notifyAction));
 

@@ -54,6 +54,12 @@
     <Filter Include="Header Files\trace2">
       <UniqueIdentifier>{4727a21e-5f8a-4b52-8c00-a66505628d2b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="git\reftable">
+      <UniqueIdentifier>{1be6d144-cfda-43be-b46c-477bc2ac8928}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\reftable">
+      <UniqueIdentifier>{8bccf295-78f2-4d2c-9f62-4e6a31f020e8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\tgit\compat\msvc.c">
@@ -260,9 +266,6 @@
     <ClCompile Include="..\tgit\list-objects.c">
       <Filter>git</Filter>
     </ClCompile>
-    <ClCompile Include="..\tgit\ll-merge.c">
-      <Filter>git</Filter>
-    </ClCompile>
     <ClCompile Include="..\tgit\lockfile.c">
       <Filter>git</Filter>
     </ClCompile>
@@ -276,9 +279,6 @@
       <Filter>git</Filter>
     </ClCompile>
     <ClCompile Include="..\tgit\merge-recursive.c">
-      <Filter>git</Filter>
-    </ClCompile>
-    <ClCompile Include="..\tgit\mergesort.c">
       <Filter>git</Filter>
     </ClCompile>
     <ClCompile Include="..\tgit\name-hash.c">
@@ -371,9 +371,6 @@
     <ClCompile Include="..\tgit\setup.c">
       <Filter>git</Filter>
     </ClCompile>
-    <ClCompile Include="..\tgit\sha1-lookup.c">
-      <Filter>git</Filter>
-    </ClCompile>
     <ClCompile Include="..\tgit\shallow.c">
       <Filter>git</Filter>
     </ClCompile>
@@ -459,9 +456,6 @@
       <Filter>git</Filter>
     </ClCompile>
     <ClCompile Include="..\tgit\xdiff-interface.c">
-      <Filter>git</Filter>
-    </ClCompile>
-    <ClCompile Include="..\tgit\zlib.c">
       <Filter>git</Filter>
     </ClCompile>
     <ClCompile Include="..\tgit\xdiff\xdiffi.c">
@@ -623,12 +617,6 @@
     <ClCompile Include="..\tgit\replace-object.c">
       <Filter>git</Filter>
     </ClCompile>
-    <ClCompile Include="..\tgit\sha1-file.c">
-      <Filter>git</Filter>
-    </ClCompile>
-    <ClCompile Include="..\tgit\sha1-name.c">
-      <Filter>git</Filter>
-    </ClCompile>
     <ClCompile Include="..\tgit\fsmonitor.c">
       <Filter>git</Filter>
     </ClCompile>
@@ -785,6 +773,138 @@
     <ClCompile Include="..\tgit\merge-ort.c">
       <Filter>git</Filter>
     </ClCompile>
+    <ClCompile Include="..\tgit\hash-lookup.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\object-file.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\object-name.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\sparse-index.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\chunk-format.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\diff-merges.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\parallel-checkout.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\diffcore-rotate.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\fsmonitor-ipc.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\cbtree.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\hook.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\oidtree.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\fsmonitor-settings.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\compat\win32\flush.c">
+      <Filter>compat\win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\compat\terminal.c">
+      <Filter>compat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\credential.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\negotiator\noop.c">
+      <Filter>git\negotiator</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\prompt.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\compat\nonblock.c">
+      <Filter>compat\win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\bundle-uri.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\trace2\tr2_ctr.c">
+      <Filter>git\trace2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\trace2\tr2_tmr.c">
+      <Filter>git\trace2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\statinfo.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\git-zlib.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\compat\win32\wsl.c">
+      <Filter>compat\win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\merge-ll.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\hex-ll.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\parse.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\loose.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\object-file-convert.c">
+      <Filter>git</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\refs\reftable-backend.c">
+      <Filter>git\refs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\basics.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\block.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\blocksource.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\error.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\iter.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\merged.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\pq.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\reader.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\record.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\stack.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\tree.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\writer.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tgit\reftable\system.c">
+      <Filter>git\reftable</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tgit\compat\msvc.h">
@@ -812,9 +932,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\cache-tree.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tgit\cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\color.h">
@@ -875,9 +992,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\list-objects.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tgit\ll-merge.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\log-tree.h">
@@ -947,9 +1061,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\sequencer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tgit\sha1-lookup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\shortlog.h">
@@ -1314,6 +1425,225 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\tgit\merge-ort.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\hash-lookup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\sparse-index.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\chunk-format.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\diff-merges.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\parallel-checkout.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\fsmonitor-ipc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\simple-ipc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\cbtree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\hook.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\oidtree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\fsmonitor-settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\compat\terminal.h">
+      <Filter>compat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\date.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\credential.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\negotiator\noop.h">
+      <Filter>Header Files\negotiator</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\prompt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\compat\nonblock.h">
+      <Filter>compat\win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\abspath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\base85.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\copy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\editor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\fsmonitor-ll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\git-zlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\hex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\ident.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\match-trees.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\merge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\name-hash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\object-file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\object-name.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\object-store.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\object-store-ll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\pager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\preload-index.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\read-cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\read-cache-ll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\sane-ctype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\server-info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\setup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\statinfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\symlinks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\versioncmp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\wrapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\write-or-die.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\ws.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\compat\win32\wsl.h">
+      <Filter>compat\win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\merge-ll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\hex-ll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\parse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\loose.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\object-file-convert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\basics.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\block.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\blocksource.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\constants.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\iter.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\merged.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\pq.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reader.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\record.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-blocksource.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-error.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-iterator.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-merged.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-reader.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-record.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-stack.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\reftable-writer.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\stack.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\system.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\tree.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\reftable\writer.h">
+      <Filter>Header Files\reftable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tgit\repo-settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2015-2016, 2018-2019, 2025 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -19,7 +19,6 @@
 
 #include "stdafx.h"
 #include "GitHash.h"
-#include "GitStatus.h"
 
 TEST(CGitHash, Initial)
 {
@@ -30,7 +29,7 @@ TEST(CGitHash, Initial)
 	EXPECT_TRUE(empty == empty);
 	EXPECT_FALSE(empty != empty);
 
-	CGitHash hash = CGitHash::FromHexStr("8d1861316061748cfee7e075dc138287978102ab");
+	CGitHash hash = CGitHash::FromHexStr(std::string_view("8d1861316061748cfee7e075dc138287978102ab"));
 	EXPECT_FALSE(hash.IsEmpty());
 	EXPECT_STREQ(L"8d1861316061748cfee7e075dc138287978102ab", hash.ToString());
 	EXPECT_TRUE(hash == hash);
@@ -50,6 +49,9 @@ TEST(CGitHash, Initial)
 	EXPECT_TRUE(hash2 == empty);
 	EXPECT_FALSE(hash2 != empty);
 	EXPECT_TRUE(hash2.IsEmpty());
+	hash2 = CGitHash::FromHexStr(L"8D1861316061748cfEE7e075dc138287978102ab");
+	EXPECT_TRUE(hash2 == hash);
+	EXPECT_STREQ(L"8d1861316061748cfee7e075dc138287978102ab", hash2.ToString());
 
 	unsigned char chararray[20] = { 0x8D, 0x18, 0x61, 0x31, 0x60, 0x61, 0x74, 0x8C, 0xFE, 0xE7, 0xE0, 0x75, 0xDC, 0x13, 0x82, 0x87, 0x97, 0x81, 0x02, 0xAB };
 	CGitHash hash3 = CGitHash::FromRaw(chararray);
@@ -72,11 +74,47 @@ TEST(CGitHash, Initial)
 	hash6 = CGitHash::FromRaw(chararray);
 	EXPECT_TRUE(hash6 == hash);
 
-	CGitHash hash7 = CGitHash::FromHexStrTry(L"invalid");
+	CGitHash hash7 = CGitHash::FromHexStr(L"invalid");
 	EXPECT_TRUE(hash7.IsEmpty());
 
-	CGitHash hash8 = CGitHash::FromHexStrTry(L"01234567");
+	CGitHash hash8 = CGitHash::FromHexStr(L"01234567");
 	EXPECT_TRUE(hash8.IsEmpty());
+
+	CGitHash hash9 = CGitHash::FromHexStr(L"Xd1861316061748cfee7e075dc138287978102ab");
+	EXPECT_TRUE(hash9.IsEmpty());
+	CGitHash hash10 = CGitHash::FromHexStr(L"ad1861316061748cfee7e075dc138287978102aX");
+	EXPECT_TRUE(hash10.IsEmpty());
+	CGitHash hash11 = CGitHash::FromHexStr(L"ad1861316061748cfee7e075dc138287978102abX");
+	EXPECT_TRUE(hash11.IsEmpty());
+	CGitHash hash12 = CGitHash::FromHexStr(CStringA("8d1861316061748cfee7e075dc138287978102ab"));
+	EXPECT_TRUE(hash12 == hash);
+	CGitHash hash13 = CGitHash::FromHexStr(std::string_view("8d1861316061748cfee7e075dc138287978102abXXX"));
+	EXPECT_FALSE(hash13 == hash);
+
+	bool ok = true;
+	CGitHash hash14 = CGitHash::FromHexStr(L"", &ok);
+	EXPECT_FALSE(ok);
+	EXPECT_TRUE(hash14.IsEmpty());
+
+	ok = true;
+	CGitHash hash15 = CGitHash::FromHexStr(L"HEAD", &ok);
+	EXPECT_FALSE(ok);
+	EXPECT_TRUE(hash15.IsEmpty());
+
+	ok = false;
+	CGitHash hash16 = CGitHash::FromHexStr(L"8d1861316061748cfee7e075dc138287978102ab", &ok);
+	EXPECT_TRUE(ok);
+	EXPECT_FALSE(hash16.IsEmpty());
+
+	ok = false;
+	CGitHash hash17 = CGitHash::FromHexStr(L"8d1861316061748cfEE7e075dc138287978102ab", &ok);
+	EXPECT_TRUE(ok);
+	EXPECT_FALSE(hash17.IsEmpty());
+
+	ok = false;
+	CGitHash hash18 = CGitHash::FromHexStr(GIT_REV_ZERO, &ok);
+	EXPECT_TRUE(ok);
+	EXPECT_TRUE(hash18.IsEmpty());
 }
 
 TEST(CGitHash, ToString)
@@ -93,19 +131,6 @@ TEST(CGitHash, ToString)
 	EXPECT_STREQ(L"0123456789", hash.ToString(10));
 	EXPECT_STREQ(L"0123456789abcdef0123", hash.ToString(20));
 	EXPECT_STREQ(L"0123456789abcdef0123456789abcdef01234567", hash.ToString(40));
-}
-
-TEST(CGitHash, IsSHA1Valid)
-{
-	EXPECT_TRUE(CGitHash::IsValidSHA1(GIT_REV_ZERO));
-	EXPECT_TRUE(CGitHash::IsValidSHA1(L"8d1861316061748cfee7e075dc138287978102ab"));
-	EXPECT_TRUE(CGitHash::IsValidSHA1(L"8d1861316061748cfee7E075dc138287978102ab"));
-	EXPECT_TRUE(CGitHash::IsValidSHA1(L"8D1861316061748CFEE7E075DC138287978102AB"));
-	EXPECT_FALSE(CGitHash::IsValidSHA1(L""));
-	EXPECT_FALSE(CGitHash::IsValidSHA1(L"8d18613"));
-	EXPECT_FALSE(CGitHash::IsValidSHA1(L"master"));
-	EXPECT_FALSE(CGitHash::IsValidSHA1(L"refs/heads/master"));
-	EXPECT_FALSE(CGitHash::IsValidSHA1(L"8d1861316061748cfee7e075dc138287978102az"));
 }
 
 TEST(CGitHash, MatchesPrefix)
